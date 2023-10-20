@@ -14,14 +14,12 @@ class Client(requests.Session):
         self.token = token or config.repairshopr.token
         self.base_url = base_url or config.repairshopr.base_url
 
-        self.headers.update({
-            "accept": "application/json",
-            "Authorization": self.token
-        })
+        self.headers.update({"accept": "application/json", "Authorization": self.token})
 
-    def fetch_products(self):
+    def fetch_products(self) -> dict:
         response = self.get(f"{self.base_url}/products")
         return response.json()
+
 
 if __name__ == "__main__":
     client = Client()
