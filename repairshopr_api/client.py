@@ -20,7 +20,7 @@ class Client(requests.Session):
         })
 
     def fetch_products(self):
-        response = response = self.get(f"{self.base_url}/products")
+        response = self.get(f"{self.base_url}/products")
         return response.json()
 
 if __name__ == "__main__":
