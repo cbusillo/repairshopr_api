@@ -10,6 +10,7 @@ python = "^3.11"
 toml = "^0.10.2"
 requests = "^2.31.0"
 pytz = "^2023.3.post1"
+black = "^23.10.0"
 
 
 [build-system]
