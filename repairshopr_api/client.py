@@ -11,6 +11,8 @@ logger = logging.getLogger(__name__)
 
 
 class Client(requests.Session):
+    MAX_RETRIES = 5
+
     def __init__(self, token: str = "", base_url: str = ""):
         super().__init__()
 
@@ -32,6 +34,19 @@ class Client(requests.Session):
         self.base_url = base_url or config.repairshopr.base_url
         self.headers.update({"accept": "application/json", "Authorization": self.token})
         self.hooks["response"].append(rate_hook)
+
+    def request(self, method: str, url: str, *args, **kwargs) -> requests.Response:
+        response_code = 0
+        response = None
+        retries = self.MAX_RETRIES
+        while response_code != 200 and retries > 0:
+            response = super().request(method, url, *args, **kwargs)
+            response_code = response.status_code
+            retries -= 1
+            if retries == 0:
+                logger.error("Max retries reached")
+                raise TimeoutError
+        return response
 
     def fetch_products(self) -> dict:
         response = self.get(f"{self.base_url}/products")
