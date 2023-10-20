@@ -1,9 +1,9 @@
 import logging
-import json
 import time
+from http import HTTPStatus
 
-import pytz
 import requests
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
 from config import config
 
@@ -16,36 +16,32 @@ class Client(requests.Session):
     def __init__(self, token: str = "", base_url: str = ""):
         super().__init__()
 
-        def rate_hook(response_hook, *_args, **_kwargs):
-            if response_hook.status_code == 200:
-                return
-
-            if response_hook.status_code == 429:
-                retry_seconds = 1
-                logger.info("rate limit reached, sleeping for %i", retry_seconds)
-                time.sleep(retry_seconds)
-
-            if response_hook.status_code == 401:
-                logger.error("received authorization error: %s", response_hook.text)
-
-            logger.error("received bad status code: %s", response_hook.text)
-
         self.token = token or config.repairshopr.token
-        self.base_url = base_url or config.repairshopr.base_url
+        self.base_url = (base_url or config.repairshopr.base_url).rstrip("/")
         self.headers.update({"accept": "application/json", "Authorization": self.token})
-        self.hooks["response"].append(rate_hook)
 
+    @retry(
+        stop=stop_after_attempt(MAX_RETRIES),
+        wait=wait_exponential(min=1, max=10),
+        retry=retry_if_exception_type(requests.RequestException),
+    )
     def request(self, method: str, url: str, *args, **kwargs) -> requests.Response:
-        response_code = 0
-        response = None
-        retries = self.MAX_RETRIES
-        while response_code != 200 and retries > 0:
-            response = super().request(method, url, *args, **kwargs)
-            response_code = response.status_code
-            retries -= 1
-            if retries == 0:
-                logger.error("Max retries reached")
-                raise TimeoutError
+        response = super().request(method, url, *args, **kwargs)
+
+        if response.status_code == HTTPStatus.TOO_MANY_REQUESTS.value:
+            logger.info("Rate limit reached. Waiting and retrying...")
+            raise requests.RequestException("Rate limit reached")
+
+        elif response.status_code == HTTPStatus.UNAUTHORIZED.value:
+            logger.error("Received authorization error: %s", response.text)
+            raise PermissionError("Authorization failed with the provided token.")
+
+        elif response.status_code != HTTPStatus.OK.value:
+            logger.warning(f"Request failed with status code {response.status_code}. Retrying...")
+            raise requests.RequestException(
+                f"Received unexpected status code: {response.status_code}. Response content: {response.text}"
+            )
+
         return response
 
     def fetch_products(self) -> dict:
