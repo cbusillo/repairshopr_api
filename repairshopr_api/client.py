@@ -59,6 +59,10 @@ class Client(requests.Session):
             logger.error("Received authorization error: %s", response.text)
             raise PermissionError("Authorization failed with the provided token.")
 
+        elif response.status_code == HTTPStatus.NOT_FOUND.value:
+            logger.warning("Received 404 error: %s", response.text)
+            raise ValueError("Received 404 error.")
+
         elif response.status_code != HTTPStatus.OK.value:
             logger.warning("Request failed with status code %s. Retrying...", response.status_code)
             raise requests.RequestException(
@@ -119,10 +123,12 @@ class Client(requests.Session):
 if __name__ == "__main__":
     client = Client()
 
-    print(client.fetch_from_api_by_id(models.User, 10416).full_name)
-    test_objects = client.get_model_data(models.Invoice, updated_at=datetime(2023, 10, 19))
+    print(client.fetch_from_api_by_id(models., 5205024))
+    test_objects = client.get_model_data(models.Customer, updated_at=datetime(2023, 10, 11))
     count = 0
     for test_object in test_objects:
-        print(test_object.updated_at)
+        print(test_object.business_and_full_name)
+        for contact in test_object.contacts:
+            print(f"--{contact.name}  {contact.updated_at}")
 
         count += 1

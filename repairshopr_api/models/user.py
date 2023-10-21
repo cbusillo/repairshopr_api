@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Self
 from dataclasses import dataclass
 from repairshopr_api.base.model import BaseModel
@@ -9,8 +10,8 @@ class User(BaseModel):
     id: int
     email: str = None
     full_name: str = None
-    created_at: str = None
-    updated_at: str = None
+    created_at: datetime = None
+    updated_at: datetime = None
     group: str = None
     admin: bool = None
     color: str = None

@@ -1,4 +1,6 @@
 from dataclasses import dataclass, field
+from datetime import datetime
+
 from repairshopr_api.base.model import BaseModel
 from repairshopr_api.models import User
 
@@ -9,10 +11,10 @@ class Invoice(BaseModel):
     customer_id: int = None
     customer_business_then_name: str = None
     number: int = None
-    created_at: str = None
-    updated_at: str = None
-    date: str = None
-    due_date: str = None
+    created_at: datetime = None
+    updated_at: datetime = None
+    date: datetime = None
+    due_date: datetime = None
     subtotal: float = None
     total: float = None
     tax: float = None

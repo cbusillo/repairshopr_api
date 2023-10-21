@@ -1,4 +1,6 @@
 from dataclasses import dataclass, field
+from datetime import datetime
+
 from repairshopr_api.base.model import BaseModel
 
 
@@ -19,8 +21,8 @@ class Contact(BaseModel):
     customer_id: int = None
     account_id: int = None
     notes: str = None
-    created_at: str = None
-    updated_at: str = None
+    created_at: datetime = None
+    updated_at: datetime = None
     vendor_id: int = None
     properties: dict[str, str] = field(default_factory=dict)
     opt_out: bool = None
@@ -47,8 +49,8 @@ class Customer(BaseModel):
     email: str = None
     phone: str = None
     mobile: str = None
-    created_at: str = None
-    updated_at: str = None
+    created_at: datetime = None
+    updated_at: datetime = None
     pdf_url: str = None
     address: str = None
     address_2: str = None
