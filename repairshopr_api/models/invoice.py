@@ -39,7 +39,7 @@ class Invoice(BaseModel):
 
 # noinspection DuplicatedCode
 @dataclass
-class InvoiceLine(BaseModel):
+class LineItem(BaseModel):
     id: int
     created_at: datetime = None
     updated_at: datetime = None

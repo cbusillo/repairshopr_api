@@ -1,4 +1,5 @@
 import logging
+import re
 from datetime import datetime
 from http import HTTPStatus
 from typing import Any, Generator, Protocol, TypeVar
@@ -14,6 +15,10 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
 ModelType = TypeVar("ModelType", bound="ModelProtocol")
+
+
+def snake_case(input_string: str) -> str:
+    return re.sub(r"(?<!^)([A-Z])", r"_\1", input_string).lower()
 
 
 class ModelProtocol(Protocol):
@@ -80,20 +85,22 @@ class Client(requests.Session):
 
         if cache_key in self._cache:
             return self._cache[cache_key]
+        try:
+            response = self.get(f"{self.base_url}/{model.__name__.lower()}s/{instance_id}")
+            response_data = response.json()[model.__name__.lower()]
+            result = None
+            if isinstance(response_data, dict):
+                result = model.from_dict(response_data)
+            elif isinstance(response_data, list):
+                result = model.from_list(response_data)
 
-        response = self.get(f"{self.base_url}/{model.__name__.lower()}s/{instance_id}")
-        response_data = response.json()[model.__name__.lower()]
-        result = None
-        if isinstance(response_data, dict):
-            result = model.from_dict(response_data)
-        elif isinstance(response_data, list):
-            result = model.from_list(response_data)
-
-        if not result:
+            if not result:
+                logger.warning(f"Could not find {model.__name__} with id {instance_id}")
+                raise ValueError(f"Could not find {model.__name__} with id {instance_id}")
+            self._cache[cache_key] = result
+            return result
+        except ValueError:
             logger.warning(f"Could not find {model.__name__} with id {instance_id}")
-            raise ValueError(f"Could not find {model.__name__} with id {instance_id}")
-        self._cache[cache_key] = result
-        return result
 
     def get_model_data(
         self, model: type[ModelType], updated_at: datetime = None, params: dict = None
@@ -106,8 +113,8 @@ class Client(requests.Session):
         page = 1
         while True:
             params["page"] = page
-
-            response_data, meta_data = self.fetch_from_api(model.__name__.lower(), params=params)
+            model_name = snake_case(model.__name__)
+            response_data, meta_data = self.fetch_from_api(model_name, params=params)
             for data in response_data:
                 if isinstance(data, dict):
                     yield model.from_dict(data)
@@ -124,14 +131,12 @@ if __name__ == "__main__":
     client = Client()
 
     #  print(client.fetch_from_api_by_id(models.Estimate, 4796157))
-    test_objects = client.get_model_data(models.Payment, updated_at=datetime(2023, 10, 19))
+    test_objects = client.get_model_data(models.LineItem, updated_at=datetime(2023, 10, 19))
     count = 0
     for test_object in test_objects:
-        if not test_object.invoice_ids:
+        if not test_object.product or not test_object.invoice:
             continue
-
-        for invoice in test_object.invoices:
-            print(f"{invoice.id}  {invoice.updated_at}")
+        print(f"{test_object.product.description}  {test_object.invoice.customer_business_then_name}")
         #  print(test_object.invoices)
         # for contact in test_object.contacts:
         #     print(f"--{contact.name}  {contact.updated_at}")
