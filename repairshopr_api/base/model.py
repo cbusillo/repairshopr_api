@@ -16,11 +16,11 @@ class BaseModel(ABC):
     id: int
     strict: bool = field(default=True, init=False, repr=False)
 
-    _client: "Client" = field(default=None, init=False, repr=False)  # Add a reference to the Client instance
+    client: "Client" = field(default=None, init=False, repr=False)  # Add a reference to the Client instance
 
     @classmethod
     def set_client(cls, client: "Client"):
-        cls._client = client
+        cls.client = client
 
     @classmethod
     def from_dict(cls: type[ModelType], data: dict[str, Any]) -> ModelType:
