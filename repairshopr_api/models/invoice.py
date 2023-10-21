@@ -6,6 +6,31 @@ from repairshopr_api.base.model import BaseModel
 from repairshopr_api.models import Product, User
 
 
+# noinspection DuplicatedCode
+@dataclass
+class LineItem(BaseModel):
+    id: int
+    created_at: datetime = None
+    updated_at: datetime = None
+    invoice_id: int = None
+    item: str = None
+    name: str = None
+    cost: float = None
+    price: float = None
+    quantity: float = None
+    product_id: int = None
+    taxable: bool = None
+    discount_percent: float = None
+    position: int = None
+    invoice_bundle_id: int = None
+    discount_dollars: float = None
+    product_category: str = None
+
+    @related_field(Product)
+    def product(self) -> Product:
+        pass
+
+
 @dataclass
 class Invoice(BaseModel):
     strict: bool = False
@@ -36,31 +61,6 @@ class Invoice(BaseModel):
     def user(self) -> User:
         pass
 
-
-# noinspection DuplicatedCode
-@dataclass
-class LineItem(BaseModel):
-    id: int
-    created_at: datetime = None
-    updated_at: datetime = None
-    invoice_id: int = None
-    item: str = None
-    name: str = None
-    cost: float = None
-    price: float = None
-    quantity: float = None
-    product_id: int = None
-    taxable: bool = None
-    discount_percent: float = None
-    position: int = None
-    invoice_bundle_id: int = None
-    discount_dollars: float = None
-    product_category: str = None
-
-    @related_field(Product)
-    def product(self) -> Product:
-        pass
-
-    @related_field(Invoice)
-    def invoice(self) -> Invoice:
+    @related_field(LineItem)
+    def line_items(self) -> list["LineItem"]:
         pass

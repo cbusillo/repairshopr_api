@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from datetime import datetime
 
-from repairshopr_api.base.fields import related_list_field
+from repairshopr_api.base.fields import related_field
 from repairshopr_api.base.model import BaseModel
 from repairshopr_api.models import Customer, Invoice
 
@@ -21,6 +21,6 @@ class Payment(BaseModel):
     signature_date: datetime = None
     customer: Customer = None
 
-    @related_list_field(Invoice)
+    @related_field(Invoice)
     def invoices(self) -> list[Invoice]:
         pass

@@ -1,31 +1,33 @@
 from typing import Callable
 
 from repairshopr_api.base.model import BaseModel
+from repairshopr_api.converters.strings import snake_case
 
 
 def related_field(model_cls: type[BaseModel]) -> Callable[[Callable[..., BaseModel]], property]:
     def decorator(_f: Callable[..., BaseModel]):
-        def wrapper(instance: BaseModel, key_name: str = None) -> BaseModel:
-            if not key_name:
-                key_name = f"{model_cls.__name__.lower()}_id"
-            model_id = getattr(instance, key_name)
-            return instance.client.fetch_from_api_by_id(model_cls, model_id) if model_id else None
+        def wrapper(instance: BaseModel, id_key: str = None) -> BaseModel | list[BaseModel]:
+            if not id_key:
+                id_key = f"{model_cls.__name__.lower()}_id"
 
-        return property(wrapper)
+            if hasattr(instance, id_key):
+                model_id = getattr(instance, id_key)
+                return instance.client.fetch_from_api_by_id(model_cls, model_id) if model_id else None
+            else:
+                model_ids = getattr(instance, f"{id_key}s", [])
 
-    return decorator
+                if not model_ids:
+                    query_params = {f"{type(instance).__name__.lower()}_id": getattr(instance, "id", None)}
+                    results, _ = instance.client.fetch_from_api(f"{snake_case(model_cls.__name__)}", params=query_params)
+                    if not results:
+                        return []
+                    model_ids.extend([result.get("id") for result in results])
+                    for result in results:
+                        cache_key = f"{model_cls.__name__.lower()}_{result.get('id')}"
+                        instance.client._cache[cache_key] = model_cls.from_dict(result)
 
-
-def related_list_field(model_cls: type[BaseModel]) -> Callable[[Callable[..., BaseModel]], property]:
-    def decorator(_f: Callable[..., BaseModel]):
-        def wrapper(instance: BaseModel, key_name: str = None) -> list[BaseModel]:
-            if not key_name:
-                key_name = f"{model_cls.__name__.lower()}_ids"
-            model_ids = getattr(instance, key_name)
-            if not model_ids:
-                return []
-            valid_model_ids = [model_id for model_id in model_ids if model_id]
-            return [instance.client.fetch_from_api_by_id(model_cls, model_id) for model_id in valid_model_ids]
+                valid_model_ids = [model_id for model_id in model_ids if model_id]
+                return [instance.client.fetch_from_api_by_id(model_cls, model_id) for model_id in valid_model_ids]
 
         return property(wrapper)
 

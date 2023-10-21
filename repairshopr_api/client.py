@@ -12,15 +12,12 @@ from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_excep
 from repairshopr_api.base.model import BaseModel
 from repairshopr_api.config import config
 from repairshopr_api import models
+from repairshopr_api.converters.strings import snake_case
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
 ModelType = TypeVar("ModelType", bound="ModelProtocol")
-
-
-def snake_case(input_string: str) -> str:
-    return re.sub(r"(?<!^)([A-Z])", r"_\1", input_string).lower()
 
 
 class ModelProtocol(Protocol):
