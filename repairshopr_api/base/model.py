@@ -40,7 +40,7 @@ class BaseModel(ABC):
 
                 elif isinstance(value, dict):
                     field_type = current_field.type
-                    if issubclass(field_type, BaseModel):
+                    if isinstance(field_type, type) and issubclass(field_type, BaseModel):
                         value = field_type.from_dict({**value, "id": 0})
 
                 setattr(instance, current_field.name, value)
