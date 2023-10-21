@@ -1,4 +1,6 @@
 from dataclasses import dataclass, field
+from datetime import datetime
+
 from repairshopr_api.base.model import BaseModel
 
 
@@ -33,13 +35,13 @@ class Ticket(BaseModel):
     id: int
     number: int = None
     subject: str = None
-    created_at: str = None
+    created_at: datetime = None
     customer_id: int = None
     customer_business_then_name: str = None
-    due_date: str = None
-    resolved_at: str = None
-    start_at: str = None
-    end_at: str = None
+    due_date: datetime = None
+    resolved_at: datetime = None
+    start_at: datetime = None
+    end_at: datetime = None
     location_id: int = None
     problem_type: str = None
     status: str = None

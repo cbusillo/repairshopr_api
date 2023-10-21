@@ -1,6 +1,7 @@
 import re
 from abc import ABC
 from dataclasses import dataclass, field, fields
+from datetime import datetime
 from typing import Any, TypeVar, TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -32,6 +33,9 @@ class BaseModel(ABC):
                 continue
             if current_field.name in cleaned_data:
                 value = cleaned_data[current_field.name]
+
+                if isinstance(value, str) and isinstance(current_field.type, type) and issubclass(current_field.type, datetime):
+                    value = datetime.fromisoformat(value)
 
                 if isinstance(value, list) and all(isinstance(item, dict) for item in value):
                     field_type = current_field.type.__args__[0] if hasattr(current_field.type, "__args__") else None
