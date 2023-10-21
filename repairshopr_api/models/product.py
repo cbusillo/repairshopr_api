@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+
 from repairshopr_api.base.model import BaseModel
 
 
