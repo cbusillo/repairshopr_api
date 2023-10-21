@@ -91,12 +91,17 @@ class Client(requests.Session):
         self._cache[cache_key] = result
         return result
 
-    def get_model_data(self, model: type[ModelType], updated_at: datetime = None) -> Generator[ModelType, None, None]:
+    def get_model_data(
+        self, model: type[ModelType], updated_at: datetime = None, params: dict = None
+    ) -> Generator[ModelType, None, None]:
+        if not params:
+            params = {}
+
+        if updated_at:
+            params["since_updated_at"] = updated_at.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
         page = 1
         while True:
-            params = {"page": page}
-            if updated_at:
-                params["since_updated_at"] = updated_at.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+            params["page"] = page
 
             response_data, meta_data = self.fetch_from_api(model.__name__.lower(), params=params)
             for data in response_data:
