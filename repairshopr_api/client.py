@@ -1,5 +1,4 @@
 import logging
-import re
 from collections import deque
 from datetime import datetime, time, timedelta
 import time
@@ -94,22 +93,29 @@ class Client(requests.Session):
         return response
 
     def fetch_from_api(self, model_name: str, params: dict[str, str] = None) -> tuple[list[dict[str, Any]], dict[str, Any] | None]:
-        response = self.get(f"{self.base_url}/{model_name}s", params=params)
-        return response.json()[f"{model_name}s"], response.json().get("meta")
+        cache_key = f"{model_name}_list"
+        if params:
+            sorted_params = tuple(sorted(params.items()))
+            cache_key += f"_{hash(sorted_params)}"
 
-    def fetch_from_api_by_id(self, model: type[ModelType], instance_id: int) -> ModelType:
+        if cache_key in self._cache:
+            return self._cache[cache_key]
+
+        response = self.get(f"{self.base_url}/{model_name}s", params=params)
+        result = response.json()[f"{model_name}s"], response.json().get("meta")
+        self._cache[cache_key] = result
+
+        return result
+
+    def fetch_from_api_by_id(self, model: type[ModelType], instance_id: int) -> dict[str, Any]:
         cache_key = f"{model.__name__.lower()}_{instance_id}"
 
         if cache_key in self._cache:
             return self._cache[cache_key]
         try:
-            response = self.get(f"{self.base_url}/{model.__name__.lower()}s/{instance_id}")
+            response = self.get(f"{self.base_url}/{snake_case(model.__name__)}s/{instance_id}")
             response_data = response.json()[model.__name__.lower()]
-            result = None
-            if isinstance(response_data, dict):
-                result = model.from_dict(response_data)
-            elif isinstance(response_data, list):
-                result = model.from_list(response_data)
+            result = response_data
 
             if not result:
                 logger.warning(f"Could not find {model.__name__} with id {instance_id}")
@@ -119,7 +125,7 @@ class Client(requests.Session):
         except ValueError:
             logger.warning(f"Could not find {model.__name__} with id {instance_id}")
 
-    def get_model_data(
+    def get_model(
         self, model: type[ModelType], updated_at: datetime = None, params: dict = None
     ) -> Generator[ModelType, None, None]:
         if not params:
@@ -138,24 +144,37 @@ class Client(requests.Session):
                 elif isinstance(data, list):
                     yield model.from_list(data)
 
-            if page >= meta_data.get("total_pages", 0):
+            if not meta_data or page >= meta_data.get("total_pages", 0):
                 break
 
             page += 1
 
+    def get_model_by_id(self, model: type[ModelType], instance_id: int) -> ModelType:
+        return model.from_dict(self.fetch_from_api_by_id(model, instance_id))
+
 
 if __name__ == "__main__":
+    import psutil
+
     client = Client()
+    process = psutil.Process()
 
     #  print(client.fetch_from_api_by_id(models.Estimate, 4796157))
-    test_objects = client.get_model_data(models.LineItem, updated_at=datetime(2023, 10, 19))
+    test_objects = client.get_model(models.Estimate, updated_at=datetime(2023, 10, 19))
     count = 0
     for test_object in test_objects:
-        if not test_object.product or not test_object.invoice:
+        if not test_object.customer:
             continue
-        print(f"{test_object.product.description}  {test_object.invoice.customer_business_then_name}")
-        #  print(test_object.invoices)
-        # for contact in test_object.contacts:
-        #     print(f"--{contact.name}  {contact.updated_at}")
+        print(f"{test_object.customer_business_then_name}  {test_object.customer.business_then_name}")
+        print(test_object.user)
+        for contact in test_object.customer.contacts:
+            print(f"--{contact.name}  {contact.updated_at}")
 
+        print()
+
+        # for invoice in test_object.invoices:
+        #     for line in invoice.line_items:
+        #         print(f"----{line.name}  {line.product.description}")
+        memory_usage = process.memory_info().rss / (1024**2)  # Convert bytes to megabytes
+        print(f"==========Memory usage: {memory_usage:.2f} MB")
         count += 1
