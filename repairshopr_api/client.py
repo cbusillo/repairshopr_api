@@ -1,7 +1,7 @@
 import logging
 from datetime import datetime
 from http import HTTPStatus
-from typing import Generator, Protocol, TypeVar
+from typing import Any, Generator, Protocol, TypeVar
 
 import requests
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
@@ -67,7 +67,7 @@ class Client(requests.Session):
 
         return response
 
-    def fetch_from_api(self, model_name: str, params: dict = None) -> tuple[list[dict], dict | None]:
+    def fetch_from_api(self, model_name: str, params: dict[str, str] = None) -> tuple[list[dict[str, Any]], dict[str, Any] | None]:
         response = self.get(f"{self.base_url}/{model_name}s", params=params)
         return response.json()[f"{model_name}s"], response.json().get("meta")
 
@@ -96,7 +96,7 @@ class Client(requests.Session):
         while True:
             params = {"page": page}
             if updated_at:
-                params["updated_at"] = updated_at.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+                params["since_updated_at"] = updated_at.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
 
             response_data, meta_data = self.fetch_from_api(model.__name__.lower(), params=params)
             for data in response_data:
@@ -115,11 +115,9 @@ if __name__ == "__main__":
     client = Client()
 
     print(client.fetch_from_api_by_id(models.User, 10416).full_name)
-    test_objects = client.get_model_data(models.Invoice)
+    test_objects = client.get_model_data(models.Invoice, updated_at=datetime(2023, 10, 19))
     count = 0
     for test_object in test_objects:
-        if not test_object.user:
-            continue
-        print(test_object.user.color)
+        print(test_object.updated_at)
 
         count += 1
