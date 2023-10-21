@@ -1,7 +1,7 @@
 import logging
 from datetime import datetime
 from http import HTTPStatus
-from typing import Any, Generator, Protocol, TypeVar
+from typing import Generator, Protocol, TypeVar
 
 import requests
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
@@ -10,8 +10,9 @@ from repairshopr_api.config import config
 from repairshopr_api import models
 
 logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
 
-ModelType = TypeVar("T", bound="ModelProtocol")
+ModelType = TypeVar("ModelType", bound="ModelProtocol")
 
 
 class ModelProtocol(Protocol):
@@ -22,13 +23,18 @@ class ModelProtocol(Protocol):
 
 class Client(requests.Session):
     MAX_RETRIES = 5
-    PAGE_SIZE = 25
 
-    def __init__(self, token: str = "", base_url: str = ""):
+    def __init__(self, token: str = "", url_store_name: str = ""):
         super().__init__()
+        if not url_store_name:
+            url_store_name = config.repairshopr.url_store_name
+        if not token:
+            token = config.repairshopr.token
+        if not url_store_name or not token:
+            raise ValueError("url_store_name and token must be provided in either the constructor or the config file.")
 
         self.token = token or config.repairshopr.token
-        self.base_url = (base_url or config.repairshopr.base_url).rstrip("/")
+        self.base_url = f"https://{url_store_name}.repairshopr.com/api/v1"
         self.headers.update({"accept": "application/json", "Authorization": self.token})
 
     @retry(
@@ -59,7 +65,7 @@ class Client(requests.Session):
         response = self.get(f"{self.base_url}/{model_name}s", params=params)
         return response.json()[f"{model_name}s"], response.json()["meta"]
 
-    def get_model_data(self, model: type[ModelProtocol], updated_at: datetime = None) -> Generator[ModelType, None, None]:
+    def get_model_data(self, model: type[ModelType], updated_at: datetime = None) -> Generator[ModelType, None, None]:
         page = 1
         while True:
             params = {"page": page}
@@ -78,5 +84,14 @@ class Client(requests.Session):
 
 if __name__ == "__main__":
     client = Client()
-    test_products = client.get_model_data(models.Product)
-    print(test_products)
+    test_objects = client.get_model_data(models.Ticket)
+    count = 0
+    for test_object in test_objects:
+        print(f"{test_object.id}: {test_object.subject} {test_object.status}")
+        for comment in test_object.comments:
+            print(f"{comment.subject}", end=", ")
+
+        print()
+        # if count > 10:
+        #     break
+        count += 1

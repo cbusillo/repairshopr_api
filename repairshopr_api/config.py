@@ -47,7 +47,7 @@ class Serializable:
 
 class RepairshoprConfig(Serializable):
     token: str = ""
-    base_url: str = "https://cellmechanic.repairshopr.com/api/v1"
+    url_store_name: str = ""
 
 
 class Config(Serializable):
