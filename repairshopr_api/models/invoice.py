@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 from datetime import datetime
 
+from repairshopr_api.base.fields import related_field
 from repairshopr_api.base.model import BaseModel
 from repairshopr_api.models import User
 
@@ -30,10 +31,6 @@ class Invoice(BaseModel):
     note: str = None
     hardwarecost: float = None
 
-    _user: User = field(default=None, init=False, repr=False)
-
-    @property
+    @related_field(User)
     def user(self) -> User:
-        if not self._user and self.user_id:
-            self._user = self._client.fetch_from_api_by_id(User, self.user_id)
-        return self._user
+        pass
