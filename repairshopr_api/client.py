@@ -6,6 +6,7 @@ from typing import Generator, Protocol, TypeVar
 import requests
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
+from repairshopr_api.base.model import BaseModel
 from repairshopr_api.config import config
 from repairshopr_api import models
 
@@ -23,6 +24,7 @@ class ModelProtocol(Protocol):
 
 class Client(requests.Session):
     MAX_RETRIES = 5
+    _cache = {}
 
     def __init__(self, token: str = "", url_store_name: str = ""):
         super().__init__()
@@ -36,6 +38,10 @@ class Client(requests.Session):
         self.token = token or config.repairshopr.token
         self.base_url = f"https://{url_store_name}.repairshopr.com/api/v1"
         self.headers.update({"accept": "application/json", "Authorization": self.token})
+        BaseModel.set_client(self)
+
+    def clear_cache(self) -> None:
+        self._cache.clear()
 
     @retry(
         stop=stop_after_attempt(MAX_RETRIES),
@@ -61,9 +67,29 @@ class Client(requests.Session):
 
         return response
 
-    def fetch_from_api(self, model_name: str, params: dict = None) -> tuple[list[dict], dict]:
+    def fetch_from_api(self, model_name: str, params: dict = None) -> tuple[list[dict], dict | None]:
         response = self.get(f"{self.base_url}/{model_name}s", params=params)
-        return response.json()[f"{model_name}s"], response.json()["meta"]
+        return response.json()[f"{model_name}s"], response.json().get("meta")
+
+    def fetch_from_api_by_id(self, model: type[ModelType], instance_id: int) -> ModelType:
+        cache_key = f"{model.__name__.lower()}_{instance_id}"
+
+        if cache_key in self._cache:
+            return self._cache[cache_key]
+
+        response = self.get(f"{self.base_url}/{model.__name__.lower()}s/{instance_id}")
+        response_data = response.json()[model.__name__.lower()]
+        result = None
+        if isinstance(response_data, dict):
+            result = model.from_dict(response_data)
+        elif isinstance(response_data, list):
+            result = model.from_list(response_data)
+
+        if not result:
+            logger.warning(f"Could not find {model.__name__} with id {instance_id}")
+            raise ValueError(f"Could not find {model.__name__} with id {instance_id}")
+        self._cache[cache_key] = result
+        return result
 
     def get_model_data(self, model: type[ModelType], updated_at: datetime = None) -> Generator[ModelType, None, None]:
         page = 1
@@ -74,9 +100,12 @@ class Client(requests.Session):
 
             response_data, meta_data = self.fetch_from_api(model.__name__.lower(), params=params)
             for data in response_data:
-                yield model.from_dict(data)
+                if isinstance(data, dict):
+                    yield model.from_dict(data)
+                elif isinstance(data, list):
+                    yield model.from_list(data)
 
-            if page >= meta_data["total_pages"]:
+            if page >= meta_data.get("total_pages", 0):
                 break
 
             page += 1
@@ -84,14 +113,13 @@ class Client(requests.Session):
 
 if __name__ == "__main__":
     client = Client()
-    test_objects = client.get_model_data(models.Ticket)
+
+    print(client.fetch_from_api_by_id(models.User, 10416).full_name)
+    test_objects = client.get_model_data(models.Invoice)
     count = 0
     for test_object in test_objects:
-        print(f"{test_object.id}: {test_object.subject} {test_object.status}")
-        for comment in test_object.comments:
-            print(f"{comment.subject}", end=", ")
+        if not test_object.user:
+            continue
+        print(test_object.user.color)
 
-        print()
-        # if count > 10:
-        #     break
         count += 1

@@ -1,15 +1,25 @@
 import re
 from abc import ABC
 from dataclasses import dataclass, field, fields
-from typing import TypeVar
+from typing import TypeVar, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from repairshopr_api.client import Client
+
 
 ModelType = TypeVar("ModelType", bound="BaseModel")
 
 
 @dataclass
 class BaseModel(ABC):
-    id: int = None
+    id: int
     strict: bool = field(default=True, init=False, repr=False)
+
+    _client: Client = field(default=None, init=False, repr=False)  # Add a reference to the Client instance
+
+    @classmethod
+    def set_client(cls, client: Client):
+        cls._client = client
 
     @classmethod
     def from_dict(cls: type[ModelType], data: dict) -> ModelType:
@@ -38,3 +48,7 @@ class BaseModel(ABC):
                 raise ValueError(f"Field {current_field.name} is missing from the data")
 
         return instance
+
+    @classmethod
+    def from_list(cls: type[ModelType], data: list[dict]) -> list[ModelType]:
+        raise NotImplementedError("This method should be implemented in the subclass that expects a list.")
