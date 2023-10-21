@@ -45,7 +45,7 @@ class Client(requests.Session):
 
     @retry(
         stop=stop_after_attempt(MAX_RETRIES),
-        wait=wait_exponential(min=1, max=10),
+        wait=wait_exponential(min=5, max=60),
         retry=retry_if_exception_type(requests.RequestException),
     )
     def request(self, method: str, url: str, *args, **kwargs) -> requests.Response:
@@ -123,12 +123,17 @@ class Client(requests.Session):
 if __name__ == "__main__":
     client = Client()
 
-    print(client.fetch_from_api_by_id(models., 5205024))
-    test_objects = client.get_model_data(models.Customer, updated_at=datetime(2023, 10, 11))
+    #  print(client.fetch_from_api_by_id(models.Estimate, 4796157))
+    test_objects = client.get_model_data(models.Payment, updated_at=datetime(2023, 10, 19))
     count = 0
     for test_object in test_objects:
-        print(test_object.business_and_full_name)
-        for contact in test_object.contacts:
-            print(f"--{contact.name}  {contact.updated_at}")
+        if not test_object.invoice_ids:
+            continue
+
+        for invoice in test_object.invoices:
+            print(f"{invoice.id}  {invoice.updated_at}")
+        #  print(test_object.invoices)
+        # for contact in test_object.contacts:
+        #     print(f"--{contact.name}  {contact.updated_at}")
 
         count += 1
