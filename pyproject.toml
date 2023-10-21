@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "repairshopr-api"
-version = "0.1.17"
+version = "0.1.18"
 description = ""
 authors = ["Chris Busillo <info@shinycomputers.com>"]
 readme = "README.md"
