@@ -31,7 +31,6 @@ class Contact(BaseModel):
 
 @dataclass
 class Properties(BaseModel):
-    strict: bool = False
     id: int = None
     type: int = None
     notification_billing: int = None

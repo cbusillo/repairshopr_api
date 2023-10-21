@@ -12,7 +12,7 @@ def related_field(model_cls: type[BaseModel]) -> Callable[[Callable[..., BaseMod
 
             if hasattr(instance, id_key):
                 model_id = getattr(instance, id_key)
-                return instance.client.fetch_from_api_by_id(model_cls, model_id) if model_id else None
+                return instance.client.get_model_by_id(model_cls, model_id) if model_id else None
             else:
                 model_ids = getattr(instance, f"{id_key}s", [])
 
@@ -27,7 +27,7 @@ def related_field(model_cls: type[BaseModel]) -> Callable[[Callable[..., BaseMod
                         instance.client._cache[cache_key] = model_cls.from_dict(result)
 
                 valid_model_ids = [model_id for model_id in model_ids if model_id]
-                return [instance.client.fetch_from_api_by_id(model_cls, model_id) for model_id in valid_model_ids]
+                return [instance.client.get_model_by_id(model_cls, model_id) for model_id in valid_model_ids]
 
         return property(wrapper)
 

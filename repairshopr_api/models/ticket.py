@@ -19,7 +19,6 @@ class Comment(BaseModel):
 
 @dataclass
 class Properties(BaseModel):
-    strict: bool = False
     id: int = None
     day: str = None
     case: str = None

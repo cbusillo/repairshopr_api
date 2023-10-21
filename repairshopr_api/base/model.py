@@ -14,7 +14,6 @@ ModelType = TypeVar("ModelType", bound="BaseModel")
 @dataclass
 class BaseModel(ABC):
     id: int
-    strict: bool = field(default=True, init=False, repr=False)
 
     client: "Client" = field(default=None, init=False, repr=False)  # Add a reference to the Client instance
 
@@ -48,8 +47,6 @@ class BaseModel(ABC):
                         value = field_type.from_dict({**value, "id": 0})
 
                 setattr(instance, current_field.name, value)
-            elif instance.strict:
-                raise ValueError(f"Field {current_field.name} is missing from the data")
 
         return instance
 

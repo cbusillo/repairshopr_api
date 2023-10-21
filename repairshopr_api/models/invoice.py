@@ -33,7 +33,6 @@ class LineItem(BaseModel):
 
 @dataclass
 class Invoice(BaseModel):
-    strict: bool = False
     id: int
     customer_id: int = None
     customer_business_then_name: str = None
