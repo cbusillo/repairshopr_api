@@ -1,7 +1,7 @@
 import re
 from abc import ABC
 from dataclasses import dataclass, field, fields
-from typing import TypeVar, TYPE_CHECKING
+from typing import Any, TypeVar, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from repairshopr_api.client import Client
@@ -15,14 +15,14 @@ class BaseModel(ABC):
     id: int
     strict: bool = field(default=True, init=False, repr=False)
 
-    _client: Client = field(default=None, init=False, repr=False)  # Add a reference to the Client instance
+    _client: "Client" = field(default=None, init=False, repr=False)  # Add a reference to the Client instance
 
     @classmethod
-    def set_client(cls, client: Client):
+    def set_client(cls, client: "Client"):
         cls._client = client
 
     @classmethod
-    def from_dict(cls: type[ModelType], data: dict) -> ModelType:
+    def from_dict(cls: type[ModelType], data: dict[str, Any]) -> ModelType:
         instance = cls(id=data.get("id", 0))
 
         cleaned_data = {re.sub(r"[ /]", "_", key).lower(): value for key, value in data.items()}
@@ -50,5 +50,5 @@ class BaseModel(ABC):
         return instance
 
     @classmethod
-    def from_list(cls: type[ModelType], data: list[dict]) -> list[ModelType]:
+    def from_list(cls: type[ModelType], data: list[dict[str, Any]]) -> list[ModelType]:
         raise NotImplementedError("This method should be implemented in the subclass that expects a list.")
