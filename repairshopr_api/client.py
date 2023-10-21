@@ -1,6 +1,8 @@
 import logging
 import re
-from datetime import datetime
+from collections import deque
+from datetime import datetime, time, timedelta
+import time
 from http import HTTPStatus
 from typing import Any, Generator, Protocol, TypeVar
 
@@ -28,8 +30,10 @@ class ModelProtocol(Protocol):
 
 
 class Client(requests.Session):
-    MAX_RETRIES = 5
+    MAX_RETRIES = 50
+    REQUEST_LIMIT = 150
     _cache = {}
+    _request_timestamps = deque()
 
     def __init__(self, token: str = "", url_store_name: str = ""):
         super().__init__()
@@ -48,12 +52,28 @@ class Client(requests.Session):
     def clear_cache(self) -> None:
         self._cache.clear()
 
+    def _clear_old_request_timestamps(self) -> None:
+        current_time = datetime.now()
+        while self._request_timestamps and self._request_timestamps[0] < current_time - timedelta(seconds=60):
+            self._request_timestamps.popleft()
+
+    def _wait_for_rate_limit(self) -> None:
+        self._clear_old_request_timestamps()
+        if len(self._request_timestamps) > self.REQUEST_LIMIT:
+            oldest_request = self._request_timestamps[0]
+            time.sleep((datetime.now() - oldest_request).total_seconds() + 60)
+
+            self._clear_old_request_timestamps()
+
+        self._request_timestamps.append(datetime.now())
+
     @retry(
         stop=stop_after_attempt(MAX_RETRIES),
-        wait=wait_exponential(min=5, max=60),
+        wait=wait_exponential(min=30, max=180),
         retry=retry_if_exception_type(requests.RequestException),
     )
     def request(self, method: str, url: str, *args, **kwargs) -> requests.Response:
+        self._wait_for_rate_limit()
         response = super().request(method, url, *args, **kwargs)
 
         if response.status_code == HTTPStatus.TOO_MANY_REQUESTS.value:
