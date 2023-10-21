@@ -1,13 +1,14 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 
 from repairshopr_api.base.fields import related_field
 from repairshopr_api.base.model import BaseModel
-from repairshopr_api.models import User
+from repairshopr_api.models import Product, User
 
 
 @dataclass
 class Invoice(BaseModel):
+    strict: bool = False
     id: int
     customer_id: int = None
     customer_business_then_name: str = None
@@ -33,4 +34,33 @@ class Invoice(BaseModel):
 
     @related_field(User)
     def user(self) -> User:
+        pass
+
+
+# noinspection DuplicatedCode
+@dataclass
+class InvoiceLine(BaseModel):
+    id: int
+    created_at: datetime = None
+    updated_at: datetime = None
+    invoice_id: int = None
+    item: str = None
+    name: str = None
+    cost: float = None
+    price: float = None
+    quantity: float = None
+    product_id: int = None
+    taxable: bool = None
+    discount_percent: float = None
+    position: int = None
+    invoice_bundle_id: int = None
+    discount_dollars: float = None
+    product_category: str = None
+
+    @related_field(Product)
+    def product(self) -> Product:
+        pass
+
+    @related_field(Invoice)
+    def invoice(self) -> Invoice:
         pass
