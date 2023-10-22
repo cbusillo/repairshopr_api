@@ -3,13 +3,15 @@ import toml
 from typing import Any
 from pathlib import Path
 
+from config import sections
+
 logger = logging.getLogger(__name__)
 
 
 class Serializable:
     def to_dict(self) -> dict[str, Any] | Any:
         result = {}
-        all_keys = Config.get_all_keys(self)
+        all_keys = AppSettings.get_all_keys(self)
         for key in all_keys:
             if not key.startswith("_"):
                 value = getattr(self, key, None)
@@ -45,39 +47,51 @@ class Serializable:
                 logger.warning(f"Warning: Configuration value '{key}' is missing or None in {self.__class__.__name__}")
 
 
-class RepairshoprConfig(Serializable):
-    token: str = ""
-    url_store_name: str = ""
-
-
-class Config(Serializable):
+class AppSettings(Serializable):
     _instance = None
-
     debug: bool = False
 
     def __init__(self) -> None:
-        self._filepath = Path.home() / ".config" / Path(__file__).parent.stem.replace("_", "-") / "config.toml"
-        if not self.filepath.exists():
-            self.filepath.parent.mkdir(parents=True, exist_ok=True)
-            self.filepath.touch()
+        if not self.config_file_path.exists():
+            self.config_file_path.parent.mkdir(parents=True, exist_ok=True)
+            self.config_file_path.touch()
 
-        self.repairshopr = RepairshoprConfig()
+        for section_name, section_class in vars(sections).items():
+            if isinstance(section_class, type) and issubclass(section_class, Serializable) and section_class is not Serializable:
+                setattr(self, section_name.lower(), section_class())
 
         self.load()  # Load config during instance creation
 
     @classmethod
-    def get_instance(cls) -> "Config":
+    def get_instance(cls) -> "AppSettings":
         if cls._instance is None:
             cls._instance = cls()
         return cls._instance
 
     @property
-    def filepath(self) -> Path:
-        return self._filepath
+    def config_file_path(self) -> Path:
+        project_name = Path(__file__).parent.parent.name.replace("_", "-")
+        file_path = Path.home() / ".config" / project_name / "config.toml"
+        return file_path
+
+    @property
+    def config_data(self) -> dict[str, Any]:
+        if not self.config_file_path.exists():
+            return {}
+        with self.config_file_path.open() as file:
+            return toml.load(file)
+
+    @config_data.setter
+    def config_data(self, data: dict[str, Any]):
+        with self.config_file_path.open("w") as file:
+            toml.dump(data, file)
+
+    def add_section(self, name: str, section: Serializable) -> None:
+        self.sections[name] = section
 
     def load(self) -> None:
         try:
-            with self.filepath.open() as file:
+            with self.config_file_path.open() as file:
                 data = toml.load(file)
                 for key, value in data.items():
                     if key.startswith("_"):  # Skip keys starting with an underscore
@@ -96,7 +110,7 @@ class Config(Serializable):
         self.gather_missing_data(self)
         data = self.to_dict()
         try:
-            with self.filepath.open("w") as file:
+            with self.config_file_path.open("w") as file:
                 toml.dump(data, file)
         except (FileNotFoundError, OSError) as error:
             logger.exception(f"Error saving configuration: {str(error)}")
@@ -119,7 +133,7 @@ class Config(Serializable):
 
     @staticmethod
     def gather_missing_data(instance: Serializable, parent_name: str = "") -> None:
-        all_keys = Config.get_all_keys(instance)
+        all_keys = AppSettings.get_all_keys(instance)
         for key in all_keys:
             if not key.startswith("_"):
                 value = getattr(instance, key, None)
@@ -128,13 +142,4 @@ class Config(Serializable):
                     new_value = input(f"{full_key_name} not in configuration. Please enter a value: ")
                     setattr(instance, key, new_value)
                 elif isinstance(value, Serializable):
-                    Config.gather_missing_data(value, full_key_name)  # Recursive call
-
-
-config = Config()
-
-if __name__ == "__main__":
-    config = Config.get_instance()
-    print(config.repairshopr.token)
-    # config.discord.api_key = "new_api_key"
-    # update_and_save(discord__timeout=200, printnode__port=8080)
+                    AppSettings.gather_missing_data(value, full_key_name)  # Recursive call

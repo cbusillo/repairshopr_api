@@ -9,7 +9,7 @@ import requests
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
 from repairshopr_api.base.model import BaseModel
-from knobs.dials import config
+from config.settings import config
 from repairshopr_api import models
 from repairshopr_api.converters.strings import snake_case
 
