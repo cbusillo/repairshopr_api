@@ -84,9 +84,6 @@ class Client(requests.Session):
                 logger.error("Received authorization error: %s", response.text)
                 raise PermissionError("Authorization failed with the provided token.")
 
-        elif response.status_code == HTTPStatus.NOT_FOUND.value:
-            logger.warning("Received 404 error: %s", response.text)
-            raise ValueError("Received 404 error.")
             case HTTPStatus.NOT_FOUND:
                 logger.warning("Received 404 error: %s", response.text)
                 raise ValueError("Received 404 error.")
