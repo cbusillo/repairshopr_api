@@ -24,6 +24,7 @@ def related_field(model_cls: type[BaseModel]) -> Callable[[Callable[..., BaseMod
                     model_ids.extend([result.get("id") for result in results])
                     for result in results:
                         cache_key = f"{model_cls.__name__.lower()}_{result.get('id')}"
+                        # noinspection PyProtectedMember
                         instance.client._cache[cache_key] = model_cls.from_dict(result)
 
                 valid_model_ids = [model_id for model_id in model_ids if model_id]

@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "repairshopr-api"
-version = "0.1.32"
+version = "0.1.33"
 description = ""
 authors = ["Chris Busillo <info@shinycomputers.com>"]
 readme = "README.md"
@@ -12,6 +12,7 @@ requests = "^2.31.0"
 pytz = "^2023.3.post1"
 black = "^23.10.0"
 tenacity = "^8.2.3"
+flask = "^3.0.0"
 
 
 [build-system]
