@@ -72,23 +72,30 @@ class Client(requests.Session):
         self._wait_for_rate_limit()
         response = super().request(method, url, *args, **kwargs)
 
-        if response.status_code == HTTPStatus.TOO_MANY_REQUESTS.value:
-            logger.info("Rate limit reached. Waiting and retrying...")
-            raise requests.RequestException("Rate limit reached")
+        match response.status_code:
+            case HTTPStatus.OK:
+                pass
 
-        elif response.status_code == HTTPStatus.UNAUTHORIZED.value:
-            logger.error("Received authorization error: %s", response.text)
-            raise PermissionError("Authorization failed with the provided token.")
+            case HTTPStatus.TOO_MANY_REQUESTS:
+                logger.info("Rate limit reached. Waiting and retrying...")
+                raise requests.RequestException("Rate limit reached")
+
+            case HTTPStatus.UNAUTHORIZED:
+                logger.error("Received authorization error: %s", response.text)
+                raise PermissionError("Authorization failed with the provided token.")
 
         elif response.status_code == HTTPStatus.NOT_FOUND.value:
             logger.warning("Received 404 error: %s", response.text)
             raise ValueError("Received 404 error.")
+            case HTTPStatus.NOT_FOUND:
+                logger.warning("Received 404 error: %s", response.text)
+                raise ValueError("Received 404 error.")
 
-        elif response.status_code != HTTPStatus.OK.value:
-            logger.warning("Request failed with status code %s. Retrying...", response.status_code)
-            raise requests.RequestException(
-                f"Received unexpected status code: {response.status_code}. Response content: {response.text}"
-            )
+            case _:
+                logger.warning("Request failed with status code %s. Retrying...", response.status_code)
+                raise requests.RequestException(
+                    f"Received unexpected status code: {response.status_code}. Response content: {response.text}"
+                )
 
         return response
 
@@ -154,6 +161,7 @@ class Client(requests.Session):
 
 
 if __name__ == "__main__":
+    # noinspection PyPackageRequirements
     import psutil
 
     client = Client()
