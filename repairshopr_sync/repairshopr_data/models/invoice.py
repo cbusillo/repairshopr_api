@@ -43,4 +43,4 @@ class InvoiceLineItem(models.Model):
     discount_dollars = models.FloatField(null=True)
     product_category = models.CharField(max_length=255, null=True)
 
-    invoice = models.ForeignKey(Invoice, on_delete=models.CASCADE, related_name="line_items")
+    parent_invoice = models.ForeignKey(Invoice, on_delete=models.CASCADE, related_name="line_items", null=True)

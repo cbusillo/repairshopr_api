@@ -102,8 +102,8 @@ class Command(BaseCommand):
     @staticmethod
     def dynamic_import(path: str) -> type[ModelType] | type[models.Model]:
         module_path, class_name = path.rsplit(".", 1)
-        module = __import__(module_path, fromlist=[class_name.replace("_", "")])
-        return getattr(module, class_name)
+        module = __import__(module_path, fromlist=[class_name])
+        return getattr(module, class_name.replace("_", ""))
 
     def handle(self, *args, **kwargs) -> None:
         start_updated_at = datetime.now()

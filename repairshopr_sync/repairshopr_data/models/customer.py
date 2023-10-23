@@ -9,31 +9,6 @@ class CustomerProperties(models.Model):
     notification_marketing = models.IntegerField(null=True)
 
 
-class CustomerContact(models.Model):
-    id = models.IntegerField(primary_key=True)
-    name = models.CharField(max_length=255, null=True)
-    address1 = models.CharField(max_length=255, null=True)
-    address2 = models.CharField(max_length=255, null=True)
-    city = models.CharField(max_length=255, null=True)
-    state = models.CharField(max_length=255, null=True)
-    zip = models.CharField(max_length=255, null=True)
-    email = models.CharField(max_length=255, null=True)
-    phone = models.CharField(max_length=255, null=True)
-    mobile = models.CharField(max_length=255, null=True)
-    latitude = models.FloatField(null=True)
-    longitude = models.FloatField(null=True)
-    account_id = models.IntegerField(null=True)
-    notes = models.TextField(null=True)
-    created_at = models.DateTimeField(null=True)
-    updated_at = models.DateTimeField(null=True)
-    vendor_id = models.IntegerField(null=True)
-    properties = models.ForeignKey(CustomerProperties, on_delete=models.CASCADE, null=True)
-    opt_out = models.BooleanField(null=True)
-    extension = models.CharField(max_length=255, null=True)
-
-    parent_customer = models.ForeignKey("Customer", related_name="contacts", on_delete=models.CASCADE, null=True)
-
-
 class Customer(models.Model):
     id = models.IntegerField(primary_key=True)
     firstname = models.CharField(max_length=255, null=True)
@@ -70,3 +45,28 @@ class Customer(models.Model):
     ref_customer_id = models.IntegerField(null=True)
     business_and_full_name = models.CharField(max_length=255, null=True)
     business_then_name = models.CharField(max_length=255, null=True)
+
+
+class CustomerContact(models.Model):
+    id = models.IntegerField(primary_key=True)
+    name = models.CharField(max_length=255, null=True)
+    address1 = models.CharField(max_length=255, null=True)
+    address2 = models.CharField(max_length=255, null=True)
+    city = models.CharField(max_length=255, null=True)
+    state = models.CharField(max_length=255, null=True)
+    zip = models.CharField(max_length=255, null=True)
+    email = models.CharField(max_length=255, null=True)
+    phone = models.CharField(max_length=255, null=True)
+    mobile = models.CharField(max_length=255, null=True)
+    latitude = models.FloatField(null=True)
+    longitude = models.FloatField(null=True)
+    account_id = models.IntegerField(null=True)
+    notes = models.TextField(null=True)
+    created_at = models.DateTimeField(null=True)
+    updated_at = models.DateTimeField(null=True)
+    vendor_id = models.IntegerField(null=True)
+    properties = models.ForeignKey(CustomerProperties, on_delete=models.CASCADE, null=True)
+    opt_out = models.BooleanField(null=True)
+    extension = models.CharField(max_length=255, null=True)
+
+    parent_customer = models.ForeignKey(Customer, related_name="contacts", on_delete=models.CASCADE, null=True)
