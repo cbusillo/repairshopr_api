@@ -1,0 +1,30 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="Server" type="Python.DjangoServer" factoryName="Django server">
+    <module name="repairshopr_api" />
+    <option name="INTERPRETER_OPTIONS" value="" />
+    <option name="PARENT_ENVS" value="true" />
+    <envs>
+      <env name="PYTHONUNBUFFERED" value="1" />
+      <env name="DJANGO_SETTINGS_MODULE" value="repairshopr_sync.settings" />
+    </envs>
+    <option name="SDK_HOME" value="$USER_HOME$/Library/Caches/pypoetry/virtualenvs/repairshopr-api-LYahjYBS-py3.11/bin/python" />
+    <option name="SDK_NAME" value="Poetry (repairshopr_api)" />
+    <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/repairshopr_sync" />
+    <option name="IS_MODULE_SDK" value="false" />
+    <option name="ADD_CONTENT_ROOTS" value="true" />
+    <option name="ADD_SOURCE_ROOTS" value="true" />
+    <option name="launchJavascriptDebuger" value="false" />
+    <option name="port" value="8000" />
+    <option name="host" value="0.0.0.0" />
+    <option name="additionalOptions" value="" />
+    <option name="browserUrl" value="" />
+    <option name="runTestServer" value="false" />
+    <option name="runNoReload" value="false" />
+    <option name="useCustomRunCommand" value="false" />
+    <option name="customRunCommand" value="import_from_repairshopr" />
+    <method v="2">
+      <option name="RunConfigurationTask" enabled="false" run_configuration_name="Make Migrations" run_configuration_type="Python.DjangoServer" />
+      <option name="RunConfigurationTask" enabled="false" run_configuration_name="Migrate" run_configuration_type="Python.DjangoServer" />
+    </method>
+  </configuration>
+</component>
