@@ -2,7 +2,7 @@ import re
 from abc import ABC
 from dataclasses import dataclass, field, fields
 from datetime import datetime
-from typing import Any, TypeVar, TYPE_CHECKING
+from typing import Any, TYPE_CHECKING, TypeVar
 
 if TYPE_CHECKING:
     from repairshopr_api.client import Client
@@ -25,7 +25,7 @@ class BaseModel(ABC):
     def from_dict(cls: type[ModelType], data: dict[str, Any]) -> ModelType:
         instance = cls(id=data.get("id", 0))
 
-        cleaned_data = {re.sub(r"[ /]", "_", key).lower(): value for key, value in data.items()}
+        cleaned_data = {re.sub(r"[ /]", "_", key).lower(): value for key, value in data.items() if value}
 
         for current_field in fields(cls):
             if not current_field.init:

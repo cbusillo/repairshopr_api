@@ -1,1 +1,2 @@
-from .repairshopr import RepairShopr
+from .repairshopr import Repairshopr
+from .django import Django

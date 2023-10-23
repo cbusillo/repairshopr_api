@@ -1,5 +1,5 @@
 import json
-from base import AppSettings
+
 from config.initialize import settings
 
 
@@ -8,7 +8,6 @@ def display_settings(indent: int = 4):
         settings_dict = settings.to_dict()
         formatted_settings = json.dumps(settings_dict, indent=indent)
         print(formatted_settings)
-        print(settings.repairshopr.token)
     except Exception as e:
         print(f"Error displaying settings: {e}")
 

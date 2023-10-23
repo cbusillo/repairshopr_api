@@ -1,16 +1,16 @@
 import logging
-from collections import deque
-from datetime import datetime, time, timedelta
 import time
+from collections import deque
+from datetime import datetime, timedelta
 from http import HTTPStatus
 from typing import Any, Generator, Protocol, TypeVar
 
 import requests
-from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
-from repairshopr_api.base.model import BaseModel
-from config.settings import config
+from config import settings
 from repairshopr_api import models
+from repairshopr_api.base.model import BaseModel
 from repairshopr_api.converters.strings import snake_case
 
 logger = logging.getLogger(__name__)
@@ -34,13 +34,13 @@ class Client(requests.Session):
     def __init__(self, token: str = "", url_store_name: str = ""):
         super().__init__()
         if not url_store_name:
-            url_store_name = config.repairshopr.url_store_name
+            url_store_name = settings.repairshopr.url_store_name
         if not token:
-            token = config.repairshopr.token
+            token = settings.repairshopr.token
         if not url_store_name or not token:
             raise ValueError("url_store_name and token must be provided in either the constructor or the config file.")
 
-        self.token = token or config.repairshopr.token
+        self.token = token or settings.repairshopr.token
         self.base_url = f"https://{url_store_name}.repairshopr.com/api/v1"
         self.headers.update({"accept": "application/json", "Authorization": self.token})
         BaseModel.set_client(self)
@@ -57,7 +57,9 @@ class Client(requests.Session):
         self._clear_old_request_timestamps()
         if len(self._request_timestamps) > self.REQUEST_LIMIT:
             oldest_request = self._request_timestamps[0]
-            time.sleep((datetime.now() - oldest_request).total_seconds() + 60)
+            sleep_time = 60 - (datetime.now() - oldest_request).total_seconds()
+            if sleep_time > 0:
+                time.sleep(sleep_time)
 
             self._clear_old_request_timestamps()
 
@@ -130,13 +132,14 @@ class Client(requests.Session):
             logger.warning(f"Could not find {model.__name__} with id {instance_id}")
 
     def get_model(
-        self, model: type[ModelType], updated_at: datetime = None, params: dict = None
+        self, model: type[ModelType], updated_at: datetime = None, num_last_pages: int = None, params: dict = None
     ) -> Generator[ModelType, None, None]:
         if not params:
             params = {}
 
         if updated_at:
             params["since_updated_at"] = updated_at.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+
         page = 1
         while True:
             params["page"] = page
@@ -150,7 +153,8 @@ class Client(requests.Session):
 
             if not meta_data or page >= meta_data.get("total_pages", 0):
                 break
-
+            if page == 1 and meta_data.get("total_pages", 0) > 1 and num_last_pages:
+                page = max(1, meta_data.get("total_pages", 0) - num_last_pages + 1)
             page += 1
 
     def get_model_by_id(self, model: type[ModelType], instance_id: int) -> ModelType:
@@ -158,28 +162,14 @@ class Client(requests.Session):
 
 
 if __name__ == "__main__":
-    # noinspection PyPackageRequirements
-    import psutil
-
     client = Client()
-    process = psutil.Process()
 
     #  print(client.fetch_from_api_by_id(models.Estimate, 4796157))
-    test_objects = client.get_model(models.Estimate, updated_at=datetime(2023, 10, 19))
+    test_objects = client.get_model(models.Invoice)
     count = 0
     for test_object in test_objects:
-        if not test_object.customer:
-            continue
-        print(f"{test_object.customer_business_then_name}  {test_object.customer.business_then_name}")
-        print(test_object.user)
-        for contact in test_object.customer.contacts:
-            print(f"--{contact.name}  {contact.updated_at}")
+        print(f"=={count+1}== {test_object.id}: {test_object.customer_business_then_name}")
 
-        print()
-
-        # for invoice in test_object.invoices:
-        #     for line in invoice.line_items:
-        #         print(f"----{line.name}  {line.product.description}")
-        memory_usage = process.memory_info().rss / (1024**2)  # Convert bytes to megabytes
-        print(f"==========Memory usage: {memory_usage:.2f} MB")
+        for line_item in test_object.line_items:
+            print(line_item.name)
         count += 1

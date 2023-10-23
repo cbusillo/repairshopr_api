@@ -1,3 +1,4 @@
+# noinspection GrazieInspection
 """
 URL configuration for repairshopr_sync project.
 

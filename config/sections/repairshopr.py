@@ -1,6 +1,6 @@
-from config.base import Serializable
+from config.serializable import Serializable
 
 
-class RepairShopr(Serializable):
+class Repairshopr(Serializable):
     token: str = ""
     url_store_name: str = ""

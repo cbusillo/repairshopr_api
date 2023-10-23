@@ -1,4 +1,4 @@
-from typing import Callable
+from typing import Any, Callable
 
 from repairshopr_api.base.model import BaseModel
 from repairshopr_api.converters.strings import snake_case
@@ -6,7 +6,7 @@ from repairshopr_api.converters.strings import snake_case
 
 def related_field(model_cls: type[BaseModel]) -> Callable[[Callable[..., BaseModel]], property]:
     def decorator(_f: Callable[..., BaseModel]):
-        def wrapper(instance: BaseModel, id_key: str = None) -> BaseModel | list[BaseModel]:
+        def wrapper(instance: BaseModel, id_key: str = None) -> BaseModel | list[BaseModel] | list[dict[str, Any]]:
             if not id_key:
                 id_key = f"{model_cls.__name__.lower()}_id"
 
@@ -28,7 +28,7 @@ def related_field(model_cls: type[BaseModel]) -> Callable[[Callable[..., BaseMod
                         instance.client._cache[cache_key] = model_cls.from_dict(result)
 
                 valid_model_ids = [model_id for model_id in model_ids if model_id]
-                return [instance.client.get_model_by_id(model_cls, model_id) for model_id in valid_model_ids]
+                return [instance.client.fetch_from_api_by_id(model_cls, model_id) for model_id in valid_model_ids]
 
         return property(wrapper)
 

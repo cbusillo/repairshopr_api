@@ -5,6 +5,15 @@ from repairshopr_api.base.model import BaseModel
 
 
 @dataclass
+class Properties(BaseModel):
+    id: int = None
+    type: int = None
+    notification_billing: int = None
+    notification_reports: int = None
+    notification_marketing: int = None
+
+
+@dataclass
 class Contact(BaseModel):
     id: int
     name: str = None
@@ -24,18 +33,9 @@ class Contact(BaseModel):
     created_at: datetime = None
     updated_at: datetime = None
     vendor_id: int = None
-    properties: dict[str, str] = field(default_factory=dict)
+    properties: Properties = field(default_factory=Properties)
     opt_out: bool = None
     extension: str = None
-
-
-@dataclass
-class Properties(BaseModel):
-    id: int = None
-    type: int = None
-    notification_billing: int = None
-    notification_reports: int = None
-    notification_marketing: int = None
 
 
 @dataclass
