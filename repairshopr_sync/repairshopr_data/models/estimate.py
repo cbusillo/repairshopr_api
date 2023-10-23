@@ -18,3 +18,27 @@ class Estimate(models.Model):
     location_id = models.IntegerField(null=True)
     invoice_id = models.IntegerField(null=True)
     employee = models.CharField(max_length=255, null=True)
+
+    def __str__(self) -> str:
+        return f"{self.id} - {self.customer_business_then_name} - {self.status} - {self.total} - {self.employee}"
+
+
+# noinspection DuplicatedCode
+class EstimateLineItem(models.Model):
+    id = models.IntegerField(primary_key=True)
+    created_at = models.DateTimeField(null=True)
+    updated_at = models.DateTimeField(null=True)
+    item = models.CharField(max_length=255, null=True)
+    name = models.CharField(max_length=255, null=True)
+    cost = models.FloatField(null=True)
+    price = models.FloatField(null=True)
+    quantity = models.FloatField(null=True)
+    product_id = models.IntegerField(null=True)
+    taxable = models.BooleanField(null=True)
+    discount_percent = models.FloatField(null=True)
+    position = models.IntegerField(null=True)
+    invoice_bundle_id = models.IntegerField(null=True)
+    discount_dollars = models.FloatField(null=True)
+    product_category = models.CharField(max_length=255, null=True)
+
+    parent_estimate = models.ForeignKey(Estimate, on_delete=models.CASCADE, related_name="line_items", null=True)

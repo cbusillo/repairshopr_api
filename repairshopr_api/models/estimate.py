@@ -3,7 +3,32 @@ from datetime import datetime
 
 from repairshopr_api.base.fields import related_field
 from repairshopr_api.base.model import BaseModel
-from repairshopr_api.models import Customer, User
+from repairshopr_api.models import Customer, Product, User
+
+
+# noinspection DuplicatedCode
+@dataclass
+class LineItem(BaseModel):
+    id: int
+    created_at: datetime = None
+    updated_at: datetime = None
+    invoice_id: int = None
+    item: str = None
+    name: str = None
+    cost: float = None
+    price: float = None
+    quantity: float = None
+    product_id: int = None
+    taxable: bool = None
+    discount_percent: float = None
+    position: int = None
+    invoice_bundle_id: int = None
+    discount_dollars: float = None
+    product_category: str = None
+
+    @related_field(Product)
+    def product(self) -> Product:
+        pass
 
 
 @dataclass
@@ -35,3 +60,7 @@ class Estimate(BaseModel):
         for user in users:
             if user.email == self.employee:
                 return user
+
+    @related_field(LineItem)
+    def line_items(self) -> list[LineItem]:
+        pass

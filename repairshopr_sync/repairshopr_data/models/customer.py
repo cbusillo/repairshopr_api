@@ -8,6 +8,9 @@ class CustomerProperties(models.Model):
     notification_reports = models.IntegerField(null=True)
     notification_marketing = models.IntegerField(null=True)
 
+    def __str__(self) -> str:
+        return f"{self.id} - {self.type} - {self.notification_billing} - {self.notification_reports} - {self.notification_marketing}"
+
 
 class Customer(models.Model):
     id = models.IntegerField(primary_key=True)

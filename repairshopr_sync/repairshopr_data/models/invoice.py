@@ -26,6 +26,7 @@ class Invoice(models.Model):
     hardwarecost = models.FloatField(null=True)
 
 
+# noinspection DuplicatedCode
 class InvoiceLineItem(models.Model):
     id = models.IntegerField(primary_key=True)
     created_at = models.DateTimeField(null=True)
