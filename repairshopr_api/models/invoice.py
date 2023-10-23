@@ -36,7 +36,7 @@ class Invoice(BaseModel):
     id: int
     customer_id: int = None
     customer_business_then_name: str = None
-    number: int = None
+    number: str = None
     created_at: datetime = None
     updated_at: datetime = None
     date: datetime = None
