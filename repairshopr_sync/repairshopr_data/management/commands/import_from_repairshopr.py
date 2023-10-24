@@ -59,11 +59,9 @@ class Command(BaseCommand):
         }
 
     def get_submodel_class(self, parent_model_name: str, sub_model_suffix: str) -> type[models.Model]:
-        # Remove the trailing 's' to make it singular (except for 'Properties')
         if sub_model_suffix.lower() != "properties" and sub_model_suffix.endswith("s"):
             sub_model_suffix = sub_model_suffix[:-1]
 
-        # Capitalize the first letter of each word in the sub_model_suffix
         formatted_sub_model_suffix = sub_model_suffix.title()
         return self.dynamic_import(
             f"repairshopr_data.models.{parent_model_name.lower()}.{parent_model_name}{formatted_sub_model_suffix}"
