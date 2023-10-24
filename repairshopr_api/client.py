@@ -1,6 +1,7 @@
 import logging
 import time
-from collections import deque
+from collections import Counter, defaultdict, deque
+from contextlib import contextmanager
 from datetime import datetime, timedelta
 from http import HTTPStatus
 from typing import Any, Generator, Protocol, TypeVar
@@ -14,7 +15,9 @@ from repairshopr_api.base.model import BaseModel
 from repairshopr_api.converters.strings import snake_case
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO)
+if settings.debug:
+    logger.setLevel(logging.INFO)
+    logging.basicConfig(level=logging.INFO)
 
 ModelType = TypeVar("ModelType", bound="ModelProtocol")
 
@@ -43,10 +46,13 @@ class Client(requests.Session):
         self.token = token or settings.repairshopr.token
         self.base_url = f"https://{url_store_name}.repairshopr.com/api/v1"
         self.headers.update({"accept": "application/json", "Authorization": self.token})
+        self._updated_at: datetime | None = None
+        self._has_line_item_in_cache = False
+        self.api_call_counter = Counter()
+        self.api_call_type = defaultdict(list)
+        self.api_call_duration = defaultdict(list)
+        self.api_sleep_time = 0.0
         BaseModel.set_client(self)
-
-    def clear_cache(self) -> None:
-        self._cache.clear()
 
     def _clear_old_request_timestamps(self) -> None:
         current_time = datetime.now()
@@ -60,10 +66,51 @@ class Client(requests.Session):
             sleep_time = 60 - (datetime.now() - oldest_request).total_seconds()
             if sleep_time > 0:
                 time.sleep(sleep_time)
+                self.api_sleep_time += sleep_time
 
             self._clear_old_request_timestamps()
 
         self._request_timestamps.append(datetime.now())
+
+    def display_api_call_stats(self) -> None:
+        stats_str = "API Stats: "
+        total_time = 0.0
+        for api_call_type, durations in self.api_call_duration.items():
+            if durations:
+                average_duration = sum(durations) / len(durations)
+                count = self.api_call_counter.get(api_call_type, 0)
+                stats_str += f"{api_call_type} (C: {count}, A: {average_duration:.3f}s), "
+                total_time += sum(durations)
+        api_request_time = timedelta(seconds=total_time)
+
+        logger.info(
+            f"{stats_str.rstrip(', ')} * Request t: {api_request_time.total_seconds():.2f} | Sleep t: {self.api_sleep_time:.2f}s | Calls last 60s: {len(self._request_timestamps)}"
+        )
+
+    @contextmanager
+    def time_api_call(self, url: str, **kwargs) -> None:
+        if logger.isEnabledFor(logging.INFO):
+            last_part = url.split("/")[-1]
+            is_id = last_part.isdigit()
+            invoice_id = kwargs.get("params", {}).get("invoice_id")
+            estimate_id = kwargs.get("params", {}).get("estimate_id")
+
+            if is_id:
+                api_call_type = f"{url.split('/')[-2]}_direct"
+            elif invoice_id or estimate_id:
+                api_call_type = f"{last_part}_lookup"
+            else:
+                api_call_type = f"{last_part}_bulk"
+
+            self.api_call_counter[api_call_type] += 1
+            start_time = datetime.now()
+            yield None
+            end_time = datetime.now()
+            duration = (end_time - start_time).total_seconds()
+            self.api_call_duration[api_call_type].append(duration)
+            self.display_api_call_stats()
+        else:
+            yield None
 
     @retry(
         stop=stop_after_attempt(MAX_RETRIES),
@@ -72,7 +119,8 @@ class Client(requests.Session):
     )
     def request(self, method: str, url: str, *args, **kwargs) -> requests.Response:
         self._wait_for_rate_limit()
-        response = super().request(method, url, *args, **kwargs)
+        with self.time_api_call(url, **kwargs):
+            response = super().request(method, url, *args, **kwargs)
 
         match response.status_code:
             case HTTPStatus.OK:
@@ -98,6 +146,46 @@ class Client(requests.Session):
 
         return response
 
+    def clear_cache(self) -> None:
+        self._cache.clear()
+        self._has_line_item_in_cache = False
+
+    def prefetch_line_items(self) -> None:
+        if self._has_line_item_in_cache:
+            return
+        if self._updated_at and self._updated_at > datetime.now() - timedelta(weeks=52):
+            return
+        logger.info("Prefetching line items...")
+        lines_items = list(self.get_model(models.LineItem, params={"invoice_id_not_null": "true"}))
+
+        invoice_line_item_map = defaultdict(list)
+        for line_item in lines_items:
+            invoice_id = line_item.invoice_id
+            invoice_line_item_map[invoice_id].append(
+                {key: value for key, value in line_item.__dict__.items() if not key.startswith("_")}
+            )
+
+        for invoice_id, line_items in invoice_line_item_map.items():
+            total_entries = len(line_items)
+            total_pages = -(-total_entries // 100)
+
+            for page in range(1, total_pages + 1):
+                start_index = (page - 1) * 100
+                end_index = start_index + 100
+                paginated_line_items = line_items[start_index:end_index]
+
+                meta_data = {"page": page, "per_page": 100, "total_entries": total_entries, "total_pages": total_pages}
+                cache_data = (paginated_line_items, meta_data)
+
+                params = {"invoice_id": invoice_id}
+                if page > 1:
+                    params["page"] = page
+                sorted_params = tuple(sorted(params.items()))
+                cache_key = f"line_item_list_{hash(sorted_params)}"
+                self._cache[cache_key] = cache_data
+
+        self._has_line_item_in_cache = True
+
     def fetch_from_api(self, model_name: str, params: dict[str, str] = None) -> tuple[list[dict[str, Any]], dict[str, Any] | None]:
         cache_key = f"{model_name}_list"
         if params:
@@ -114,6 +202,8 @@ class Client(requests.Session):
         return result
 
     def fetch_from_api_by_id(self, model: type[ModelType], instance_id: int) -> dict[str, Any]:
+        if model.__name__ == "LineItem" and "invoice" in model.__module__:
+            self.prefetch_line_items()
         cache_key = f"{model.__name__.lower()}_{instance_id}"
 
         if cache_key in self._cache:
@@ -138,6 +228,7 @@ class Client(requests.Session):
             params = {}
 
         if updated_at:
+            self._updated_at = updated_at
             params["since_updated_at"] = updated_at.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
 
         page = 1
@@ -166,10 +257,10 @@ if __name__ == "__main__":
 
     #  print(client.fetch_from_api_by_id(models.Estimate, 4796157))
     test_objects = client.get_model(models.Invoice)
-    count = 0
+    test_count = 0
     for test_object in test_objects:
-        print(f"=={count+1}== {test_object.id}: {test_object.customer_business_then_name}")
+        print(f"=={test_count + 1}== {test_object.id}: {test_object.customer_business_then_name}")
 
-        for line_item in test_object.line_items:
-            print(line_item.name)
-        count += 1
+        for test_line_item in test_object.line_items:
+            print(test_line_item.name)
+        test_count += 1

@@ -4,9 +4,9 @@ from django.db import models
 class CustomerProperties(models.Model):
     id = models.AutoField(primary_key=True)
     type = models.IntegerField(null=True)
-    notification_billing = models.IntegerField(null=True)
-    notification_reports = models.IntegerField(null=True)
-    notification_marketing = models.IntegerField(null=True)
+    notification_billing = models.CharField(max_length=255, null=True)
+    notification_reports = models.CharField(max_length=255, null=True)
+    notification_marketing = models.CharField(max_length=255, null=True)
 
     def __str__(self) -> str:
         return f"{self.id} - {self.type} - {self.notification_billing} - {self.notification_reports} - {self.notification_marketing}"

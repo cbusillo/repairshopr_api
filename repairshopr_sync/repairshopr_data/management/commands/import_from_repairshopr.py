@@ -31,7 +31,7 @@ def create_or_update_django_instance(
                 related_django_model = field.related_model
                 related_api_instance = getattr(api_instance, field.name)
                 if related_api_instance.id == 0:
-                    continue  # Skip if id is 0
+                    related_api_instance.id = None
                 value = create_or_update_django_instance(related_django_model, related_api_instance)
             field_data[field.name] = value
 
@@ -45,14 +45,15 @@ class Command(BaseCommand):
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
+        self.client = Client()
         reverse_sort_on_updated_at = {"sort": "updated_at ASC"}
         self.model_mapping = {
             # Django model name: (num_last_pages, params)
             "Customer": (10, reverse_sort_on_updated_at),
-            "Estimate": (10, None),
+            "Estimate": (1, None),
             "Invoice": (None, None),
-            "Payment": (10, None),
-            "Product": (10, reverse_sort_on_updated_at),
+            "Payment": (2, None),
+            "Product": (2, reverse_sort_on_updated_at),
             "Ticket": (None, None),
             "User": (None, None),
         }
@@ -76,7 +77,7 @@ class Command(BaseCommand):
         django_model = self.dynamic_import(django_model_path)
         api_model = self.dynamic_import(api_model_path)
 
-        api_instances = Client().get_model(api_model, last_updated_at, num_last_pages, params)
+        api_instances = self.client.get_model(api_model, last_updated_at, num_last_pages, params)
         for api_instance in api_instances:
             django_instance = create_or_update_django_instance(django_model, api_instance)
             parent_model_name = django_model.__name__
@@ -115,12 +116,14 @@ class Command(BaseCommand):
         settings.django.last_updated_at = start_updated_at
         settings.save()
 
-        Client().clear_cache()
         end_updated_at = datetime.now()
         time_taken = end_updated_at - start_updated_at
+        hours, remainder = divmod(time_taken.seconds, 3600)
+        minutes, seconds = divmod(remainder, 60)
 
         logger.info(
-            f"\n\nStarted at {start_updated_at.strftime('%H:%M:%S')} "
-            f"ended at {end_updated_at.strftime('%H:%M:%S')} "
-            f"for a total of {time_taken.seconds} seconds"
+            f"\n\nStarted at {start_updated_at.strftime('%h:%M:%S')} "
+            f"ended at {end_updated_at.strftime('%h:%M:%S')} "
+            f"for a total of {hours} hours, {minutes} minutes, and {seconds} seconds"
         )
+        self.client.clear_cache()

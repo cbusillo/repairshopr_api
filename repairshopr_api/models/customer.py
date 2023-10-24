@@ -8,9 +8,9 @@ from repairshopr_api.base.model import BaseModel
 class Properties(BaseModel):
     id: int = None
     type: int = None
-    notification_billing: int = None
-    notification_reports: int = None
-    notification_marketing: int = None
+    notification_billing: str = None
+    notification_reports: str = None
+    notification_marketing: str = None
 
 
 @dataclass
