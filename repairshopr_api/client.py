@@ -256,11 +256,4 @@ if __name__ == "__main__":
     client = Client()
 
     #  print(client.fetch_from_api_by_id(models.Estimate, 4796157))
-    test_objects = client.get_model(models.Invoice)
-    test_count = 0
-    for test_object in test_objects:
-        print(f"=={test_count + 1}== {test_object.id}: {test_object.customer_business_then_name}")
-
-        for test_line_item in test_object.line_items:
-            print(test_line_item.name)
-        test_count += 1
+    # print(client.get_properties_fields(models.Ticket))
