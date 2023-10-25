@@ -17,8 +17,8 @@ class User(BaseModel):
     color: str = None
 
     def __post_init__(self) -> None:
-        if not self.updated_at and self.client.updated_at and self.client.updated_at > datetime.now() - timedelta(days=1):
-            data = self.client.fetch_from_api_by_id(User, self.id)
+        if not self.updated_at and self.rs_client.updated_at and self.rs_client.updated_at > datetime.now() - timedelta(days=1):
+            data = self.rs_client.fetch_from_api_by_id(User, self.id)
             for key, value in data.items():
                 setattr(self, key, value)
 

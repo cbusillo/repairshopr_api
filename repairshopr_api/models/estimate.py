@@ -56,7 +56,7 @@ class Estimate(BaseModel):
 
     @property
     def user(self) -> User:
-        users = self.client.get_model(User)
+        users = self.rs_client.get_model(User)
         for user in users:
             if user.email == self.employee:
                 return user
