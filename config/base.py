@@ -1,4 +1,5 @@
 import logging
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Self
 
@@ -92,3 +93,10 @@ class AppSettings(Serializable):
             else:
                 sorted_dict[key] = value
         return sorted_dict
+
+    @contextmanager
+    def debug_on(self) -> None:
+        original_value = self.debug
+        self.debug = True
+        yield
+        self.debug = original_value
