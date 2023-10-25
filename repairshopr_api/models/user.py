@@ -1,6 +1,7 @@
-from datetime import datetime
-from typing import Self
 from dataclasses import dataclass
+from datetime import datetime, timedelta
+from typing import Self
+
 from repairshopr_api.base.model import BaseModel
 
 
@@ -16,7 +17,7 @@ class User(BaseModel):
     color: str = None
 
     def __post_init__(self) -> None:
-        if not self.updated_at:
+        if not self.updated_at and self.client.updated_at > datetime.now() - timedelta(days=1):
             data = self.client.fetch_from_api_by_id(User, self.id)
             for key, value in data.items():
                 setattr(self, key, value)
