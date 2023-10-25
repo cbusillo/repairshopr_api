@@ -25,11 +25,17 @@ class BaseModel(ABC):
     def from_dict(cls: type[ModelType], data: dict[str, Any]) -> ModelType:
         instance = cls(id=data.get("id", 0))
 
-        cleaned_data = {re.sub(r"[ /]", "_", key).lower(): value for key, value in data.items() if value}
+        cleaned_data = {cls.clean_key(key): value for key, value in data.items() if value and not "percent" in key}
+
+        model_fields = {current_field.name for current_field in fields(cls)}
+        extra_fields_in_data = set(cleaned_data.keys()) - model_fields
+        if extra_fields_in_data:
+            raise ValueError(f"{cls.__module__}.{cls.__name__} has extra fields: {extra_fields_in_data} with data: {cleaned_data}")
 
         for current_field in fields(cls):
             if not current_field.init:
                 continue
+
             if current_field.name in cleaned_data:
                 value = cleaned_data[current_field.name]
 
@@ -53,3 +59,11 @@ class BaseModel(ABC):
     @classmethod
     def from_list(cls: type[ModelType], data: list[dict[str, Any]]) -> list[ModelType]:
         raise NotImplementedError("This method should be implemented in the subclass that expects a list.")
+
+    @staticmethod
+    def clean_key(key: str) -> str:
+        cleaned_key = re.sub(r"[ /]", "_", key)
+        cleaned_key = re.sub(r"^-", "transport", cleaned_key)
+        cleaned_key = re.sub(r"_$", "_2", cleaned_key)
+        cleaned_key = cleaned_key.replace(r"#", "num")
+        return cleaned_key.lower()
