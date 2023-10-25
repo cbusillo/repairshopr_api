@@ -7,6 +7,7 @@ class CustomerProperties(models.Model):
     notification_billing = models.CharField(max_length=255, null=True)
     notification_reports = models.CharField(max_length=255, null=True)
     notification_marketing = models.CharField(max_length=255, null=True)
+    title = models.CharField(max_length=255, null=True)
 
     def __str__(self) -> str:
         return f"{self.id} - {self.type} - {self.notification_billing} - {self.notification_reports} - {self.notification_marketing}"
@@ -71,5 +72,7 @@ class CustomerContact(models.Model):
     properties = models.ForeignKey(CustomerProperties, on_delete=models.CASCADE, null=True)
     opt_out = models.BooleanField(null=True)
     extension = models.CharField(max_length=255, null=True)
+    processed_phone = models.CharField(max_length=255, null=True)
+    processed_mobile = models.CharField(max_length=255, null=True)
 
     parent_customer = models.ForeignKey(Customer, related_name="contacts", on_delete=models.CASCADE, null=True)

@@ -27,6 +27,11 @@ class Properties(BaseModel):
     tag_num: str = None
     claim_num: str = None
     location: str = None
+    transport: str = None
+    boces: str = None
+    tag_num_2: str = None
+    delivery_num: str = None
+    transport_2: str = None
 
 
 @dataclass

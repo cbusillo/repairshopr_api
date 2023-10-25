@@ -11,6 +11,7 @@ class Properties(BaseModel):
     notification_billing: str = None
     notification_reports: str = None
     notification_marketing: str = None
+    title: str = None
 
 
 @dataclass
@@ -36,6 +37,8 @@ class Contact(BaseModel):
     properties: Properties = field(default_factory=Properties)
     opt_out: bool = None
     extension: str = None
+    processed_phone: str = None
+    processed_mobile: str = None
 
 
 @dataclass
@@ -75,4 +78,5 @@ class Customer(BaseModel):
     ref_customer_id: int = None
     business_and_full_name: str = None
     business_then_name: str = None
+
     contacts: list[Contact] = field(default_factory=list[Contact])

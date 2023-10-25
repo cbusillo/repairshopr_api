@@ -10,6 +10,11 @@ class TicketProperties(models.Model):
     tag_num = models.CharField(max_length=255, null=True)
     claim_num = models.CharField(max_length=255, null=True)
     location = models.CharField(max_length=255, null=True)
+    transport = models.CharField(max_length=255, null=True)
+    boces = models.CharField(max_length=255, null=True)
+    tag_num_2 = models.CharField(max_length=255, null=True)
+    delivery_num = models.CharField(max_length=255, null=True)
+    transport_2 = models.CharField(max_length=255, null=True)
 
 
 class Ticket(models.Model):
