@@ -46,7 +46,7 @@ class Client(requests.Session):
         self.token = token or settings.repairshopr.token
         self.base_url = f"https://{url_store_name}.repairshopr.com/api/v1"
         self.headers.update({"accept": "application/json", "Authorization": self.token})
-        self._updated_at: datetime | None = None
+        self.updated_at: datetime | None = None
         self._has_line_item_in_cache = False
         self.api_call_counter = Counter()
         self.api_call_type = defaultdict(list)
@@ -153,7 +153,7 @@ class Client(requests.Session):
     def prefetch_line_items(self) -> None:
         if self._has_line_item_in_cache:
             return
-        if self._updated_at and self._updated_at > datetime.now() - timedelta(weeks=52):
+        if self.updated_at and self.updated_at > datetime.now() - timedelta(weeks=52):
             return
         logger.info("Prefetching line items...")
         lines_items = list(self.get_model(models.LineItem, params={"invoice_id_not_null": "true"}))
@@ -228,7 +228,7 @@ class Client(requests.Session):
             params = {}
 
         if updated_at:
-            self._updated_at = updated_at
+            self.updated_at = updated_at
             params["since_updated_at"] = updated_at.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
 
         page = 1
