@@ -1,7 +1,18 @@
 from dataclasses import dataclass, field
 from datetime import datetime
+from enum import Enum
 
 from repairshopr_api.base.model import BaseModel
+
+
+class DayEnum(Enum):
+    MONDAY = 1234
+    TUESDAY = 2345
+    WEDNESDAY = 3456
+    THURSDAY = 4567
+    FRIDAY = 5678
+    SATURDAY = 6789
+    SUNDAY = 7890
 
 
 @dataclass
@@ -20,7 +31,7 @@ class Comment(BaseModel):
 @dataclass
 class Properties(BaseModel):
     id: int = None
-    day: str = None
+    day: DayEnum = None
     case: str = None
     other: str = None
     s_n_num: str = None
