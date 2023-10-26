@@ -256,4 +256,5 @@ if __name__ == "__main__":
     client = Client()
 
     #  print(client.fetch_from_api_by_id(models.Estimate, 4796157))
-    # print(client.get_properties_fields(models.Ticket))
+    #  print(client.get_properties_fields(models.Ticket))
+    #  print(client.get_model(models.Ticket))
