@@ -8,6 +8,7 @@ class CustomerProperties(models.Model):
     notification_reports = models.CharField(max_length=255, null=True)
     notification_marketing = models.CharField(max_length=255, null=True)
     title = models.CharField(max_length=255, null=True)
+    li_school = models.CharField(max_length=255, null=True)
 
     def __str__(self) -> str:
         return f"{self.id} - {self.type} - {self.notification_billing} - {self.notification_reports} - {self.notification_marketing}"

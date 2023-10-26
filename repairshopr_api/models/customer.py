@@ -12,6 +12,7 @@ class Properties(BaseModel):
     notification_reports: str = None
     notification_marketing: str = None
     title: str = None
+    li_school: str = None
 
 
 @dataclass

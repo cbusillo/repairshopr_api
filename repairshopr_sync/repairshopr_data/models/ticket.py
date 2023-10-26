@@ -15,6 +15,13 @@ class TicketProperties(models.Model):
     tag_num_2 = models.CharField(max_length=255, null=True)
     delivery_num = models.CharField(max_length=255, null=True)
     transport_2 = models.CharField(max_length=255, null=True)
+    po_num_2 = models.CharField(max_length=255, null=True)
+    phone_num = models.CharField(max_length=255, null=True)
+    p_g_name = models.CharField(max_length=255, null=True)
+    student = models.CharField(max_length=255, null=True)
+    s_n = models.CharField(max_length=255, null=True)
+    drop_off_location = models.CharField(max_length=255, null=True)
+    call_num = models.CharField(max_length=255, null=True)
 
 
 class Ticket(models.Model):

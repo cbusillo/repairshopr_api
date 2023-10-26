@@ -43,6 +43,13 @@ class Properties(BaseModel):
     tag_num_2: str = None
     delivery_num: str = None
     transport_2: str = None
+    po_num_2: str = None
+    phone_num: str = None
+    p_g_name: str = None
+    student: str = None
+    s_n: str = None
+    drop_off_location: str = None
+    call_num: str = None
 
 
 @dataclass
