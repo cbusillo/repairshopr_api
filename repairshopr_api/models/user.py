@@ -8,13 +8,13 @@ from repairshopr_api.base.model import BaseModel
 @dataclass
 class User(BaseModel):
     id: int
-    email: str = None
-    full_name: str = None
-    created_at: datetime = None
-    updated_at: datetime = None
-    group: str = None
-    admin: bool = None
-    color: str = None
+    email: str | None = None
+    full_name: str | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+    group: str | None = None
+    admin: bool | None = None
+    color: str | None = None
 
     def __post_init__(self) -> None:
         if not self.updated_at and self.rs_client.updated_at and self.rs_client.updated_at < datetime.now() - timedelta(days=1):

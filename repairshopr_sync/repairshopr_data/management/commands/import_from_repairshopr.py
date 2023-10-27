@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 def create_or_update_django_instance(
-    django_model: type[models.Model], api_instance: type[ModelType], extra_fields: dict[str, Any] = None
+    django_model: type[models.Model], api_instance: type[ModelType], extra_fields: dict[str, Any] | None = None
 ) -> models.Model:
     if extra_fields is None:
         extra_fields = {}
@@ -67,7 +67,7 @@ class Command(BaseCommand):
             f"repairshopr_data.models.{parent_model_name.lower()}.{parent_model_name}{formatted_sub_model_suffix}"
         )
 
-    def handle_model(self, django_model_path, api_model_path, num_last_pages: int = None, params: dict = None):
+    def handle_model(self, django_model_path, api_model_path, num_last_pages: int | None = None, params: dict | None = None):
         last_updated_at = settings.django.last_updated_at
         if not last_updated_at or last_updated_at < datetime(2010, 1, 1):
             num_last_pages = None
@@ -80,6 +80,7 @@ class Command(BaseCommand):
             django_instance = create_or_update_django_instance(django_model, api_instance)
             parent_model_name = django_model.__name__
 
+            # noinspection PyProtectedMember
             for related_obj in django_model._meta.related_objects:
                 sub_model_suffix = related_obj.name.replace(parent_model_name.lower(), "")
                 sub_django_model = self.get_submodel_class(parent_model_name, sub_model_suffix)

@@ -10,21 +10,21 @@ from repairshopr_api.models import Customer, Product, User
 @dataclass
 class LineItem(BaseModel):
     id: int
-    created_at: datetime = None
-    updated_at: datetime = None
-    invoice_id: int = None
-    item: str = None
-    name: str = None
-    cost: float = None
-    price: float = None
-    quantity: float = None
-    product_id: int = None
-    taxable: bool = None
-    discount_percent: float = None
-    position: int = None
-    invoice_bundle_id: int = None
-    discount_dollars: float = None
-    product_category: str = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+    invoice_id: int | None = None
+    item: str | None = None
+    name: str | None = None
+    cost: float | None = None
+    price: float | None = None
+    quantity: float | None = None
+    product_id: int | None = None
+    taxable: bool | None = None
+    discount_percent: float | None = None
+    position: int | None = None
+    invoice_bundle_id: int | None = None
+    discount_dollars: float | None = None
+    product_category: str | None = None
 
     @related_field(Product)
     def product(self) -> Product:
@@ -34,21 +34,21 @@ class LineItem(BaseModel):
 @dataclass
 class Estimate(BaseModel):
     id: int
-    customer_id: int = None
-    customer_business_then_name: str = None
-    number: str = None
-    status: str = None
-    created_at: datetime = None
-    updated_at: datetime = None
-    date: datetime = None
-    subtotal: float = None
-    total: float = None
-    tax: float = None
-    ticket_id: int = None
-    pdf_url: str = None
-    location_id: int = None
-    invoice_id: int = None
-    employee: str = None
+    customer_id: int | None = None
+    customer_business_then_name: str | None = None
+    number: str | None = None
+    status: str | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+    date: datetime | None = None
+    subtotal: float | None = None
+    total: float | None = None
+    tax: float | None = None
+    ticket_id: int | None = None
+    pdf_url: str | None = None
+    location_id: int | None = None
+    invoice_id: int | None = None
+    employee: str | None = None
 
     @related_field(Customer)
     def customer(self) -> Customer:

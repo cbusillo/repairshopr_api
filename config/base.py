@@ -1,7 +1,7 @@
 import logging
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Self
+from typing import Any, Generator, Self
 
 import toml
 
@@ -95,7 +95,7 @@ class AppSettings(Serializable):
         return sorted_dict
 
     @contextmanager
-    def debug_on(self) -> None:
+    def debug_on(self) -> Generator[None, None, None]:
         original_value = self.debug
         self.debug = True
         yield

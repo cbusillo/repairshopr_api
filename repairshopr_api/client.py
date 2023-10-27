@@ -23,6 +23,8 @@ ModelType = TypeVar("ModelType", bound="ModelProtocol")
 
 
 class ModelProtocol(Protocol):
+    id: int
+
     @classmethod
     def from_dict(cls: type[ModelType], data: dict) -> ModelType:
         ...
@@ -222,7 +224,11 @@ class Client(requests.Session):
             logger.warning(f"Could not find {model.__name__} with id {instance_id}")
 
     def get_model(
-        self, model: type[ModelType], updated_at: datetime = None, num_last_pages: int = None, params: dict = None
+        self,
+        model: type[ModelType],
+        updated_at: datetime | None = None,
+        num_last_pages: int | None = None,
+        params: dict | None = None,
     ) -> Generator[ModelType, None, None]:
         if not params:
             params = {}
