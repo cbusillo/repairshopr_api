@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "repairshopr-api"
-version = "0.1.67"
+version = "0.1.68"
 description = ""
 authors = ["Chris Busillo <info@shinycomputers.com>"]
 readme = "README.md"
@@ -10,10 +10,16 @@ python = "^3.11"
 toml = "^0.10.2"
 requests = "^2.31.0"
 pytz = "^2023.3.post1"
-black = "^23.10.1"
 tenacity = "^8.2.3"
 django = "^4.2.6"
 
+
+[tool.poetry.group.dev.dependencies]
+django-stubs = { extras = ["compatible-mypy"], version = "^4.2.6" }
+mypy = "^1.6.1"
+black = "^23.10.1"
+types-toml = "^0.10.8.7"
+types-requests = "^2.31.0.10"
 
 [build-system]
 requires = ["poetry-core"]
