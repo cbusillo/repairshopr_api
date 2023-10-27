@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class BaseModel(ABC):
-    id: int
+    id: int | None
 
     rs_client: "Client" = field(default=None, init=False, repr=False)  # Add a reference to the Client instance
 
@@ -28,15 +28,7 @@ class BaseModel(ABC):
     @classmethod
     def from_dict(cls: type[ModelType], data: dict[str, Any]) -> ModelType:
         instance = cls(id=data.get("id", 0))
-
         cleaned_data = {cls.clean_key(key): value for key, value in data.items() if value}
-
-        model_fields = {current_field.name for current_field in fields(cls)}
-        extra_fields_in_data = set(cleaned_data.keys()) - model_fields
-        if extra_fields_in_data and not settings.debug:
-            raise AttributeError(
-                f"{cls.__module__}.{cls.__name__} has extra fields: {extra_fields_in_data} with data: {cleaned_data}"
-            )
 
         for current_field in fields(cls):
             if not current_field.init:
