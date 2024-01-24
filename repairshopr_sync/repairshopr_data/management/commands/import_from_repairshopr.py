@@ -1,4 +1,5 @@
 import logging
+import pprint
 from datetime import datetime
 from typing import Any
 
@@ -39,7 +40,8 @@ def create_or_update_django_instance(
     try:
         obj, created = django_model.objects.update_or_create(defaults=field_data, id=api_instance.id)
     except DataError as e:
-        logger.error(f"DataError on {django_model.__name__}: {e}")
+        formatted_field_data = pprint.pformat(field_data)
+        logger.error(f"DataError on {django_model.__name__} with data {formatted_field_data}: {e}")
         raise
     return obj
 
