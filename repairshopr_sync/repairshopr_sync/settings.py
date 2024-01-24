@@ -53,6 +53,7 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
+# noinspection PyUnresolvedReferences
 ROOT_URLCONF = "repairshopr_sync.urls"
 
 TEMPLATES = [

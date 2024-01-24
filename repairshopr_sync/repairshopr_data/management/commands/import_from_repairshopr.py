@@ -33,6 +33,8 @@ def create_or_update_django_instance(
                 related_api_instance = getattr(api_instance, field.name)
                 if related_api_instance.id == 0:
                     related_api_instance.id = None
+
+                # noinspection PyTypeChecker
                 value = create_or_update_django_instance(related_django_model, related_api_instance)
             field_data[field.name] = value
 
