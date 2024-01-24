@@ -29,7 +29,7 @@ class EstimateLineItem(models.Model):
     created_at = models.DateTimeField(null=True)
     updated_at = models.DateTimeField(null=True)
     item = models.CharField(max_length=255, null=True)
-    name = models.CharField(max_length=255, null=True)
+    name = models.TextField(max_length=255, null=True)
     cost = models.FloatField(null=True)
     price = models.FloatField(null=True)
     quantity = models.FloatField(null=True)
