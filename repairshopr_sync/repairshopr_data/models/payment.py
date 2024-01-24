@@ -7,7 +7,7 @@ class Payment(models.Model):
     updated_at = models.DateTimeField(null=True)
     success = models.BooleanField(null=True)
     payment_amount = models.FloatField(null=True)
-    invoice_ids = models.CharField(max_length=255, null=True)
+    invoice_ids = models.TextField(null=True)
     ref_num = models.CharField(max_length=255, null=True)
     applied_at = models.DateTimeField(null=True)
     payment_method = models.CharField(max_length=255, null=True)
