@@ -17,7 +17,7 @@ class Invoice(models.Model):
     tech_marked_paid = models.BooleanField(null=True)
     ticket_id = models.IntegerField(null=True)
     user_id = models.IntegerField(null=True)
-    pdf_url = models.CharField(max_length=255, null=True)
+    pdf_url = models.URLField(max_length=255, null=True)
     is_paid = models.BooleanField(null=True)
     location_id = models.IntegerField(null=True)
     po_number = models.CharField(max_length=255, null=True)

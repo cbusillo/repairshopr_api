@@ -42,7 +42,7 @@ class Ticket(models.Model):
     properties = models.ForeignKey(TicketProperties, related_name="tickets", on_delete=models.CASCADE, null=True)
     user_id = models.IntegerField(null=True)
     updated_at = models.CharField(max_length=255, null=True)
-    pdf_url = models.CharField(max_length=255, null=True)
+    pdf_url = models.URLField(max_length=255, null=True)
     priority = models.CharField(max_length=255, null=True)
 
 

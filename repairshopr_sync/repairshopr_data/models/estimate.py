@@ -14,7 +14,7 @@ class Estimate(models.Model):
     total = models.FloatField(null=True)
     tax = models.FloatField(null=True)
     ticket_id = models.IntegerField(null=True)
-    pdf_url = models.CharField(max_length=255, null=True)
+    pdf_url = models.URLField(max_length=255, null=True)
     location_id = models.IntegerField(null=True)
     invoice_id = models.IntegerField(null=True)
     employee = models.CharField(max_length=255, null=True)
