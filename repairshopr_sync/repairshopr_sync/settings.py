@@ -79,8 +79,11 @@ WSGI_APPLICATION = "repairshopr_sync.wsgi.application"
 
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+        "ENGINE": f"django.db.backends.{settings.django.db_engine}",
+        "HOST": settings.django.db_host,
+        "NAME": settings.django.db_name,
+        "USER": settings.django.db_user,
+        "PASSWORD": settings.django.db_password,
     }
 }
 
