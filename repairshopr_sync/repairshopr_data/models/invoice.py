@@ -25,6 +25,9 @@ class Invoice(models.Model):
     note = models.TextField(null=True)
     hardwarecost = models.FloatField(null=True)
 
+    def __str__(self) -> str:
+        return f"{self.id} - {self.customer_business_then_name} - {self.number} - {self.created_at}"
+
 
 # noinspection DuplicatedCode
 class InvoiceLineItem(models.Model):
@@ -45,3 +48,6 @@ class InvoiceLineItem(models.Model):
     product_category = models.CharField(max_length=255, null=True)
 
     parent_invoice = models.ForeignKey(Invoice, on_delete=models.CASCADE, related_name="line_items", null=True)
+
+    def __str__(self) -> str:
+        return f"{self.id} - {self.name} - {self.price} - {self.quantity}"

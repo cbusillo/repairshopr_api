@@ -51,6 +51,9 @@ class Customer(models.Model):
     business_and_full_name = models.CharField(max_length=255, null=True)
     business_then_name = models.CharField(max_length=255, null=True)
 
+    def __str__(self) -> str:
+        return f"{self.id} - {self.business_then_name} - {self.phone} - {self.email}"
+
 
 class CustomerContact(models.Model):
     id = models.IntegerField(primary_key=True)
@@ -77,3 +80,6 @@ class CustomerContact(models.Model):
     processed_mobile = models.CharField(max_length=255, null=True)
 
     parent_customer = models.ForeignKey(Customer, related_name="contacts", on_delete=models.CASCADE, null=True)
+
+    def __str__(self) -> str:
+        return f"{self.id} - {self.name} - {self.phone} - {self.email}"
