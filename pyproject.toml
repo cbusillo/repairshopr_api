@@ -11,7 +11,7 @@ toml = "^0.10.2"
 requests = "^2.31.0"
 pytz = "^2023.3.post1"
 tenacity = "^8.2.3"
-django = "^4.2.6"
+django = "^5.0.1"
 mysqlclient = { version = "^2.2.1", optional = true }
 
 [tool.poetry.extras]
