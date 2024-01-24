@@ -1,9 +1,9 @@
 import logging
-import time
 from collections import Counter, defaultdict, deque
 from contextlib import contextmanager
 from datetime import datetime, timedelta
 from http import HTTPStatus
+from time import sleep
 from typing import Any, Generator, Protocol, TypeVar
 
 import requests
@@ -67,7 +67,7 @@ class Client(requests.Session):
             oldest_request = self._request_timestamps[0]
             sleep_time = 60 - (datetime.now() - oldest_request).total_seconds()
             if sleep_time > 0:
-                time.sleep(sleep_time)
+                sleep(sleep_time)
                 self.api_sleep_time += sleep_time
 
             self._clear_old_request_timestamps()
