@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import Any
 
 from django.core.management.base import BaseCommand
-from django.db import models
+from django.db import DataError, models
 from django.utils.timezone import make_aware
 
 from config import settings
@@ -36,7 +36,11 @@ def create_or_update_django_instance(
             field_data[field.name] = value
 
     field_data.update(extra_fields)
-    obj, created = django_model.objects.update_or_create(defaults=field_data, id=api_instance.id)
+    try:
+        obj, created = django_model.objects.update_or_create(defaults=field_data, id=api_instance.id)
+    except DataError as e:
+        logger.error(f"DataError on {django_model.__name__}: {e}")
+        raise
     return obj
 
 
