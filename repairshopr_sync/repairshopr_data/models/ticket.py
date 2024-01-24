@@ -51,7 +51,7 @@ class TicketComment(models.Model):
     created_at = models.DateTimeField(null=True)
     updated_at = models.DateTimeField(null=True)
     subject = models.CharField(max_length=255, null=True)
-    body = models.TextField(null=True)
+    body = models.TextField(null=True, db_collation="utf8mb4_unicode_ci")
     tech = models.CharField(max_length=255, null=True)
     hidden = models.BooleanField(null=True)
     user_id = models.IntegerField(null=True)

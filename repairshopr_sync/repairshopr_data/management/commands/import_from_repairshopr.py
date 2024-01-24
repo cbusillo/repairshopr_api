@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Any
 
 from django.core.management.base import BaseCommand
-from django.db import DataError, models
+from django.db import DataError, OperationalError, models
 from django.utils.timezone import make_aware
 
 from config import settings
@@ -44,6 +44,10 @@ def create_or_update_django_instance(
     except DataError as e:
         formatted_field_data = pprint.pformat(field_data)
         logger.error(f"DataError on {django_model.__name__} with data {formatted_field_data}: {e}")
+        raise
+    except OperationalError as e:
+        formatted_field_data = pprint.pformat(field_data)
+        logger.error(f"OperationalError on {django_model.__name__} with data {formatted_field_data}: {e}")
         raise
     return obj
 
