@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "repairshopr-api"
-version = "0.1.86"
+version = "0.1.87"
 description = ""
 authors = ["Chris Busillo <info@shinycomputers.com>"]
 readme = "README.md"
@@ -19,7 +19,6 @@ mysql = ["mysqlclient"]
 
 [tool.poetry.group.dev.dependencies]
 django-stubs = { extras = ["compatible-mypy"], version = "^4.2.6" }
-mypy = "^1.6.1"
 black = "^23.10.1"
 types-toml = "^0.10.8.7"
 types-requests = "^2.31.0.10"
