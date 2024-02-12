@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 class BaseModel(ABC):
     id: int | None
 
-    rs_client: "Client" = field(default=None, init=False, repr=False)  # Add a reference to the Client instance
+    rs_client: "Client | None" = field(default=None, init=False, repr=False)  # Add a reference to the Client instance
 
     @classmethod
     def set_client(cls, client: "Client"):
@@ -55,12 +55,14 @@ class BaseModel(ABC):
         return instance
 
     @classmethod
-    def _get_field_names(cls, attribute: str = None) -> set[str]:
+    def _get_field_names(cls, attribute: str | None = None) -> set[str]:
         field_names = set()
+        if not cls.rs_client:
+            raise AttributeError("The rs_client attribute is not set.")
         for model_item in cls.rs_client.get_model(cls):
             target = model_item
             if attribute:
-                target = getattr(model_item, attribute, None)
+                target = getattr(model_item, attribute)
             if target:
                 target_keys = set(target.__dict__.keys())
                 target_keys.discard("rs_client")
