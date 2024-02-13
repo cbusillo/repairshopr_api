@@ -28,4 +28,7 @@ requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.scripts]
-server = "run_django:runserver"
+server = "django_manage:runserver"
+makemigrations = "django_manage:makemigrations"
+migrate = "django_manage:migrate"
+import_from_repairshopr = "django_manage:import_from_repairshopr"
