@@ -1,0 +1,14 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python Debugger: RunServer",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/repairshopr_sync/manage.py",
+            "args": ["runserver"],
+            "django": true,
+            "justMyCode": true
+        }
+    ]
+}
