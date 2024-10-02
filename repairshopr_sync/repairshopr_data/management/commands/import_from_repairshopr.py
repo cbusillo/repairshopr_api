@@ -1,11 +1,10 @@
 import logging
 import pprint
 from datetime import datetime
-from typing import Any
-
 from django.core.management.base import BaseCommand
 from django.db import DataError, OperationalError, models
 from django.utils.timezone import make_aware
+from typing import Any
 
 from config import settings
 from repairshopr_api.client import Client, ModelType
@@ -117,7 +116,7 @@ class Command(BaseCommand):
         module = __import__(module_path, fromlist=[class_name])
         return getattr(module, class_name.replace("_", ""))
 
-    def handle(self, *args, **kwargs) -> None:
+    def handle(self, *_args, **_kwargs) -> None:
         start_updated_at = datetime.now()
         for model_name, (num_last_pages, params) in self.model_mapping.items():
             django_model_path = f"repairshopr_data.models.{model_name.lower()}.{model_name}"
