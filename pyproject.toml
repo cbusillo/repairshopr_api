@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "repairshopr-api"
-version = "0.1.95"
+version = "0.1.90"
 description = ""
 authors = ["Chris Busillo <info@shinycomputers.com>"]
 readme = "README.md"
@@ -26,3 +26,9 @@ types-requests = "^2.31.0.10"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+server = "run_django:runserver"
+makemigrations = "run_django:makemigrations"
+migrate = "run_django:migrate"
+import = "run_django:import_from_repairshopr"

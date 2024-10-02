@@ -2,14 +2,12 @@
 """Django's command-line utility for administrative tasks."""
 import os
 import sys
-from pathlib import Path
 
-sys.path.append(str(Path(__file__).resolve().parent.parent))
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'repairshopr_sync.settings')
 
-
+print(sys.path)
 def main() -> None:
     """Run administrative tasks."""
-    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "repairshopr_sync.settings")
     try:
         from django.core.management import execute_from_command_line
     except ImportError as exc:
