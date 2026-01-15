@@ -9,7 +9,7 @@ from typing import Any, Generator, Protocol, TypeVar
 import requests
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
-from config import settings
+from repairshopr_api.config import settings
 from repairshopr_api import models
 from repairshopr_api.base.model import BaseModel
 from repairshopr_api.converters.strings import snake_case

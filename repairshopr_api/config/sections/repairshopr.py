@@ -1,4 +1,4 @@
-from config.serializable import Serializable
+from repairshopr_api.config.serializable import Serializable
 
 
 class Repairshopr(Serializable):

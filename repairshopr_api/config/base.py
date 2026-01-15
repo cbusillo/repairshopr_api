@@ -5,8 +5,8 @@ from typing import Any, Generator, Self
 
 import toml
 
-from config.sections import *
-from config.serializable import Serializable
+from repairshopr_api.config.sections import Django, Repairshopr
+from repairshopr_api.config.serializable import Serializable
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +53,7 @@ class AppSettings(Serializable):
             with self.config_file_path.open() as file:
                 data = toml.load(file)
                 for key, value in data.items():
-                    if key.startswith("_"):  # Skip keys starting with an underscore
+                    if key.startswith("_"):
                         continue
                     attr = getattr(self, key, None)
                     if isinstance(attr, Serializable):

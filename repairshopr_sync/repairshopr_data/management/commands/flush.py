@@ -3,7 +3,7 @@ from pathlib import Path
 from django.conf import settings as django_settings
 from django.core.management.commands.flush import Command as FlushCommand
 
-from config import settings
+from repairshopr_api.config import settings
 
 
 class Command(FlushCommand):

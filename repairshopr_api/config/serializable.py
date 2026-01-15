@@ -18,7 +18,7 @@ class Serializable:
         return result
 
     def from_dict(self, data: dict[str, Any]) -> None:
-        for key, type_hint in getattr(self, "__annotations__", {}).items():
+        for key, _type_hint in getattr(self, "__annotations__", {}).items():
             value = data.get(key, getattr(self, key, None))
 
             try:
@@ -38,7 +38,7 @@ class Serializable:
         self.validate()
 
     def validate(self) -> None:
-        for key, value in getattr(self, "__annotations__", {}).items():
+        for key, _value in getattr(self, "__annotations__", {}).items():
             if getattr(self, key, None) is None:
                 logger.warning(f"Warning: Configuration value '{key}' is missing or None in {self.__class__.__name__}")
 

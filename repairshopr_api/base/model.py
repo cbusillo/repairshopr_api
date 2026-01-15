@@ -5,7 +5,7 @@ from dataclasses import dataclass, field, fields
 from datetime import datetime
 from typing import Any, Self, TYPE_CHECKING, TypeVar
 
-from config import settings
+from repairshopr_api.config import settings
 
 if TYPE_CHECKING:
     from repairshopr_api.client import Client

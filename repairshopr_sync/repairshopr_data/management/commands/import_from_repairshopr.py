@@ -6,7 +6,7 @@ from django.db import DataError, OperationalError, models
 from django.utils.timezone import make_aware
 from typing import Any
 
-from config import settings
+from repairshopr_api.config import settings
 from repairshopr_api.client import Client, ModelType
 
 logger = logging.getLogger(__name__)
