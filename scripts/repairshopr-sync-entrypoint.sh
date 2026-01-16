@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+log() {
+  echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] $*" >&2
+}
+
 if [[ -z "${REPAIRSHOPR_TOKEN:-}" ]]; then
   echo "Missing REPAIRSHOPR_TOKEN" >&2
   exit 1
@@ -113,9 +117,27 @@ PY
 
 wait_for_db
 
-python repairshopr_sync/manage.py migrate --noinput
+run_manage() {
+  local label="$1"
+  shift
+  if ! python repairshopr_sync/manage.py "$@"; then
+    log "RepairShopr sync failed during ${label}."
+    return 1
+  fi
+  return 0
+}
+
+SYNC_FAILURE_SLEEP_SECONDS="${SYNC_FAILURE_SLEEP_SECONDS:-60}"
+
+if ! run_manage "migrate" migrate --noinput; then
+  log "Migration failed; sleeping for ${SYNC_FAILURE_SLEEP_SECONDS}s before retry."
+  sleep "${SYNC_FAILURE_SLEEP_SECONDS}"
+fi
 
 while true; do
-  python repairshopr_sync/manage.py import_from_repairshopr
+  if ! run_manage "import" import_from_repairshopr; then
+    log "Import failed; sleeping for ${SYNC_FAILURE_SLEEP_SECONDS}s before next attempt."
+    sleep "${SYNC_FAILURE_SLEEP_SECONDS}"
+  fi
   sleep "${SYNC_INTERVAL_SECONDS}"
 done
