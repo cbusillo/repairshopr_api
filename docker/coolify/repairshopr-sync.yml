@@ -1,0 +1,37 @@
+name: repairshopr-sync
+
+services:
+  sync:
+    build:
+      dockerfile: docker/Dockerfile.sync
+    env_file:
+      - .env
+    environment:
+      HOME: /var/lib/repairshopr
+      REPAIRSHOPR_TOKEN: ${REPAIRSHOPR_TOKEN}
+      REPAIRSHOPR_URL_STORE_NAME: ${REPAIRSHOPR_URL_STORE_NAME}
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY}
+      REPAIRSHOPR_DEBUG: ${REPAIRSHOPR_DEBUG:-false}
+      SYNC_DB_HOST: db
+      SYNC_DB_NAME: ${SYNC_DB_NAME:-repairshopr}
+      SYNC_DB_USER: ${SYNC_DB_USER:-repairshopr_api}
+      SYNC_DB_PASSWORD: ${SYNC_DB_PASSWORD}
+      SYNC_INTERVAL_SECONDS: ${SYNC_INTERVAL_SECONDS:-900}
+    depends_on:
+      - db
+    restart: unless-stopped
+    volumes:
+      - /opt/repairshopr-sync/config:/var/lib/repairshopr/.config
+
+  db:
+    image: mariadb:10.11
+    restart: unless-stopped
+    ports:
+      - "3307:3306"
+    environment:
+      - MARIADB_ROOT_PASSWORD=${SYNC_DB_ROOT_PASSWORD}
+      - MARIADB_DATABASE=${SYNC_DB_NAME:-repairshopr}
+      - MARIADB_USER=${SYNC_DB_USER:-repairshopr_api}
+      - MARIADB_PASSWORD=${SYNC_DB_PASSWORD}
+    volumes:
+      - /opt/repairshopr-sync/mysql:/var/lib/mysql

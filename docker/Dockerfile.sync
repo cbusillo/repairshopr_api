@@ -1,0 +1,28 @@
+FROM python:3.11-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+ENV PIP_DISABLE_PIP_VERSION_CHECK=1
+
+WORKDIR /app
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        build-essential \
+        default-libmysqlclient-dev \
+        gcc \
+        pkg-config \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY pyproject.toml README.md /app/
+COPY repairshopr_api /app/repairshopr_api
+COPY repairshopr_sync /app/repairshopr_sync
+COPY run_django.py /app/run_django.py
+COPY scripts/repairshopr-sync-entrypoint.sh /app/scripts/repairshopr-sync-entrypoint.sh
+
+RUN pip install --no-cache-dir ".[sync]"
+RUN chmod +x /app/scripts/repairshopr-sync-entrypoint.sh
+
+ENV DJANGO_SETTINGS_MODULE=repairshopr_sync.settings
+
+CMD ["/app/scripts/repairshopr-sync-entrypoint.sh"]

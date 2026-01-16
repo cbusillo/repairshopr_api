@@ -1,0 +1,82 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ -z "${REPAIRSHOPR_TOKEN:-}" ]]; then
+  echo "Missing REPAIRSHOPR_TOKEN" >&2
+  exit 1
+fi
+
+if [[ -z "${REPAIRSHOPR_URL_STORE_NAME:-}" ]]; then
+  echo "Missing REPAIRSHOPR_URL_STORE_NAME" >&2
+  exit 1
+fi
+
+if [[ -z "${SYNC_DB_HOST:-}" ]]; then
+  echo "Missing SYNC_DB_HOST" >&2
+  exit 1
+fi
+
+if [[ -z "${SYNC_DB_PASSWORD:-}" ]]; then
+  echo "Missing SYNC_DB_PASSWORD" >&2
+  exit 1
+fi
+
+if [[ -z "${DJANGO_SECRET_KEY:-}" ]]; then
+  echo "Missing DJANGO_SECRET_KEY" >&2
+  exit 1
+fi
+
+SYNC_DB_NAME="${SYNC_DB_NAME:-repairshopr}"
+SYNC_DB_USER="${SYNC_DB_USER:-repairshopr_api}"
+SYNC_INTERVAL_SECONDS="${SYNC_INTERVAL_SECONDS:-900}"
+REPAIRSHOPR_DEBUG="${REPAIRSHOPR_DEBUG:-false}"
+
+CONFIG_ROOT="${HOME:-/var/lib/repairshopr}/.config/repairshopr-api"
+CONFIG_FILE="${CONFIG_ROOT}/config.toml"
+
+export REPAIRSHOPR_DEBUG
+export SYNC_DB_NAME
+export SYNC_DB_USER
+export CONFIG_FILE
+
+mkdir -p "${CONFIG_ROOT}"
+
+python - <<'PY'
+import os
+from pathlib import Path
+
+import toml
+
+config_file = Path(os.environ["CONFIG_FILE"])
+config_file.parent.mkdir(parents=True, exist_ok=True)
+
+data = {}
+if config_file.exists():
+    try:
+        data = toml.load(config_file)
+    except toml.TomlDecodeError:
+        data = {}
+
+data.setdefault("repairshopr", {})
+data.setdefault("django", {})
+
+data["debug"] = os.environ["REPAIRSHOPR_DEBUG"].lower() in {"1", "true", "yes", "on"}
+data["repairshopr"]["token"] = os.environ["REPAIRSHOPR_TOKEN"]
+data["repairshopr"]["url_store_name"] = os.environ["REPAIRSHOPR_URL_STORE_NAME"]
+data["django"]["secret_key"] = os.environ["DJANGO_SECRET_KEY"]
+data["django"]["db_engine"] = "mysql"
+data["django"]["db_host"] = os.environ["SYNC_DB_HOST"]
+data["django"]["db_name"] = os.environ["SYNC_DB_NAME"]
+data["django"]["db_user"] = os.environ["SYNC_DB_USER"]
+data["django"]["db_password"] = os.environ["SYNC_DB_PASSWORD"]
+
+with config_file.open("w") as handle:
+    toml.dump(data, handle)
+PY
+
+python repairshopr_sync/manage.py migrate --noinput
+
+while true; do
+  python repairshopr_sync/manage.py import_from_repairshopr
+  sleep "${SYNC_INTERVAL_SECONDS}"
+done
