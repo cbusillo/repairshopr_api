@@ -74,6 +74,45 @@ with config_file.open("w") as handle:
     toml.dump(data, handle)
 PY
 
+wait_for_db() {
+  local retries="${SYNC_DB_WAIT_RETRIES:-60}"
+  local delay="${SYNC_DB_WAIT_SECONDS:-2}"
+  local attempt=1
+
+  while [ "$attempt" -le "$retries" ]; do
+    if python - <<'PY'
+import os
+import sys
+
+import MySQLdb
+
+try:
+    MySQLdb.connect(
+        host=os.environ["SYNC_DB_HOST"],
+        user=os.environ["SYNC_DB_USER"],
+        passwd=os.environ["SYNC_DB_PASSWORD"],
+        db=os.environ["SYNC_DB_NAME"],
+        connect_timeout=5,
+    ).close()
+except Exception:
+    sys.exit(1)
+sys.exit(0)
+PY
+    then
+      echo "RepairShopr sync DB is ready."
+      return 0
+    fi
+    echo "Waiting for RepairShopr sync DB... (${attempt}/${retries})"
+    attempt=$((attempt + 1))
+    sleep "${delay}"
+  done
+
+  echo "RepairShopr sync DB not reachable after ${retries} attempts." >&2
+  return 1
+}
+
+wait_for_db
+
 python repairshopr_sync/manage.py migrate --noinput
 
 while true; do
