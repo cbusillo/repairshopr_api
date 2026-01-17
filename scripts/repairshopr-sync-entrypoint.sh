@@ -34,6 +34,7 @@ SYNC_DB_NAME="${SYNC_DB_NAME:-repairshopr}"
 SYNC_DB_USER="${SYNC_DB_USER:-repairshopr_api}"
 SYNC_INTERVAL_SECONDS="${SYNC_INTERVAL_SECONDS:-900}"
 REPAIRSHOPR_DEBUG="${REPAIRSHOPR_DEBUG:-false}"
+SYNC_DB_RESET="${SYNC_DB_RESET:-0}"
 
 CONFIG_ROOT="${HOME:-/var/lib/repairshopr}/.config/repairshopr-api"
 CONFIG_FILE="${CONFIG_ROOT}/config.toml"
@@ -128,6 +129,14 @@ run_manage() {
 }
 
 SYNC_FAILURE_SLEEP_SECONDS="${SYNC_FAILURE_SLEEP_SECONDS:-60}"
+
+if [[ "${SYNC_DB_RESET}" = "1" ]]; then
+  log "Resetting RepairShopr sync DB via Django flush."
+  if ! run_manage "flush" flush --noinput; then
+    log "Sync DB reset failed; sleeping for ${SYNC_FAILURE_SLEEP_SECONDS}s before retry."
+    sleep "${SYNC_FAILURE_SLEEP_SECONDS}"
+  fi
+fi
 
 if ! run_manage "migrate" migrate --noinput; then
   log "Migration failed; sleeping for ${SYNC_FAILURE_SLEEP_SECONDS}s before retry."
