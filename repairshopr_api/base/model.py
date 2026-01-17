@@ -3,7 +3,7 @@ import re
 from abc import ABC
 from dataclasses import dataclass, field, fields
 from datetime import datetime
-from typing import Any, Self, TYPE_CHECKING, TypeVar
+from typing import Any, Self, TYPE_CHECKING, TypeVar, get_args
 
 from repairshopr_api.config import settings
 
@@ -37,8 +37,10 @@ class BaseModel(ABC):
             if current_field.name in cleaned_data:
                 value = cleaned_data[current_field.name]
 
-                if isinstance(value, str) and isinstance(current_field.type, type) and issubclass(current_field.type, datetime):
-                    value = datetime.fromisoformat(value)
+                if isinstance(value, str) and cls._field_accepts_datetime(current_field.type):
+                    parsed_value = cls._parse_datetime(value)
+                    if parsed_value is not None:
+                        value = parsed_value
 
                 if isinstance(value, list) and all(isinstance(item, dict) for item in value):
                     field_type = current_field.type.__args__[0] if hasattr(current_field.type, "__args__") else None
@@ -106,3 +108,19 @@ class BaseModel(ABC):
         cleaned_key = re.sub(r"_$", "_2", cleaned_key)
         cleaned_key = cleaned_key.replace(r"#", "num")
         return cleaned_key.lower()
+
+    @staticmethod
+    def _field_accepts_datetime(field_type: object) -> bool:
+        if field_type is datetime:
+            return True
+        return datetime in get_args(field_type)
+
+    @staticmethod
+    def _parse_datetime(value: str) -> datetime | None:
+        raw_value = value.strip()
+        if raw_value.endswith("Z"):
+            raw_value = f"{raw_value[:-1]}+00:00"
+        try:
+            return datetime.fromisoformat(raw_value)
+        except ValueError:
+            return None

@@ -1,15 +1,39 @@
 import logging
 import pprint
-from datetime import datetime
+from datetime import date, datetime
+from typing import Any
+
 from django.core.management.base import BaseCommand
 from django.db import DataError, OperationalError, models
 from django.utils.timezone import make_aware
-from typing import Any
 
 from repairshopr_api.config import settings
 from repairshopr_api.client import Client, ModelType
 
 logger = logging.getLogger(__name__)
+
+
+def _parse_datetime(value: str, *, field_name: str) -> datetime | None:
+    raw_value = value.strip()
+    if raw_value.endswith("Z"):
+        raw_value = f"{raw_value[:-1]}+00:00"
+    try:
+        return datetime.fromisoformat(raw_value)
+    except ValueError:
+        logger.warning("Unable to parse datetime for %s: %s", field_name, value)
+        return None
+
+
+def _coerce_datetime(value: object, *, field_name: str) -> datetime | None:
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value
+    if isinstance(value, date):
+        return datetime.combine(value, datetime.min.time())
+    if isinstance(value, str):
+        return _parse_datetime(value, field_name=field_name)
+    return None
 
 
 def create_or_update_django_instance(
@@ -25,7 +49,13 @@ def create_or_update_django_instance(
             continue
         if hasattr(api_instance, field.name):
             value = getattr(api_instance, field.name)
-            if isinstance(value, datetime) and value.tzinfo is None:
+            if isinstance(field, models.DateTimeField):
+                parsed_value = _coerce_datetime(value, field_name=f"{django_model.__name__}.{field.name}")
+                if parsed_value is not None:
+                    if parsed_value.tzinfo is None:
+                        parsed_value = make_aware(parsed_value)
+                    value = parsed_value
+            elif isinstance(value, datetime) and value.tzinfo is None:
                 value = make_aware(value)
             if isinstance(field, models.ForeignKey):
                 related_django_model = field.related_model
