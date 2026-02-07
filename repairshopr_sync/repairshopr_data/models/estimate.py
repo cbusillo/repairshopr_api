@@ -28,6 +28,7 @@ class EstimateLineItem(models.Model):
     id = models.IntegerField(primary_key=True)
     created_at = models.DateTimeField(null=True)
     updated_at = models.DateTimeField(null=True)
+    since_updated_at = models.CharField(max_length=255, null=True)
     item = models.CharField(max_length=255, null=True)
     name = models.TextField(max_length=255, null=True)
     cost = models.FloatField(null=True)

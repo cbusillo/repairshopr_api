@@ -9,6 +9,7 @@ from django.utils.timezone import make_aware
 
 from repairshopr_api.config import settings
 from repairshopr_api.client import Client, ModelType
+from repairshopr_data.models import TicketType, TicketTypeField, TicketTypeFieldAnswer
 
 logger = logging.getLogger(__name__)
 
@@ -153,6 +154,8 @@ class Command(BaseCommand):
             api_model_path = f"repairshopr_api.models.{model_name}"
             self.handle_model(django_model_path, api_model_path, num_last_pages, params)
 
+        self.sync_ticket_settings()
+
         settings.django.last_updated_at = start_updated_at
         settings.save()
 
@@ -167,3 +170,40 @@ class Command(BaseCommand):
             f"for a total of {hours} hours, {minutes} minutes, and {seconds} seconds"
         )
         self.client.clear_cache()
+
+    def sync_ticket_settings(self) -> None:
+        try:
+            payload = self.client.fetch_ticket_settings()
+        except Exception as exc:
+            logger.warning("Failed to fetch ticket settings: %s", exc)
+            return
+
+        ticket_types = payload.get("ticket_types", [])
+        for item in ticket_types:
+            TicketType.objects.update_or_create(
+                id=item.get("id"),
+                defaults={"name": item.get("name")},
+            )
+
+        ticket_fields = payload.get("ticket_type_fields", [])
+        for item in ticket_fields:
+            TicketTypeField.objects.update_or_create(
+                id=item.get("id"),
+                defaults={
+                    "name": item.get("name"),
+                    "field_type": item.get("field_type"),
+                    "ticket_type_id": item.get("ticket_type_id"),
+                    "position": item.get("position"),
+                    "required": item.get("required"),
+                },
+            )
+
+        ticket_answers = payload.get("ticket_type_field_answers", [])
+        for item in ticket_answers:
+            TicketTypeFieldAnswer.objects.update_or_create(
+                id=item.get("id"),
+                defaults={
+                    "ticket_field_id": item.get("ticket_field_id"),
+                    "value": item.get("value"),
+                },
+            )

@@ -152,6 +152,23 @@ class Client(requests.Session):
         self._cache.clear()
         self._has_line_item_in_cache = False
 
+    def fetch_ticket_settings(self) -> dict[str, Any]:
+        url = f"{self.base_url}/tickets/settings"
+        response = requests.get(
+            url,
+            params={"api_key": self.token},
+            headers={
+                "Accept": "application/json",
+                "User-Agent": "repairshopr-api",
+            },
+            timeout=30,
+        )
+        response.raise_for_status()
+        payload = response.json()
+        if not isinstance(payload, dict):
+            raise ValueError("Unexpected RepairShopr ticket settings payload.")
+        return payload
+
     def prefetch_line_items(self) -> None:
         if self._has_line_item_in_cache:
             return

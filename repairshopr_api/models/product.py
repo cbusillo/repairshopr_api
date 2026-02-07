@@ -6,6 +6,7 @@ from repairshopr_api.base.model import BaseModel
 @dataclass
 class Product(BaseModel):
     id: int
+    since_updated_at: str | None = None
     price_cost: float | None = None
     price_retail: float | None = None
     condition: str | None = None

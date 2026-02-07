@@ -12,6 +12,7 @@ class LineItem(BaseModel):
     id: int
     created_at: datetime | None = None
     updated_at: datetime | None = None
+    since_updated_at: str | None = None
     invoice_id: int | None = None
     item: str | None = None
     name: str | None = None

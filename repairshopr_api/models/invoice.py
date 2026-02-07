@@ -12,6 +12,7 @@ class LineItem(BaseModel):
     id: int
     created_at: datetime | None = None
     updated_at: datetime | None = None
+    since_updated_at: str | None = None
     invoice_id: int | None = None
     item: str | None = None
     name: str | None = None
@@ -34,6 +35,7 @@ class LineItem(BaseModel):
 @dataclass
 class Invoice(BaseModel):
     id: int
+    external_id: int | None = None
     customer_id: int | None = None
     customer_business_then_name: str | None = None
     number: str | None = None

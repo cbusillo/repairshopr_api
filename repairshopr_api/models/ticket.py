@@ -60,17 +60,42 @@ class Ticket(BaseModel):
     created_at: datetime | None = None
     customer_id: int | None = None
     customer_business_then_name: str | None = None
+    address_id: int | None = None
     due_date: datetime | None = None
     resolved_at: datetime | None = None
     start_at: datetime | None = None
     end_at: datetime | None = None
     location_id: int | None = None
+    location_name: str | None = None
     problem_type: str | None = None
     status: str | None = None
+    billing_status: str | None = None
     ticket_type_id: int | None = None
+    ticket_type_name: str | None = None
     properties: Properties = field(default_factory=Properties)
     user_id: int | None = None
+    user: dict | None = None
     updated_at: str | None = None
     pdf_url: str | None = None
     priority: str | None = None
     comments: list[Comment] = field(default_factory=list)
+    contact_fullname: str | None = None
+    contact_id: int | None = None
+    contract_id: int | None = None
+    contract_name: str | None = None
+    creator_name_or_email: str | None = None
+    customer_icons: list[dict] = field(default_factory=list)
+    customer_reply: bool | None = None
+    customer_tag_list: list[str] = field(default_factory=list)
+    parent: bool | None = None
+    parent_id: int | None = None
+    child: bool | None = None
+    recurring: bool | None = None
+    resolution_time: int | None = None
+    response_time: int | None = None
+    sla_breached: bool | None = None
+    sla_breaching_soon: bool | None = None
+    sla_id: int | None = None
+    sla_name: str | None = None
+    tag_list: list[str] = field(default_factory=list)
+    total_formatted_billable_time: str | None = None

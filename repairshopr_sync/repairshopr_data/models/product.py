@@ -3,6 +3,7 @@ from django.db import models
 
 class Product(models.Model):
     id = models.IntegerField(primary_key=True)
+    since_updated_at = models.CharField(max_length=255, null=True)
     price_cost = models.FloatField(null=True)
     price_retail = models.FloatField(null=True)
     condition = models.CharField(max_length=255, null=True)
