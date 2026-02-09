@@ -10,6 +10,20 @@ Python client and sync utilities for RepairShopr.
 - Install dependencies: `poetry install`
 - Build package: `poetry build`
 
+## Tests
+
+The repository uses `pytest` with coverage gates.
+
+- Install test dependencies: `poetry install --with dev`
+- Run the full suite: `poetry run pytest -q`
+- Run with explicit coverage output: `poetry run pytest --cov --cov-report=term-missing`
+
+Notes:
+
+- Tests do not call the live RepairShopr API.
+- Shell tests for `scripts/repairshopr-sync-entrypoint.sh` run with command stubs.
+- The default coverage threshold is enforced at `80%`.
+
 ## Release (PyPI)
 
 Releases are tag-driven. The GitHub Actions workflow publishes to PyPI only

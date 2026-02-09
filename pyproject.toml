@@ -27,6 +27,12 @@ django-stubs = { extras = ["compatible-mypy"], version = "^4.2.6" }
 black = "^23.10.1"
 types-toml = "^0.10.8.7"
 types-requests = "^2.31.0.10"
+pytest = "^8.3.5"
+pytest-cov = "^6.0.0"
+pytest-mock = "^3.14.0"
+pytest-django = "^4.11.1"
+freezegun = "^1.5.1"
+django = "^5.0.1"
 
 [build-system]
 requires = ["poetry-core"]
@@ -37,3 +43,30 @@ server = "run_django:runserver"
 makemigrations = "run_django:makemigrations"
 migrate = "run_django:migrate"
 import = "run_django:import_from_repairshopr"
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+addopts = "--strict-config --strict-markers --cov --cov-report=term-missing --cov-fail-under=80"
+DJANGO_SETTINGS_MODULE = "tests.django_settings"
+markers = [
+    "django_db: mark test as requiring the Django test database",
+    "integration: marks tests as integration-level",
+    "scripts: marks shell entrypoint tests",
+]
+filterwarnings = [
+    "error",
+]
+
+[tool.coverage.run]
+branch = true
+source = [
+    "repairshopr_api.base.model",
+    "repairshopr_api.client",
+    "repairshopr_api.models.user",
+    "repairshopr_data.management.commands.import_from_repairshopr",
+]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
