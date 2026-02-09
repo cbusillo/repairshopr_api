@@ -75,7 +75,7 @@ jobs:
 
       - name: Wait for MySQL
         run: |
-          python - <<'PY'
+          poetry run python - <<'PY'
           import time
           import MySQLdb
 
