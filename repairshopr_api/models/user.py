@@ -17,7 +17,15 @@ class User(BaseModel):
     color: str | None = None
 
     def __post_init__(self) -> None:
-        if not self.updated_at and self.rs_client.updated_at and self.rs_client.updated_at < datetime.now() - timedelta(days=1):
+        if not self.updated_at and self.rs_client.updated_at:
+            if self.rs_client.updated_at.tzinfo is None:
+                refresh_cutoff = datetime.now() - timedelta(days=1)
+            else:
+                refresh_cutoff = datetime.now(tz=self.rs_client.updated_at.tzinfo) - timedelta(days=1)
+
+            if self.rs_client.updated_at >= refresh_cutoff:
+                return
+
             data = self.rs_client.fetch_from_api_by_id(User, self.id)
             for key, value in data.items():
                 setattr(self, key, value)

@@ -172,8 +172,14 @@ class Client(requests.Session):
     def prefetch_line_items(self) -> None:
         if self._has_line_item_in_cache:
             return
-        if self.updated_at and self.updated_at > datetime.now() - timedelta(weeks=52):
-            return
+        if self.updated_at:
+            if self.updated_at.tzinfo is None:
+                prefetch_cutoff = datetime.now() - timedelta(weeks=52)
+            else:
+                prefetch_cutoff = datetime.now(tz=self.updated_at.tzinfo) - timedelta(weeks=52)
+
+            if self.updated_at > prefetch_cutoff:
+                return
         logger.info("Prefetching line items...")
         lines_items = list(self.get_model(models.LineItem, params={"invoice_id_not_null": "true"}))
 
