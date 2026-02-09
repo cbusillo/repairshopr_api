@@ -5,7 +5,7 @@ from typing import Any
 
 from django.core.management.base import BaseCommand
 from django.db import DataError, OperationalError, models
-from django.utils.timezone import make_aware
+from django.utils.timezone import make_aware, now
 
 from repairshopr_api.config import settings
 from repairshopr_api.client import Client, ModelType
@@ -148,7 +148,8 @@ class Command(BaseCommand):
         return getattr(module, class_name.replace("_", ""))
 
     def handle(self, *_args, **_kwargs) -> None:
-        start_updated_at = datetime.now()
+        start_updated_at = now()
+        logger.info("SYNC_RUN start=%s", start_updated_at.isoformat())
         for model_name, (num_last_pages, params) in self.model_mapping.items():
             django_model_path = f"repairshopr_data.models.{model_name.lower()}.{model_name}"
             api_model_path = f"repairshopr_api.models.{model_name}"
@@ -159,15 +160,19 @@ class Command(BaseCommand):
         settings.django.last_updated_at = start_updated_at
         settings.save()
 
-        end_updated_at = datetime.now()
-        time_taken = end_updated_at - start_updated_at
-        hours, remainder = divmod(time_taken.seconds, 3600)
+        end_updated_at = now()
+        elapsed_seconds = int((end_updated_at - start_updated_at).total_seconds())
+        hours, remainder = divmod(elapsed_seconds, 3600)
         minutes, seconds = divmod(remainder, 60)
 
         logger.info(
-            f"\n\nStarted at {start_updated_at.strftime('%h:%M:%S')} "
-            f"ended at {end_updated_at.strftime('%h:%M:%S')} "
-            f"for a total of {hours} hours, {minutes} minutes, and {seconds} seconds"
+            "SYNC_RUN done start=%s end=%s elapsed_seconds=%s elapsed_hms=%02d:%02d:%02d",
+            start_updated_at.isoformat(),
+            end_updated_at.isoformat(),
+            elapsed_seconds,
+            hours,
+            minutes,
+            seconds,
         )
         self.client.clear_cache()
 
