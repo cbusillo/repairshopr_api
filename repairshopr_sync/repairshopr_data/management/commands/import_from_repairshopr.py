@@ -1,6 +1,6 @@
 import logging
 import pprint
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from typing import Any
 
 from django.core.management.base import BaseCommand
@@ -111,7 +111,10 @@ class Command(BaseCommand):
 
     def handle_model(self, django_model_path, api_model_path, num_last_pages: int | None = None, params: dict | None = None):
         last_updated_at = settings.django.last_updated_at
-        if not last_updated_at or last_updated_at < datetime(2010, 1, 1):
+        if last_updated_at and last_updated_at.tzinfo is None:
+            last_updated_at = make_aware(last_updated_at)
+        baseline_updated_at = datetime(2010, 1, 1, tzinfo=timezone.utc)
+        if not last_updated_at or last_updated_at < baseline_updated_at:
             num_last_pages = None
 
         django_model = self.dynamic_import(django_model_path)

@@ -144,9 +144,15 @@ if ! run_manage "migrate" migrate --noinput; then
 fi
 
 while true; do
+  cycle_started_epoch="$(date -u +%s)"
+  log "SYNC_LOOP start cycle_started_epoch=${cycle_started_epoch}"
   if ! run_manage "import" import_from_repairshopr; then
     log "Import failed; sleeping for ${SYNC_FAILURE_SLEEP_SECONDS}s before next attempt."
     sleep "${SYNC_FAILURE_SLEEP_SECONDS}"
+  else
+    cycle_finished_epoch="$(date -u +%s)"
+    cycle_elapsed_seconds="$((cycle_finished_epoch - cycle_started_epoch))"
+    log "SYNC_LOOP done cycle_finished_epoch=${cycle_finished_epoch} elapsed_seconds=${cycle_elapsed_seconds}"
   fi
   sleep "${SYNC_INTERVAL_SECONDS}"
 done
