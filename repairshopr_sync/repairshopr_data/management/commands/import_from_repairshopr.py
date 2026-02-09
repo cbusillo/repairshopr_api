@@ -1,6 +1,6 @@
 import logging
 import pprint
-from datetime import date, datetime, timezone
+from datetime import datetime, timezone
 from typing import Any
 
 from django.core.management.base import BaseCommand
@@ -9,32 +9,24 @@ from django.utils.timezone import make_aware, now
 
 from repairshopr_api.config import settings
 from repairshopr_api.client import Client, ModelType
+from repairshopr_api.utils import coerce_datetime, parse_datetime
 from repairshopr_data.models import TicketType, TicketTypeField, TicketTypeFieldAnswer
 
 logger = logging.getLogger(__name__)
 
 
 def _parse_datetime(value: str, *, field_name: str) -> datetime | None:
-    raw_value = value.strip()
-    if raw_value.endswith("Z"):
-        raw_value = f"{raw_value[:-1]}+00:00"
-    try:
-        return datetime.fromisoformat(raw_value)
-    except ValueError:
+    parsed = parse_datetime(value)
+    if parsed is None:
         logger.warning("Unable to parse datetime for %s: %s", field_name, value)
-        return None
+    return parsed
 
 
 def _coerce_datetime(value: object, *, field_name: str) -> datetime | None:
-    if value is None:
-        return None
-    if isinstance(value, datetime):
-        return value
-    if isinstance(value, date):
-        return datetime.combine(value, datetime.min.time())
-    if isinstance(value, str):
-        return _parse_datetime(value, field_name=field_name)
-    return None
+    coerced = coerce_datetime(value)
+    if isinstance(value, str) and coerced is None:
+        logger.warning("Unable to parse datetime for %s: %s", field_name, value)
+    return coerced
 
 
 def create_or_update_django_instance(

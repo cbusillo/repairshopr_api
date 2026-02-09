@@ -53,6 +53,7 @@ def test_parse_datetime_and_coerce_datetime(caplog: pytest.LogCaptureFixture) ->
     assert _coerce_datetime("2026-01-03T00:00:00+00:00", field_name="x") == datetime(
         2026, 1, 3, 0, 0, 0, tzinfo=timezone.utc
     )
+    assert _coerce_datetime(1_704_067_200, field_name="x") == datetime(2024, 1, 1, 0, 0, tzinfo=timezone.utc)
     assert _coerce_datetime(object(), field_name="x") is None
 
 

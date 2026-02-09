@@ -13,6 +13,7 @@ from repairshopr_api.config import settings
 from repairshopr_api import models
 from repairshopr_api.base.model import BaseModel
 from repairshopr_api.converters.strings import snake_case
+from repairshopr_api.utils import relative_cutoff
 
 logger = logging.getLogger(__name__)
 if settings.debug:
@@ -173,10 +174,7 @@ class Client(requests.Session):
         if self._has_line_item_in_cache:
             return
         if self.updated_at:
-            if self.updated_at.tzinfo is None:
-                prefetch_cutoff = datetime.now() - timedelta(weeks=52)
-            else:
-                prefetch_cutoff = datetime.now(tz=self.updated_at.tzinfo) - timedelta(weeks=52)
+            prefetch_cutoff = relative_cutoff(self.updated_at, delta=timedelta(weeks=52))
 
             if self.updated_at > prefetch_cutoff:
                 return
@@ -221,7 +219,20 @@ class Client(requests.Session):
             return self._cache[cache_key]
 
         response = self.get(f"{self.base_url}/{model_name}s", params=params)
-        result = response.json()[f"{model_name}s"], response.json().get("meta")
+        payload = response.json()
+        if not isinstance(payload, dict):
+            raise ValueError(f"Unexpected payload type for {model_name} list request: {type(payload).__name__}")
+
+        collection_key = f"{model_name}s"
+        response_data = payload.get(collection_key)
+        if not isinstance(response_data, list):
+            raise ValueError(f"Missing or invalid '{collection_key}' list in payload keys: {sorted(payload.keys())}")
+
+        meta_data = payload.get("meta")
+        if meta_data is not None and not isinstance(meta_data, dict):
+            raise ValueError(f"Invalid 'meta' payload type for {model_name}: {type(meta_data).__name__}")
+
+        result = response_data, meta_data
         self._cache[cache_key] = result
 
         return result
@@ -233,18 +244,31 @@ class Client(requests.Session):
 
         if cache_key in self._cache:
             return self._cache[cache_key]
-        try:
-            response = self.get(f"{self.base_url}/{snake_case(model.__name__)}s/{instance_id}")
-            response_data = response.json()[model.__name__.lower()]
-            result = response_data
+        response = self.get(f"{self.base_url}/{snake_case(model.__name__)}s/{instance_id}")
+        payload = response.json()
+        if not isinstance(payload, dict):
+            raise ValueError(f"Unexpected payload type for {model.__name__} id request: {type(payload).__name__}")
 
-            if not result:
-                logger.warning(f"Could not find {model.__name__} with id {instance_id}")
-                raise ValueError(f"Could not find {model.__name__} with id {instance_id}")
-            self._cache[cache_key] = result
-            return result
-        except ValueError:
+        model_keys = [snake_case(model.__name__), model.__name__.lower()]
+        result = None
+        matched_key = None
+        for key in model_keys:
+            if key in payload:
+                result = payload[key]
+                matched_key = key
+                break
+
+        if matched_key is None:
+            raise ValueError(
+                f"Could not locate model payload for {model.__name__}. Expected one of {model_keys}, got {sorted(payload.keys())}"
+            )
+
+        if not result:
             logger.warning(f"Could not find {model.__name__} with id {instance_id}")
+            raise ValueError(f"Could not find {model.__name__} with id {instance_id}")
+
+        self._cache[cache_key] = result
+        return result
 
     def get_model(
         self,

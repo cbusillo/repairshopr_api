@@ -3,9 +3,11 @@ import re
 from abc import ABC
 from dataclasses import dataclass, field, fields
 from datetime import datetime
-from typing import Any, Self, TYPE_CHECKING, TypeVar, get_args
+from types import UnionType
+from typing import Any, Self, TYPE_CHECKING, TypeVar, Union, get_args, get_origin
 
 from repairshopr_api.config import settings
+from repairshopr_api.utils import parse_datetime
 
 if TYPE_CHECKING:
     from repairshopr_api.client import Client
@@ -28,7 +30,7 @@ class BaseModel(ABC):
     @classmethod
     def from_dict(cls: type[ModelType], data: dict[str, Any]) -> ModelType:
         instance = cls(id=data.get("id", 0))
-        cleaned_data = {cls.clean_key(key): value for key, value in data.items() if value}
+        cleaned_data = {cls.clean_key(key): value for key, value in data.items() if value is not None}
 
         for current_field in fields(cls):
             if not current_field.init:
@@ -43,14 +45,15 @@ class BaseModel(ABC):
                         value = parsed_value
 
                 if isinstance(value, list) and all(isinstance(item, dict) for item in value):
-                    field_type = current_field.type.__args__[0] if hasattr(current_field.type, "__args__") else None
-                    if issubclass(field_type, BaseModel):
-                        value = [field_type.from_dict(item) for item in value]
+                    model_type = cls._resolve_list_model_type(current_field.type)
+                    if model_type is not None:
+                        value = [model_type.from_dict(item) for item in value]
 
                 elif isinstance(value, dict):
-                    field_type = current_field.type
-                    if isinstance(field_type, type) and issubclass(field_type, BaseModel):
-                        value = field_type.from_dict({**value, "id": 0})
+                    model_type = cls._resolve_model_type(current_field.type)
+                    if model_type is not None:
+                        nested_payload = {"id": 0, **value}
+                        value = model_type.from_dict(nested_payload)
 
                 setattr(instance, current_field.name, value)
 
@@ -116,11 +119,36 @@ class BaseModel(ABC):
         return datetime in get_args(field_type)
 
     @staticmethod
-    def _parse_datetime(value: str) -> datetime | None:
-        raw_value = value.strip()
-        if raw_value.endswith("Z"):
-            raw_value = f"{raw_value[:-1]}+00:00"
-        try:
-            return datetime.fromisoformat(raw_value)
-        except ValueError:
+    def _resolve_model_type(field_type: object) -> type["BaseModel"] | None:
+        origin = get_origin(field_type)
+        if origin in {Union, UnionType}:
+            for arg in get_args(field_type):
+                if isinstance(arg, type) and issubclass(arg, BaseModel):
+                    return arg
             return None
+
+        if isinstance(field_type, type) and issubclass(field_type, BaseModel):
+            return field_type
+
+        return None
+
+    @classmethod
+    def _resolve_list_model_type(cls, field_type: object) -> type["BaseModel"] | None:
+        origin = get_origin(field_type)
+        if origin is list:
+            args = get_args(field_type)
+            if not args:
+                return None
+            return cls._resolve_model_type(args[0])
+
+        if origin in {Union, UnionType}:
+            for arg in get_args(field_type):
+                resolved = cls._resolve_list_model_type(arg)
+                if resolved is not None:
+                    return resolved
+
+        return None
+
+    @staticmethod
+    def _parse_datetime(value: str) -> datetime | None:
+        return parse_datetime(value)

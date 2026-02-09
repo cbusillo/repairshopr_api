@@ -32,4 +32,3 @@ DATABASES = {
     }
 }
 
-MIGRATION_MODULES = {"repairshopr_data": None}

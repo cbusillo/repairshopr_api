@@ -17,12 +17,19 @@ The repository uses `pytest` with coverage gates.
 - Install test dependencies: `poetry install --with dev`
 - Run the full suite: `poetry run pytest -q`
 - Run with explicit coverage output: `poetry run pytest --cov --cov-report=term-missing`
+- Run MySQL integration tests:
+
+  ```bash
+  poetry install --with dev -E sync
+  poetry run pytest -q -m integration --ds=tests.django_settings_mysql --no-cov
+  ```
 
 Notes:
 
 - Tests do not call the live RepairShopr API.
 - Shell tests for `scripts/repairshopr-sync-entrypoint.sh` run with command stubs.
 - The default coverage threshold is enforced at `80%`.
+- A dedicated CI job runs MySQL-backed integration checks for schema/migrations.
 
 ## Release (PyPI)
 

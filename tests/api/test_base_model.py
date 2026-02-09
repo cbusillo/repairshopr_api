@@ -30,6 +30,21 @@ def test_from_dict_keeps_malformed_datetime_string() -> None:
     assert invoice.created_at == "not-a-datetime"
 
 
+def test_from_dict_preserves_falsey_values() -> None:
+    invoice = Invoice.from_dict(
+        {
+            "id": 23,
+            "is_paid": False,
+            "subtotal": 0,
+            "note": "",
+        }
+    )
+
+    assert invoice.is_paid is False
+    assert invoice.subtotal == 0
+    assert invoice.note == ""
+
+
 def test_from_dict_maps_nested_models_and_cleans_keys() -> None:
     ticket = Ticket.from_dict(
         {

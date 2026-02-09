@@ -269,6 +269,32 @@ def test_fetch_from_api_caches_result() -> None:
     assert first[0] == [{"id": 1}]
 
 
+def test_fetch_from_api_rejects_invalid_collection_payload() -> None:
+    client = _make_client()
+    client.get = lambda *_args, **_kwargs: SimpleNamespace(json=lambda: {"unexpected": []})  # type: ignore[method-assign]
+
+    with pytest.raises(ValueError, match="Missing or invalid 'dummy_models' list"):
+        client.fetch_from_api("dummy_model")
+
+
+def test_fetch_from_api_rejects_invalid_meta_payload() -> None:
+    client = _make_client()
+    client.get = lambda *_args, **_kwargs: SimpleNamespace(  # type: ignore[method-assign]
+        json=lambda: {"dummy_models": [], "meta": "bad-meta"}
+    )
+
+    with pytest.raises(ValueError, match="Invalid 'meta' payload type"):
+        client.fetch_from_api("dummy_model")
+
+
+def test_fetch_from_api_rejects_non_dict_payload() -> None:
+    client = _make_client()
+    client.get = lambda *_args, **_kwargs: SimpleNamespace(json=lambda: [1, 2, 3])  # type: ignore[method-assign]
+
+    with pytest.raises(ValueError, match="Unexpected payload type"):
+        client.fetch_from_api("dummy_model")
+
+
 def test_fetch_from_api_by_id_uses_cache() -> None:
     client = _make_client()
     response_payload = {"dummymodel": {"id": 3}}
@@ -286,6 +312,31 @@ def test_fetch_from_api_by_id_uses_cache() -> None:
     assert data_one == {"id": 3}
     assert data_two == {"id": 3}
     assert calls["count"] == 1
+
+
+def test_fetch_from_api_by_id_accepts_snake_case_model_key() -> None:
+    client = _make_client()
+    client.get = lambda *_args, **_kwargs: SimpleNamespace(json=lambda: {"dummy_model": {"id": 8}})  # type: ignore[method-assign]
+
+    data = client.fetch_from_api_by_id(DummyModel, 8)
+
+    assert data == {"id": 8}
+
+
+def test_fetch_from_api_by_id_rejects_unknown_payload_shape() -> None:
+    client = _make_client()
+    client.get = lambda *_args, **_kwargs: SimpleNamespace(json=lambda: {"wrong": {"id": 9}})  # type: ignore[method-assign]
+
+    with pytest.raises(ValueError, match="Could not locate model payload"):
+        client.fetch_from_api_by_id(DummyModel, 9)
+
+
+def test_fetch_from_api_by_id_rejects_non_dict_payload() -> None:
+    client = _make_client()
+    client.get = lambda *_args, **_kwargs: SimpleNamespace(json=lambda: [1, 2])  # type: ignore[method-assign]
+
+    with pytest.raises(ValueError, match="Unexpected payload type"):
+        client.fetch_from_api_by_id(DummyModel, 9)
 
 
 def test_get_model_by_id_builds_model_instance() -> None:

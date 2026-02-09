@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 from typing import Self
 
 from repairshopr_api.base.model import BaseModel
+from repairshopr_api.utils import relative_cutoff
 
 
 @dataclass
@@ -18,10 +19,7 @@ class User(BaseModel):
 
     def __post_init__(self) -> None:
         if not self.updated_at and self.rs_client.updated_at:
-            if self.rs_client.updated_at.tzinfo is None:
-                refresh_cutoff = datetime.now() - timedelta(days=1)
-            else:
-                refresh_cutoff = datetime.now(tz=self.rs_client.updated_at.tzinfo) - timedelta(days=1)
+            refresh_cutoff = relative_cutoff(self.rs_client.updated_at, delta=timedelta(days=1))
 
             if self.rs_client.updated_at >= refresh_cutoff:
                 return
