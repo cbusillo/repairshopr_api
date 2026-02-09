@@ -187,6 +187,39 @@ def test_create_or_update_django_instance_is_idempotent(monkeypatch: pytest.Monk
     assert stored.color == "green"
 
 
+def test_create_or_update_django_instance_coerces_blank_integer_fields_to_none() -> None:
+    class FakeManager:
+        def __init__(self) -> None:
+            self.store: dict[int, SimpleNamespace] = {}
+
+        def update_or_create(self, defaults: dict, id: int):
+            obj = self.store.get(id, SimpleNamespace(id=id))
+            for key, value in defaults.items():
+                setattr(obj, key, value)
+            created = id not in self.store
+            self.store[id] = obj
+            return obj, created
+
+    fake_manager = FakeManager()
+
+    type_field = models.IntegerField(null=True)
+    type_field.name = "type"
+    type_field.auto_created = False
+
+    model_cls = type(
+        "CustomerProperties",
+        (),
+        {
+            "_meta": SimpleNamespace(fields=[type_field]),
+            "objects": fake_manager,
+        },
+    )
+
+    create_or_update_django_instance(model_cls, SimpleNamespace(id=42, type=""))
+
+    assert fake_manager.store[42].type is None
+
+
 def test_create_or_update_django_instance_handles_foreign_keys(monkeypatch: pytest.MonkeyPatch) -> None:
     class FakeForeignKey:
         def __init__(self, name: str, related_model) -> None:

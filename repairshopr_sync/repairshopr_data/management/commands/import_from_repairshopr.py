@@ -42,6 +42,8 @@ def create_or_update_django_instance(
             continue
         if hasattr(api_instance, field.name):
             value = getattr(api_instance, field.name)
+            if value == "" and isinstance(field, (models.IntegerField, models.BigIntegerField)):
+                value = None
             if isinstance(field, models.DateTimeField):
                 parsed_value = _coerce_datetime(value, field_name=f"{django_model.__name__}.{field.name}")
                 if parsed_value is not None:
