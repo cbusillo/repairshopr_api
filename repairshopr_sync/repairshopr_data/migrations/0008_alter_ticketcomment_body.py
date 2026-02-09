@@ -13,6 +13,6 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name="ticketcomment",
             name="body",
-            field=models.TextField(db_collation="utf8mb4_unicode_ci", null=True),
+            field=models.TextField(null=True),
         ),
     ]

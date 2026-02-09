@@ -274,8 +274,10 @@ class Client(requests.Session):
             if not meta_data or page >= meta_data.get("total_pages", 0):
                 break
             if page == 1 and meta_data.get("total_pages", 0) > 1 and num_last_pages:
-                page = max(1, meta_data.get("total_pages", 0) - num_last_pages + 1)
-            page += 1
+                start_page = max(1, meta_data.get("total_pages", 0) - num_last_pages + 1)
+                page = max(page + 1, start_page)
+            else:
+                page += 1
 
     def get_model_by_id(self, model: type[ModelType], instance_id: int) -> ModelType:
         return model.from_dict(self.fetch_from_api_by_id(model, instance_id))
