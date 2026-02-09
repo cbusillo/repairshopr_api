@@ -1,0 +1,298 @@
+from __future__ import annotations
+
+from contextlib import nullcontext
+from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
+from http import HTTPStatus
+from types import SimpleNamespace
+from unittest.mock import Mock
+
+import pytest
+import requests
+from tenacity import stop_after_attempt, wait_none
+
+from repairshopr_api.client import Client
+
+
+@dataclass
+class DummyModel:
+    id: int
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "DummyModel":
+        return cls(id=data["id"])
+
+    @classmethod
+    def from_list(cls, data: list[int]) -> "DummyModel":
+        return cls(id=data[0])
+
+
+def _make_client() -> Client:
+    return Client(token="token", url_store_name="store")
+
+
+def test_get_model_paginates_and_formats_since_updated_at() -> None:
+    client = _make_client()
+    calls: list[dict] = []
+
+    def fake_fetch(model_name: str, params: dict | None = None):
+        assert model_name == "dummy_model"
+        params = dict(params or {})
+        calls.append(params)
+        page = params["page"]
+        return ([{"id": page}], {"total_pages": 3})
+
+    client.fetch_from_api = fake_fetch  # type: ignore[method-assign]
+
+    updated_at = datetime(2026, 2, 8, 10, 11, 12, 123456, tzinfo=timezone.utc)
+    records = list(client.get_model(DummyModel, updated_at=updated_at, params={"status": "open"}))
+
+    assert [record.id for record in records] == [1, 2, 3]
+    assert calls[0]["since_updated_at"] == "2026-02-08T10:11:12.123456Z"
+
+
+def test_get_model_num_last_pages_requests_last_window() -> None:
+    client = _make_client()
+    requested_pages: list[int] = []
+
+    def fake_fetch(_model_name: str, params: dict | None = None):
+        page = (params or {})["page"]
+        requested_pages.append(page)
+        return ([{"id": page}], {"total_pages": 5})
+
+    client.fetch_from_api = fake_fetch  # type: ignore[method-assign]
+
+    records = list(client.get_model(DummyModel, num_last_pages=2))
+
+    assert [record.id for record in records] == [1, 4, 5]
+    assert requested_pages == [1, 4, 5]
+
+
+def test_request_retries_429_and_returns_success(monkeypatch: pytest.MonkeyPatch) -> None:
+    client = _make_client()
+    client._wait_for_rate_limit = lambda: None  # type: ignore[method-assign]
+    client.time_api_call = lambda *args, **kwargs: nullcontext()  # type: ignore[method-assign]
+
+    attempts = {"count": 0}
+
+    def fake_request(_self: requests.Session, method: str, url: str, *args, **kwargs):
+        assert method == "GET"
+        assert url.endswith("/tickets")
+        attempts["count"] += 1
+        status_code = HTTPStatus.OK if attempts["count"] >= 3 else HTTPStatus.TOO_MANY_REQUESTS
+        return SimpleNamespace(status_code=status_code, text="")
+
+    monkeypatch.setattr(requests.Session, "request", fake_request)
+
+    client.request.retry.stop = stop_after_attempt(3)  # type: ignore[attr-defined]
+    client.request.retry.wait = wait_none()  # type: ignore[attr-defined]
+    client.request.retry.sleep = lambda _seconds: None  # type: ignore[attr-defined]
+
+    response = client.request("GET", f"{client.base_url}/tickets")
+
+    assert response.status_code == HTTPStatus.OK
+    assert attempts["count"] == 3
+
+
+def test_request_raises_for_unexpected_status() -> None:
+    client = _make_client()
+    client._wait_for_rate_limit = lambda: None  # type: ignore[method-assign]
+    client.time_api_call = lambda *args, **kwargs: nullcontext()  # type: ignore[method-assign]
+
+    original_request = requests.Session.request
+    requests.Session.request = lambda *_args, **_kwargs: SimpleNamespace(  # type: ignore[method-assign]
+        status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+        text="boom",
+    )
+    try:
+        with pytest.raises(requests.RequestException, match="unexpected status code"):
+            Client.request.__wrapped__(client, "GET", f"{client.base_url}/tickets")
+    finally:
+        requests.Session.request = original_request  # type: ignore[method-assign]
+
+
+def test_prefetch_line_items_skips_when_recent_updated_at(monkeypatch: pytest.MonkeyPatch) -> None:
+    client = _make_client()
+    client.updated_at = datetime.now() - timedelta(hours=2)
+
+    called = {"value": False}
+
+    def fake_get_model(*_args, **_kwargs):
+        called["value"] = True
+        return iter([])
+
+    client.get_model = fake_get_model  # type: ignore[method-assign]
+    client.prefetch_line_items()
+
+    assert called["value"] is False
+    assert client._has_line_item_in_cache is False
+
+
+def test_prefetch_line_items_builds_cache_for_old_updated_at() -> None:
+    client = _make_client()
+    client.updated_at = datetime.now(tz=timezone.utc) - timedelta(days=370)
+
+    line_items = [
+        SimpleNamespace(id=1, invoice_id=100, name="A", _private="x"),
+        SimpleNamespace(id=2, invoice_id=100, name="B", _private="y"),
+    ]
+
+    client.get_model = lambda *_args, **_kwargs: iter(line_items)  # type: ignore[method-assign]
+    client.prefetch_line_items()
+
+    assert client._has_line_item_in_cache is True
+    assert any(key.startswith("line_item_list_") for key in client._cache)
+
+
+def test_prefetch_line_items_aware_vs_naive_regression() -> None:
+    client = _make_client()
+    client.updated_at = datetime.now(tz=timezone.utc) - timedelta(days=800)
+    client.get_model = lambda *_args, **_kwargs: iter([])  # type: ignore[method-assign]
+
+    client.prefetch_line_items()
+
+    assert client._has_line_item_in_cache is True
+
+
+def test_clear_cache_resets_memory_cache() -> None:
+    client = _make_client()
+    client._cache["k"] = "v"
+    client._has_line_item_in_cache = True
+
+    client.clear_cache()
+
+    assert client._cache == {}
+    assert client._has_line_item_in_cache is False
+
+
+def test_wait_for_rate_limit_sleeps_when_limit_exceeded(monkeypatch: pytest.MonkeyPatch) -> None:
+    client = _make_client()
+    client.REQUEST_LIMIT = 1
+    client._request_timestamps.clear()
+
+    now = datetime(2026, 2, 1, 12, 0, 0)
+    client._request_timestamps.extend([now - timedelta(seconds=10), now - timedelta(seconds=5)])
+
+    monkeypatch.setattr("repairshopr_api.client.datetime", Mock(now=lambda: now))
+    sleep_calls: list[float] = []
+    monkeypatch.setattr("repairshopr_api.client.sleep", lambda seconds: sleep_calls.append(seconds))
+
+    client._wait_for_rate_limit()
+
+    assert sleep_calls and sleep_calls[0] > 0
+    assert client.api_sleep_time > 0
+    assert len(client._request_timestamps) >= 1
+
+
+def test_display_api_call_stats_runs_without_error(caplog: pytest.LogCaptureFixture) -> None:
+    client = _make_client()
+    client.api_call_duration["tickets_bulk"] = [0.1, 0.2]
+    client.api_call_counter["tickets_bulk"] = 2
+
+    caplog.set_level("INFO")
+    client.display_api_call_stats()
+
+    assert "API Stats:" in caplog.text
+
+
+def test_time_api_call_tracks_counter(monkeypatch: pytest.MonkeyPatch) -> None:
+    client = _make_client()
+    monkeypatch.setattr("repairshopr_api.client.logger.isEnabledFor", lambda _level: True)
+    monkeypatch.setattr(client, "display_api_call_stats", lambda: None)
+
+    with client.time_api_call(f"{client.base_url}/tickets"):
+        pass
+
+    assert client.api_call_counter["tickets_bulk"] == 1
+    assert len(client.api_call_duration["tickets_bulk"]) == 1
+
+
+def test_request_raises_permission_error_for_unauthorized() -> None:
+    client = _make_client()
+    client._wait_for_rate_limit = lambda: None  # type: ignore[method-assign]
+    client.time_api_call = lambda *args, **kwargs: nullcontext()  # type: ignore[method-assign]
+
+    original_request = requests.Session.request
+    requests.Session.request = lambda *_args, **_kwargs: SimpleNamespace(status_code=HTTPStatus.UNAUTHORIZED, text="bad")  # type: ignore[method-assign]
+    try:
+        with pytest.raises(PermissionError, match="Authorization failed"):
+            Client.request.__wrapped__(client, "GET", f"{client.base_url}/tickets")
+    finally:
+        requests.Session.request = original_request  # type: ignore[method-assign]
+
+
+def test_request_raises_value_error_for_not_found() -> None:
+    client = _make_client()
+    client._wait_for_rate_limit = lambda: None  # type: ignore[method-assign]
+    client.time_api_call = lambda *args, **kwargs: nullcontext()  # type: ignore[method-assign]
+
+    original_request = requests.Session.request
+    requests.Session.request = lambda *_args, **_kwargs: SimpleNamespace(status_code=HTTPStatus.NOT_FOUND, text="missing")  # type: ignore[method-assign]
+    try:
+        with pytest.raises(ValueError, match="Received 404"):
+            Client.request.__wrapped__(client, "GET", f"{client.base_url}/tickets")
+    finally:
+        requests.Session.request = original_request  # type: ignore[method-assign]
+
+
+def test_fetch_ticket_settings_validates_payload(monkeypatch: pytest.MonkeyPatch) -> None:
+    client = _make_client()
+
+    class FakeResponse:
+        def __init__(self, payload):
+            self._payload = payload
+
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self):
+            return self._payload
+
+    monkeypatch.setattr("repairshopr_api.client.requests.get", lambda *_args, **_kwargs: FakeResponse({"a": 1}))
+    assert client.fetch_ticket_settings() == {"a": 1}
+
+    monkeypatch.setattr("repairshopr_api.client.requests.get", lambda *_args, **_kwargs: FakeResponse([1, 2]))
+    with pytest.raises(ValueError, match="Unexpected RepairShopr ticket settings payload"):
+        client.fetch_ticket_settings()
+
+
+def test_fetch_from_api_caches_result() -> None:
+    client = _make_client()
+
+    response_payload = {"dummy_models": [{"id": 1}], "meta": {"total_pages": 1}}
+    client.get = lambda *_args, **_kwargs: SimpleNamespace(json=lambda: response_payload)  # type: ignore[method-assign]
+
+    first = client.fetch_from_api("dummy_model", params={"page": 1})
+    second = client.fetch_from_api("dummy_model", params={"page": 1})
+
+    assert first == second
+    assert first[0] == [{"id": 1}]
+
+
+def test_fetch_from_api_by_id_uses_cache() -> None:
+    client = _make_client()
+    response_payload = {"dummymodel": {"id": 3}}
+    calls = {"count": 0}
+
+    def fake_get(*_args, **_kwargs):
+        calls["count"] += 1
+        return SimpleNamespace(json=lambda: response_payload)
+
+    client.get = fake_get  # type: ignore[method-assign]
+
+    data_one = client.fetch_from_api_by_id(DummyModel, 3)
+    data_two = client.fetch_from_api_by_id(DummyModel, 3)
+
+    assert data_one == {"id": 3}
+    assert data_two == {"id": 3}
+    assert calls["count"] == 1
+
+
+def test_get_model_by_id_builds_model_instance() -> None:
+    client = _make_client()
+    client.fetch_from_api_by_id = lambda *_args, **_kwargs: {"id": 44}  # type: ignore[method-assign]
+
+    record = client.get_model_by_id(DummyModel, 44)
+
+    assert isinstance(record, DummyModel)
+    assert record.id == 44
