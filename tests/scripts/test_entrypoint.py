@@ -8,7 +8,6 @@ from pathlib import Path
 
 import pytest
 
-
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPT_PATH = ROOT / "scripts" / "repairshopr-sync-entrypoint.sh"
 
@@ -134,7 +133,9 @@ def test_entrypoint_validates_required_env(
 
 
 @pytest.mark.scripts
-def test_entrypoint_waits_for_db_then_runs_sync_cycle(stubbed_runtime: dict[str, str]) -> None:
+def test_entrypoint_waits_for_db_then_runs_sync_cycle(
+    stubbed_runtime: dict[str, str],
+) -> None:
     env = dict(stubbed_runtime)
     env.update(
         {
@@ -165,7 +166,9 @@ def test_entrypoint_waits_for_db_then_runs_sync_cycle(stubbed_runtime: dict[str,
 
 
 @pytest.mark.scripts
-def test_entrypoint_failure_path_logs_and_uses_failure_sleep(stubbed_runtime: dict[str, str]) -> None:
+def test_entrypoint_failure_path_logs_and_uses_failure_sleep(
+    stubbed_runtime: dict[str, str],
+) -> None:
     env = dict(stubbed_runtime)
     env.update(
         {

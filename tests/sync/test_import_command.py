@@ -69,6 +69,35 @@ class StoringManager:
         return obj, created
 
 
+class ForeignKeyUpdateCall(TypedDict):
+    id: int | None
+    defaults: dict[str, object]
+
+
+class ForeignKeyTestManager:
+    def __init__(self) -> None:
+        self.calls: list[ForeignKeyUpdateCall] = []
+
+    def update_or_create(
+        self, defaults: dict[str, object], **lookup: object
+    ) -> tuple[SimpleNamespace, bool]:
+        lookup_id = lookup.get("id")
+        assert lookup_id is None or isinstance(lookup_id, int)
+        self.calls.append({"id": lookup_id, "defaults": defaults})
+        return SimpleNamespace(id=lookup_id, **defaults), True
+
+
+def _install_foreign_key_stub(monkeypatch: pytest.MonkeyPatch) -> type:
+    class FakeForeignKey:
+        def __init__(self, name: str, related_model: type) -> None:
+            self.name = name
+            self.related_model = related_model
+            self.auto_created = False
+
+    monkeypatch.setattr(command_module.models, "ForeignKey", FakeForeignKey)
+    return FakeForeignKey
+
+
 def set_simple_dynamic_import(
     monkeypatch: pytest.MonkeyPatch,
     cmd: command_module.Command,
@@ -303,31 +332,9 @@ def test_create_or_update_django_instance_accepts_mapping_payload() -> None:
 def test_create_or_update_django_instance_handles_foreign_keys(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    class FakeForeignKey:
-        def __init__(self, name: str, related_model: type) -> None:
-            self.name = name
-            self.related_model = related_model
-            self.auto_created = False
+    fake_foreign_key = _install_foreign_key_stub(monkeypatch)
 
-    monkeypatch.setattr(command_module.models, "ForeignKey", FakeForeignKey)
-
-    class UpdateCall(TypedDict):
-        id: int | None
-        defaults: dict[str, object]
-
-    class FakeManager:
-        def __init__(self) -> None:
-            self.calls: list[UpdateCall] = []
-
-        def update_or_create(
-            self, defaults: dict[str, object], **lookup: object
-        ) -> tuple[SimpleNamespace, bool]:
-            lookup_id = lookup.get("id")
-            assert lookup_id is None or isinstance(lookup_id, int)
-            self.calls.append({"id": lookup_id, "defaults": defaults})
-            return SimpleNamespace(id=lookup_id, **defaults), True
-
-    related_manager = FakeManager()
+    related_manager = ForeignKeyTestManager()
     related_model_cls = type(
         "RelatedModel",
         (),
@@ -339,11 +346,11 @@ def test_create_or_update_django_instance_handles_foreign_keys(
         },
     )
 
-    parent_manager = FakeManager()
+    parent_manager = ForeignKeyTestManager()
     created_at_field = models.DateTimeField()
     created_at_field.name = "created_at"
     created_at_field.auto_created = False
-    owner_field = FakeForeignKey("owner", related_model_cls)
+    owner_field = fake_foreign_key("owner", related_model_cls)
 
     parent_model_cls = type(
         "ParentModel",
@@ -378,31 +385,9 @@ def test_create_or_update_django_instance_handles_foreign_keys(
 def test_create_or_update_django_instance_handles_mapping_foreign_keys(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    class FakeForeignKey:
-        def __init__(self, name: str, related_model: type) -> None:
-            self.name = name
-            self.related_model = related_model
-            self.auto_created = False
+    fake_foreign_key = _install_foreign_key_stub(monkeypatch)
 
-    monkeypatch.setattr(command_module.models, "ForeignKey", FakeForeignKey)
-
-    class UpdateCall(TypedDict):
-        id: int | None
-        defaults: dict[str, object]
-
-    class FakeManager:
-        def __init__(self) -> None:
-            self.calls: list[UpdateCall] = []
-
-        def update_or_create(
-            self, defaults: dict[str, object], **lookup: object
-        ) -> tuple[SimpleNamespace, bool]:
-            lookup_id = lookup.get("id")
-            assert lookup_id is None or isinstance(lookup_id, int)
-            self.calls.append({"id": lookup_id, "defaults": defaults})
-            return SimpleNamespace(id=lookup_id, **defaults), True
-
-    related_manager = FakeManager()
+    related_manager = ForeignKeyTestManager()
     related_model_cls = type(
         "RelatedModel",
         (),
@@ -414,8 +399,8 @@ def test_create_or_update_django_instance_handles_mapping_foreign_keys(
         },
     )
 
-    parent_manager = FakeManager()
-    owner_field = FakeForeignKey("owner", related_model_cls)
+    parent_manager = ForeignKeyTestManager()
+    owner_field = fake_foreign_key("owner", related_model_cls)
     parent_model_cls = type(
         "ParentModel",
         (),

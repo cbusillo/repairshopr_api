@@ -50,7 +50,9 @@ def test_get_model_paginates_and_formats_since_updated_at() -> None:
     client.fetch_from_api = fake_fetch  # type: ignore[method-assign]
 
     updated_at = datetime(2026, 2, 8, 10, 11, 12, 123456, tzinfo=timezone.utc)
-    records = list(client.get_model(DummyModel, updated_at=updated_at, params={"status": "open"}))
+    records = list(
+        client.get_model(DummyModel, updated_at=updated_at, params={"status": "open"})
+    )
 
     assert [record.id for record in records] == [1, 2, 3]
     assert calls[0]["since_updated_at"] == "2026-02-08T10:11:12.123456Z"
@@ -73,7 +75,9 @@ def test_get_model_num_last_pages_requests_last_window() -> None:
     assert requested_pages == [1, 4, 5]
 
 
-def test_request_retries_429_and_returns_success(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_request_retries_429_and_returns_success(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     client = _make_client()
     client._wait_for_rate_limit = lambda: None  # type: ignore[method-assign]
     client.time_api_call = lambda *args, **kwargs: nullcontext()  # type: ignore[method-assign]
@@ -84,7 +88,9 @@ def test_request_retries_429_and_returns_success(monkeypatch: pytest.MonkeyPatch
         assert method == "GET"
         assert url.endswith("/tickets")
         attempts["count"] += 1
-        status_code = HTTPStatus.OK if attempts["count"] >= 3 else HTTPStatus.TOO_MANY_REQUESTS
+        status_code = (
+            HTTPStatus.OK if attempts["count"] >= 3 else HTTPStatus.TOO_MANY_REQUESTS
+        )
         return SimpleNamespace(status_code=status_code, text="")
 
     monkeypatch.setattr(requests.Session, "request", fake_request)
@@ -116,7 +122,9 @@ def test_request_raises_for_unexpected_status() -> None:
         requests.Session.request = original_request  # type: ignore[method-assign]
 
 
-def test_prefetch_line_items_skips_when_recent_updated_at(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_prefetch_line_items_skips_when_recent_updated_at(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     client = _make_client()
     client.updated_at = datetime.now() - timedelta(hours=2)
 
@@ -170,17 +178,23 @@ def test_clear_cache_resets_memory_cache() -> None:
     assert client._has_line_item_in_cache is False
 
 
-def test_wait_for_rate_limit_sleeps_when_limit_exceeded(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_wait_for_rate_limit_sleeps_when_limit_exceeded(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     client = _make_client()
     client.REQUEST_LIMIT = 1
     client._request_timestamps.clear()
 
     now = datetime(2026, 2, 1, 12)
-    client._request_timestamps.extend([now - timedelta(seconds=10), now - timedelta(seconds=5)])
+    client._request_timestamps.extend(
+        [now - timedelta(seconds=10), now - timedelta(seconds=5)]
+    )
 
     monkeypatch.setattr("repairshopr_api.client.datetime", Mock(now=lambda: now))
     sleep_calls: list[float] = []
-    monkeypatch.setattr("repairshopr_api.client.sleep", lambda seconds: sleep_calls.append(seconds))
+    monkeypatch.setattr(
+        "repairshopr_api.client.sleep", lambda seconds: sleep_calls.append(seconds)
+    )
 
     client._wait_for_rate_limit()
 
@@ -189,7 +203,9 @@ def test_wait_for_rate_limit_sleeps_when_limit_exceeded(monkeypatch: pytest.Monk
     assert len(client._request_timestamps) >= 1
 
 
-def test_display_api_call_stats_runs_without_error(caplog: pytest.LogCaptureFixture) -> None:
+def test_display_api_call_stats_runs_without_error(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     client = _make_client()
     client.api_call_duration["tickets_bulk"] = [0.1, 0.2]
     client.api_call_counter["tickets_bulk"] = 2
@@ -202,7 +218,9 @@ def test_display_api_call_stats_runs_without_error(caplog: pytest.LogCaptureFixt
 
 def test_time_api_call_tracks_counter(monkeypatch: pytest.MonkeyPatch) -> None:
     client = _make_client()
-    monkeypatch.setattr("repairshopr_api.client.logger.isEnabledFor", lambda _level: True)
+    monkeypatch.setattr(
+        "repairshopr_api.client.logger.isEnabledFor", lambda _level: True
+    )
     monkeypatch.setattr(client, "display_api_call_stats", lambda: None)
 
     with client.time_api_call(f"{client.base_url}/tickets"):
@@ -240,7 +258,9 @@ def test_request_raises_value_error_for_not_found() -> None:
         requests.Session.request = original_request  # type: ignore[method-assign]
 
 
-def test_fetch_ticket_settings_validates_payload(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_fetch_ticket_settings_validates_payload(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     client = _make_client()
 
     class FakeResponse:
@@ -254,11 +274,19 @@ def test_fetch_ticket_settings_validates_payload(monkeypatch: pytest.MonkeyPatch
         def json(self) -> object:
             return self._payload
 
-    monkeypatch.setattr("repairshopr_api.client.requests.get", lambda *_args, **_kwargs: FakeResponse({"a": 1}))
+    monkeypatch.setattr(
+        "repairshopr_api.client.requests.get",
+        lambda *_args, **_kwargs: FakeResponse({"a": 1}),
+    )
     assert client.fetch_ticket_settings() == {"a": 1}
 
-    monkeypatch.setattr("repairshopr_api.client.requests.get", lambda *_args, **_kwargs: FakeResponse([1, 2]))
-    with pytest.raises(ValueError, match="Unexpected RepairShopr ticket settings payload"):
+    monkeypatch.setattr(
+        "repairshopr_api.client.requests.get",
+        lambda *_args, **_kwargs: FakeResponse([1, 2]),
+    )
+    with pytest.raises(
+        ValueError, match="Unexpected RepairShopr ticket settings payload"
+    ):
         client.fetch_ticket_settings()
 
 

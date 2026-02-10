@@ -4,7 +4,6 @@ import os
 import sys
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[1]
 SYNC_ROOT = ROOT / "repairshopr_sync"
 
@@ -37,4 +36,3 @@ DATABASES = {
         "OPTIONS": {"charset": "utf8mb4"},
     }
 }
-
