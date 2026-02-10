@@ -21,6 +21,34 @@ ApiInstance: TypeAlias = ModelType | SimpleNamespace
 FieldValue: TypeAlias = JsonValue | datetime | models.Model
 
 
+def _instance_has_field(api_instance: object, field_name: str) -> bool:
+    if isinstance(api_instance, Mapping):
+        return field_name in api_instance
+    return hasattr(api_instance, field_name)
+
+
+def _instance_get_field(api_instance: object, field_name: str) -> object:
+    if isinstance(api_instance, Mapping):
+        return api_instance.get(field_name)
+    return getattr(api_instance, field_name, None)
+
+
+def _instance_with_updated_identifier(
+    api_instance: object, normalized_identifier: int | None
+) -> object:
+    if isinstance(api_instance, Mapping):
+        mutable_values = dict(api_instance)
+        mutable_values["id"] = normalized_identifier
+        return SimpleNamespace(**mutable_values)
+    if isinstance(api_instance, SimpleNamespace):
+        mutable_values = vars(api_instance).copy()
+        mutable_values["id"] = normalized_identifier
+        return SimpleNamespace(**mutable_values)
+    if hasattr(api_instance, "id"):
+        setattr(api_instance, "id", normalized_identifier)
+    return api_instance
+
+
 def _is_base_model_type(candidate: type) -> TypeGuard[type[BaseModel]]:
     return issubclass(candidate, BaseModel)
 
@@ -52,7 +80,9 @@ def _normalize_identifier(raw_identifier: object) -> int | None:
         stripped_value = raw_identifier.strip()
         if stripped_value in {"", "0"}:
             return None
-        if stripped_value.isdigit() or (stripped_value.startswith("-") and stripped_value[1:].isdigit()):
+        if stripped_value.isdigit() or (
+            stripped_value.startswith("-") and stripped_value[1:].isdigit()
+        ):
             return int(stripped_value)
     return None
 
@@ -61,14 +91,16 @@ def _coerce_integer_value(value: object, *, field_name: str) -> object:
     if value is None:
         return None
     if isinstance(value, bool):
-        return int(value)
+        return 1 if value else 0
     if isinstance(value, int):
         return value
     if isinstance(value, str):
         stripped_value = value.strip()
         if stripped_value == "":
             return None
-        if stripped_value.isdigit() or (stripped_value.startswith("-") and stripped_value[1:].isdigit()):
+        if stripped_value.isdigit() or (
+            stripped_value.startswith("-") and stripped_value[1:].isdigit()
+        ):
             return int(stripped_value)
         logger.warning("Unable to parse integer for %s: %r", field_name, value)
         return None
@@ -77,7 +109,7 @@ def _coerce_integer_value(value: object, *, field_name: str) -> object:
 
 def create_or_update_django_instance(
     django_model: type[models.Model],
-    api_instance: ApiInstance,
+    api_instance: ApiInstance | Mapping[str, object],
     extra_fields: Mapping[str, FieldValue] | None = None,
 ) -> models.Model | None:
     if extra_fields is None:
@@ -89,12 +121,16 @@ def create_or_update_django_instance(
     for field in model_fields:
         if field.auto_created or isinstance(field, models.AutoField):
             continue
-        if hasattr(api_instance, field.name):
-            value = getattr(api_instance, field.name)
+        if _instance_has_field(api_instance, field.name):
+            value = _instance_get_field(api_instance, field.name)
             if isinstance(field, models.IntegerField):
-                value = _coerce_integer_value(value, field_name=f"{django_model.__name__}.{field.name}")
+                value = _coerce_integer_value(
+                    value, field_name=f"{django_model.__name__}.{field.name}"
+                )
             if isinstance(field, models.DateTimeField):
-                parsed_value = _coerce_datetime(value, field_name=f"{django_model.__name__}.{field.name}")
+                parsed_value = _coerce_datetime(
+                    value, field_name=f"{django_model.__name__}.{field.name}"
+                )
                 if parsed_value is not None:
                     if parsed_value.tzinfo is None:
                         parsed_value = make_aware(parsed_value)
@@ -103,36 +139,63 @@ def create_or_update_django_instance(
                 value = make_aware(value)
             if isinstance(field, models.ForeignKey):
                 related_django_model = field.related_model
-                if not isinstance(related_django_model, type) or not _is_django_model_like(related_django_model):
-                    raise TypeError(f"Expected Django model type for foreign key, got {related_django_model!r}")
+                if not isinstance(
+                    related_django_model, type
+                ) or not _is_django_model_like(related_django_model):
+                    raise TypeError(
+                        f"Expected Django model type for foreign key, got {related_django_model!r}"
+                    )
 
-                related_api_instance = getattr(api_instance, field.name)
-                if _normalize_identifier(getattr(related_api_instance, "id", None)) is None:
-                    related_api_instance.id = None
+                related_api_instance = _instance_get_field(api_instance, field.name)
+                if related_api_instance is None:
+                    value = None
+                else:
+                    related_identifier = _normalize_identifier(
+                        _instance_get_field(related_api_instance, "id")
+                    )
+                    related_api_instance = _instance_with_updated_identifier(
+                        related_api_instance, related_identifier
+                    )
 
-                value = create_or_update_django_instance(related_django_model, related_api_instance)
+                    value = create_or_update_django_instance(
+                        related_django_model, related_api_instance
+                    )
+
             field_data[field.name] = value
 
     field_data.update(extra_fields)
-    lookup_identifier = _normalize_identifier(getattr(api_instance, "id", None))
+    lookup_identifier = _normalize_identifier(_instance_get_field(api_instance, "id"))
     primary_key_field = getattr(django_model._meta, "pk", None)
     is_auto_primary_key = isinstance(primary_key_field, models.AutoField)
-    if lookup_identifier is None and primary_key_field is not None and not is_auto_primary_key:
-        logger.warning("Skipping %s import because id is missing or invalid.", django_model.__name__)
+    if (
+        lookup_identifier is None
+        and primary_key_field is not None
+        and not is_auto_primary_key
+    ):
+        logger.warning(
+            "Skipping %s import because id is missing or invalid.",
+            django_model.__name__,
+        )
         return None
 
     try:
         if lookup_identifier is None and is_auto_primary_key:
             obj = django_model.objects.create(**field_data)
         else:
-            obj, _created = django_model.objects.update_or_create(defaults=field_data, id=lookup_identifier)
+            obj, _created = django_model.objects.update_or_create(
+                defaults=field_data, id=lookup_identifier
+            )
     except DataError as e:
         formatted_field_data = pprint.pformat(field_data)
-        logger.error(f"DataError on {django_model.__name__} with data {formatted_field_data}: {e}")
+        logger.error(
+            f"DataError on {django_model.__name__} with data {formatted_field_data}: {e}"
+        )
         raise
     except OperationalError as e:
         formatted_field_data = pprint.pformat(field_data)
-        logger.error(f"OperationalError on {django_model.__name__} with data {formatted_field_data}: {e}")
+        logger.error(
+            f"OperationalError on {django_model.__name__} with data {formatted_field_data}: {e}"
+        )
         raise
     return obj
 
@@ -155,7 +218,9 @@ class Command(BaseCommand):
             "User": (None, None),
         }
 
-    def get_submodel_class(self, parent_model_name: str, sub_model_suffix: str) -> type[models.Model]:
+    def get_submodel_class(
+        self, parent_model_name: str, sub_model_suffix: str
+    ) -> type[models.Model]:
         if sub_model_suffix.lower() != "properties" and sub_model_suffix.endswith("s"):
             sub_model_suffix = sub_model_suffix[:-1]
 
@@ -164,7 +229,9 @@ class Command(BaseCommand):
             f"repairshopr_data.models.{parent_model_name.lower()}.{parent_model_name}{formatted_sub_model_suffix}"
         )
         if not _is_django_model_like(imported):
-            raise TypeError(f"Expected Django model class for submodel, got {imported!r}")
+            raise TypeError(
+                f"Expected Django model class for submodel, got {imported!r}"
+            )
         return imported
 
     def handle_model(
@@ -183,7 +250,9 @@ class Command(BaseCommand):
 
         django_model_candidate = self.dynamic_import(django_model_path)
         if not _is_django_model_like(django_model_candidate):
-            raise TypeError(f"Expected Django model class, got {django_model_candidate!r}")
+            raise TypeError(
+                f"Expected Django model class, got {django_model_candidate!r}"
+            )
         django_model = django_model_candidate
 
         api_model_candidate = self.dynamic_import(api_model_path)
@@ -191,26 +260,40 @@ class Command(BaseCommand):
             raise TypeError(f"Expected BaseModel subclass, got {api_model_candidate!r}")
         api_model = api_model_candidate
 
-        api_instances = self.client.get_model(api_model, last_updated_at, num_last_pages, params)
+        api_instances = self.client.get_model(
+            api_model, last_updated_at, num_last_pages, params
+        )
         for api_instance in api_instances:
-            django_instance = create_or_update_django_instance(django_model, api_instance)
+            django_instance = create_or_update_django_instance(
+                django_model, api_instance
+            )
             if django_instance is None:
                 continue
             parent_model_name = django_model.__name__
 
             # noinspection PyProtectedMember
             for related_obj in django_model._meta.related_objects:
-                sub_model_suffix = related_obj.name.replace(parent_model_name.lower(), "")
-                sub_django_model = self.get_submodel_class(parent_model_name, sub_model_suffix)
+                sub_model_suffix = related_obj.name.replace(
+                    parent_model_name.lower(), ""
+                )
+                sub_django_model = self.get_submodel_class(
+                    parent_model_name, sub_model_suffix
+                )
 
-                if hasattr(api_instance, related_obj.name):
-                    sub_api_instances = getattr(api_instance, related_obj.name)
+                if _instance_has_field(api_instance, related_obj.name):
+                    sub_api_instances = _instance_get_field(api_instance, related_obj.name)
+                    if not isinstance(sub_api_instances, list):
+                        continue
                     sub_django_instances = []
                     for sub_api_instance in sub_api_instances:
-                        sub_django_instance = create_or_update_django_instance(sub_django_model, sub_api_instance)
+                        sub_django_instance = create_or_update_django_instance(
+                            sub_django_model, sub_api_instance
+                        )
                         if sub_django_instance is None:
                             continue
-                        setattr(sub_django_instance, related_obj.field.name, django_instance)
+                        setattr(
+                            sub_django_instance, related_obj.field.name, django_instance
+                        )
                         if hasattr(sub_django_instance, "save"):
                             save = getattr(sub_django_instance, "save")
                             if callable(save):
@@ -218,9 +301,15 @@ class Command(BaseCommand):
                         sub_django_instances.append(sub_django_instance)
 
                     if hasattr(django_instance, related_obj.name):
-                        getattr(django_instance, related_obj.name).set(sub_django_instances)
+                        getattr(django_instance, related_obj.name).set(
+                            sub_django_instances
+                        )
 
-            logger.info(self.style.SUCCESS(f"Successfully imported {parent_model_name.rsplit('.', 1)[0]} {api_instance.id}"))
+            logger.info(
+                self.style.SUCCESS(
+                    f"Successfully imported {parent_model_name.rsplit('.', 1)[0]} {_instance_get_field(api_instance, 'id')}"
+                )
+            )
 
     @staticmethod
     def dynamic_import(path: str) -> type:
@@ -232,7 +321,9 @@ class Command(BaseCommand):
         start_updated_at = now()
         logger.info("SYNC_RUN start=%s", start_updated_at.isoformat())
         for model_name, (num_last_pages, params) in self.model_mapping.items():
-            django_model_path = f"repairshopr_data.models.{model_name.lower()}.{model_name}"
+            django_model_path = (
+                f"repairshopr_data.models.{model_name.lower()}.{model_name}"
+            )
             api_model_path = f"repairshopr_api.models.{model_name}"
             self.handle_model(django_model_path, api_model_path, num_last_pages, params)
 
