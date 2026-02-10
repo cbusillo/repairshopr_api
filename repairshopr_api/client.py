@@ -5,6 +5,7 @@ from contextlib import contextmanager
 from datetime import datetime, timedelta
 from http import HTTPStatus
 from time import sleep
+from urllib.parse import urlparse
 from typing import Generator, TypeAlias, TypeVar
 
 import requests
@@ -41,6 +42,7 @@ CacheValue: TypeAlias = ListResult | JsonObject
 
 
 ModelType = TypeVar("ModelType", bound=BaseModel)
+MAX_ERROR_BODY_PREVIEW_CHARS = 300
 
 
 def _log_retry_attempt(retry_state: RetryCallState) -> None:
@@ -50,6 +52,29 @@ def _log_retry_attempt(retry_state: RetryCallState) -> None:
         retry_state.attempt_number,
         retry_state.next_action.sleep if retry_state.next_action else 0.0,
         exception,
+    )
+
+
+def _preview_response_body(raw_body: str, *, max_chars: int = MAX_ERROR_BODY_PREVIEW_CHARS) -> str:
+    normalized_body = " ".join(raw_body.split())
+    if len(normalized_body) <= max_chars:
+        return normalized_body
+    return f"{normalized_body[:max_chars]}..."
+
+
+def _request_error_context(url: str, response: requests.Response) -> str:
+    parsed_url = urlparse(url)
+    response_body = response.text or ""
+    body_preview = _preview_response_body(response_body)
+    response_headers = getattr(response, "headers", {})
+    if isinstance(response_headers, dict):
+        content_type = response_headers.get("Content-Type", "unknown")
+    else:
+        content_type = "unknown"
+    return (
+        f"url={parsed_url.path or url} status={response.status_code} "
+        f"content_type={content_type} body_length={len(response_body)} "
+        f"body_preview={body_preview!r}"
     )
 
 
@@ -172,20 +197,20 @@ class Client(requests.Session):
                 raise requests.RequestException("Rate limit reached")
 
             case HTTPStatus.UNAUTHORIZED:
-                logger.error("Received authorization error: %s", response.text)
+                logger.error("Received authorization error: %s", _request_error_context(url, response))
                 raise PermissionError("Authorization failed with the provided token.")
 
             case HTTPStatus.NOT_FOUND:
-                logger.warning("Received 404 error: %s", response.text)
+                logger.warning("Received 404 error: %s", _request_error_context(url, response))
                 raise ValueError("Received 404 error.")
 
             case _:
                 logger.warning(
-                    "Request failed with status code %s. Retrying...",
-                    response.status_code,
+                    "Request failed. Retrying... %s",
+                    _request_error_context(url, response),
                 )
                 raise requests.RequestException(
-                    f"Received unexpected status code: {response.status_code}. Response content: {response.text}"
+                    f"Received unexpected status code. {_request_error_context(url, response)}"
                 )
 
         return response
