@@ -1,19 +1,3 @@
-# django_manage.py
-import subprocess
+from repairshopr_api.run_django import import_from_repairshopr, makemigrations, migrate, runserver
 
-def runserver():
-    makemigrations()
-    migrate()
-    subprocess.run(["python", "repairshopr_sync/manage.py", "runserver"])
-
-def makemigrations():
-    subprocess.run(["python", "repairshopr_sync/manage.py", "makemigrations"])
-
-def migrate():
-    subprocess.run(["python", "repairshopr_sync/manage.py", "migrate"])
-
-def import_from_repairshopr():
-    makemigrations()
-    migrate()
-    subprocess.run(["python", "repairshopr_sync/manage.py", "import_from_repairshopr"])
-
+__all__ = ["runserver", "makemigrations", "migrate", "import_from_repairshopr"]

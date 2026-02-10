@@ -18,21 +18,21 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.14"
 
-      - name: Install Poetry
-        run: |
-          python -m pip install --upgrade pip
-          pip install poetry
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
 
       - name: Install dependencies
-        run: poetry install --with dev
+        run: uv sync --locked --group dev
 
       - name: Validate project metadata
-        run: poetry check
+        run: uv lock --check
 
       - name: Run tests with coverage gate
-        run: poetry run pytest -q
+        run: uv run pytest -q
 
   mysql-integration:
     runs-on: ubuntu-latest
@@ -58,24 +58,24 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.14"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
 
       - name: Install system dependencies for mysqlclient
         run: |
           sudo apt-get update
           sudo apt-get install -y default-libmysqlclient-dev pkg-config
 
-      - name: Install Poetry
-        run: |
-          python -m pip install --upgrade pip
-          pip install poetry
-
       - name: Install dependencies (sync extras)
-        run: poetry install --with dev -E sync
+        run: uv sync --locked --group dev --extra sync
 
       - name: Wait for MySQL
         run: |
-          poetry run python - <<'PY'
+          uv run python - <<'PY'
           import time
           import MySQLdb
 
@@ -104,8 +104,8 @@ jobs:
           MYSQL_USER: "root"
           MYSQL_PASSWORD: "root"
         run: |
-          poetry run python -m django migrate --noinput \
+          uv run python -m django migrate --noinput \
             --settings=tests.django_settings_mysql
-          poetry run pytest -q -m integration \
+          uv run pytest -q -m integration \
             --ds=tests.django_settings_mysql \
             --no-cov

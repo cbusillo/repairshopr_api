@@ -5,11 +5,11 @@ After=network-online.target
 Wants=network-online.target
 
 [Service]
-ExecStart=poetry run repairshopr_sync
+ExecStart=/opt/repairshopr_api/.venv/bin/server
 User=root
 Group=root
 Type=idle
-Restart=on-abnormal
+Restart=on-failure
 RestartSec=15
 RestartForceExitStatus=1
 RestartForceExitStatus=26

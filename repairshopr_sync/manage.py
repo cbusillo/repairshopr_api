@@ -5,7 +5,6 @@ import sys
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'repairshopr_sync.settings')
 
-print(sys.path)
 def main() -> None:
     """Run administrative tasks."""
     try:

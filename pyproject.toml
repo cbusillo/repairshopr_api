@@ -1,48 +1,52 @@
-[tool.poetry]
+[project]
 name = "repairshopr-api"
 version = "0.3.5"
 description = ""
-authors = ["Chris Busillo <info@shinycomputers.com>"]
 readme = "README.md"
-packages = [
-    { include = "repairshopr_api" },
-    { include = "repairshopr_sync" },
+requires-python = ">=3.14"
+authors = [
+    { name = "Chris Busillo", email = "info@shinycomputers.com" },
+]
+dependencies = [
+    "toml>=0.10.2",
+    "requests>=2.31.0",
+    "pytz>=2023.3.post1",
+    "tenacity>=8.2.3",
 ]
 
-[tool.poetry.dependencies]
-python = "^3.11"
-toml = "^0.10.2"
-requests = "^2.31.0"
-pytz = "^2023.3.post1"
-tenacity = "^8.2.3"
-django = { version = "^5.0.1", optional = true }
-mysqlclient = { version = "^2.2.1", optional = true }
+[project.optional-dependencies]
+mysql = ["mysqlclient>=2.2.1"]
+sync = [
+    "django>=5.0.1",
+    "mysqlclient>=2.2.1",
+]
 
-[tool.poetry.extras]
-mysql = ["mysqlclient"]
-sync = ["django", "mysqlclient"]
+[project.scripts]
+server = "repairshopr_api.run_django:runserver"
+makemigrations = "repairshopr_api.run_django:makemigrations"
+migrate = "repairshopr_api.run_django:migrate"
+import = "repairshopr_api.run_django:import_from_repairshopr"
 
-[tool.poetry.group.dev.dependencies]
-django-stubs = { extras = ["compatible-mypy"], version = "^4.2.6" }
-black = "^23.10.1"
-types-toml = "^0.10.8.7"
-types-requests = "^2.31.0.10"
-pytest = "^8.3.5"
-pytest-cov = "^6.0.0"
-pytest-mock = "^3.14.0"
-pytest-django = "^4.11.1"
-freezegun = "^1.5.1"
-django = "^5.0.1"
+[dependency-groups]
+dev = [
+    "black>=23.10.1",
+    "django>=5.0.1",
+    "django-stubs[compatible-mypy]>=4.2.6",
+    "freezegun>=1.5.1",
+    "pytest>=8.3.5",
+    "pytest-cov>=6.0.0",
+    "pytest-django>=4.11.1",
+    "pytest-mock>=3.14.0",
+    "types-requests>=2.31.0.10",
+    "types-toml>=0.10.8.7",
+]
 
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling>=1.27.0"]
+build-backend = "hatchling.build"
 
-[tool.poetry.scripts]
-server = "run_django:runserver"
-makemigrations = "run_django:makemigrations"
-migrate = "run_django:migrate"
-import = "run_django:import_from_repairshopr"
+[tool.hatch.build.targets.wheel]
+packages = ["repairshopr_api", "repairshopr_sync"]
 
 [tool.pytest.ini_options]
 minversion = "8.0"

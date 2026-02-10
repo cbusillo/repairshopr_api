@@ -35,7 +35,7 @@ DB_ATTEMPT_FILE="${DB_ATTEMPT_FILE:-/tmp/db-attempts.log}"
 DB_READY_AFTER="${DB_READY_AFTER:-1}"
 IMPORT_FAIL="${MOCK_IMPORT_FAIL:-0}"
 
-if [[ "${1:-}" == "repairshopr_sync/manage.py" ]]; then
+if [[ "${1:-}" == *"repairshopr_sync/manage.py" ]]; then
   cmd="${2:-}"
   echo "manage:${cmd}" >> "${LOG_FILE}"
   if [[ "${cmd}" == "import_from_repairshopr" && "${IMPORT_FAIL}" == "1" ]]; then

@@ -7,21 +7,24 @@ Python client and sync utilities for RepairShopr.
 
 ## Development
 
-- Install dependencies: `poetry install`
-- Build package: `poetry build`
+- Python version: `3.14`
+- Install runtime dependencies: `uv sync`
+- Install development dependencies: `uv sync --group dev`
+- Build package: `uv build`
 
 ## Tests
 
 The repository uses `pytest` with coverage gates.
 
-- Install test dependencies: `poetry install --with dev`
-- Run the full suite: `poetry run pytest -q`
-- Run with explicit coverage output: `poetry run pytest --cov --cov-report=term-missing`
+- Install test dependencies: `uv sync --group dev`
+- Run the full suite: `uv run pytest -q`
+- Run with explicit coverage output: `uv run pytest --cov --cov-report=term-missing`
 - Run MySQL integration tests:
 
   ```bash
-  poetry install --with dev -E sync
-  poetry run pytest -q -m integration --ds=tests.django_settings_mysql --no-cov
+  uv sync --group dev --extra sync
+  uv run python -m django migrate --noinput --settings=tests.django_settings_mysql
+  uv run pytest -q -m integration --ds=tests.django_settings_mysql --no-cov
   ```
 
 Notes:

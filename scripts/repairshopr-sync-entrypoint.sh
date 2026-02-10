@@ -38,6 +38,8 @@ SYNC_DB_RESET="${SYNC_DB_RESET:-0}"
 
 CONFIG_ROOT="${HOME:-/var/lib/repairshopr}/.config/repairshopr-api"
 CONFIG_FILE="${CONFIG_ROOT}/config.toml"
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+MANAGE_PY="${PROJECT_ROOT}/repairshopr_sync/manage.py"
 
 export REPAIRSHOPR_DEBUG
 export SYNC_DB_NAME
@@ -121,7 +123,7 @@ wait_for_db
 run_manage() {
   local label="$1"
   shift
-  if ! python repairshopr_sync/manage.py "$@"; then
+  if ! python "${MANAGE_PY}" "$@"; then
     log "RepairShopr sync failed during ${label}."
     return 1
   fi

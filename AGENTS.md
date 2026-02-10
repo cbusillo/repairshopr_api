@@ -1,11 +1,12 @@
 # AGENTS.md
 
-This repo is managed with Poetry and publishes to PyPI via GitHub Actions.
+This repo is managed with uv and publishes to PyPI via GitHub Actions.
 
 ## Setup
 
-- Install dependencies: `poetry install`
-- Build package: `poetry build`
+- Python version: `3.14`
+- Install dependencies: `uv sync`
+- Build package: `uv build`
 
 ## Release
 
@@ -19,5 +20,5 @@ The `Publish to PyPI` workflow is tag-driven and runs only on tags matching
 
 ## Tests
 
-No automated test runner is configured in this repo. Ask before adding or
-changing test tooling.
+- Install test dependencies: `uv sync --group dev`
+- Run test suite: `uv run pytest -q`
