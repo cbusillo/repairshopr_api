@@ -7,6 +7,14 @@ logger = logging.getLogger(__name__)
 
 
 class Serializable:
+    def _annotations(self) -> dict[str, object]:
+        annotations: dict[str, object] = {}
+        for cls in reversed(type(self).mro()):
+            cls_annotations = getattr(cls, "__annotations__", None)
+            if isinstance(cls_annotations, dict):
+                annotations.update(cls_annotations)
+        return annotations
+
     def to_dict(self) -> JsonObject:
         result: JsonObject = {}
         all_keys = self.get_all_keys()
@@ -20,7 +28,7 @@ class Serializable:
         return result
 
     def from_dict(self, data: Mapping[str, JsonValue]) -> None:
-        for key, _type_hint in getattr(self, "__annotations__", {}).items():
+        for key, _type_hint in self._annotations().items():
             value = data.get(key, getattr(self, key, None))
 
             try:
@@ -42,7 +50,7 @@ class Serializable:
         self.validate()
 
     def validate(self) -> None:
-        for key, _value in getattr(self, "__annotations__", {}).items():
+        for key, _value in self._annotations().items():
             if getattr(self, key, None) is None:
                 logger.warning(
                     f"Warning: Configuration value '{key}' is missing or None in {self.__class__.__name__}"
@@ -50,11 +58,7 @@ class Serializable:
 
     def get_all_keys(self) -> set[str]:
         instance_keys = set(self.__dict__.keys())
-        annotation_keys = (
-            set(self.__annotations__.keys())
-            if hasattr(self, "__annotations__")
-            else set()
-        )
+        annotation_keys = set(self._annotations().keys())
         return instance_keys | annotation_keys
 
     def gather_missing_data(self, parent_name: str = "") -> None:

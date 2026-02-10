@@ -3,12 +3,12 @@
 set -euo pipefail
 
 if ! command -v uv >/dev/null 2>&1; then
-	echo "ERROR: uv is required to validate uv.lock." >&2
-	exit 1
+  echo "ERROR: uv is required to validate uv.lock." >&2
+  exit 1
 fi
 
 if uv lock --check; then
-	exit 0
+  exit 0
 fi
 
 cat >&2 <<'EOF'

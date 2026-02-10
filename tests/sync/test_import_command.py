@@ -15,6 +15,7 @@ from repairshopr_data.management.commands import (
 )
 from repairshopr_data.management.commands.import_from_repairshopr import (
     _coerce_datetime,
+    _instance_has_field,
     _parse_datetime,
     create_or_update_django_instance,
 )
@@ -149,6 +150,25 @@ def test_parse_datetime_and_coerce_datetime(caplog: pytest.LogCaptureFixture) ->
         2024, 1, 1, tzinfo=timezone.utc
     )
     assert _coerce_datetime(object(), field_name="x") is None
+
+
+def test_instance_has_field_avoids_triggering_computed_properties() -> None:
+    property_reads = {"count": 0}
+
+    class ApiInstanceWithExpensiveProperty:
+        def __init__(self) -> None:
+            self.id = 10
+
+        @property
+        def line_items(self) -> list[int]:
+            property_reads["count"] += 1
+            return [1, 2, 3]
+
+    instance = ApiInstanceWithExpensiveProperty()
+
+    assert _instance_has_field(instance, "id") is True
+    assert _instance_has_field(instance, "line_items") is False
+    assert property_reads["count"] == 0
 
 
 def test_handle_model_coerces_naive_last_updated_at(

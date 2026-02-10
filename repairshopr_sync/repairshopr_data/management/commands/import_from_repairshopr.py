@@ -21,15 +21,27 @@ ApiInstance: TypeAlias = ModelType | SimpleNamespace
 FieldValue: TypeAlias = JsonValue | datetime | models.Model
 
 
-def _instance_has_field(api_instance: object, field_name: str) -> bool:
+def _instance_values(api_instance: object) -> Mapping[str, object]:
     if isinstance(api_instance, Mapping):
-        return field_name in api_instance
+        return api_instance
+    try:
+        raw_values = vars(api_instance)
+    except TypeError:
+        return {}
+    return raw_values if isinstance(raw_values, dict) else {}
+
+
+def _instance_has_field(api_instance: object, field_name: str) -> bool:
+    values = _instance_values(api_instance)
+    if values:
+        return field_name in values
     return hasattr(api_instance, field_name)
 
 
 def _instance_get_field(api_instance: object, field_name: str) -> object:
-    if isinstance(api_instance, Mapping):
-        return api_instance.get(field_name)
+    values = _instance_values(api_instance)
+    if values:
+        return values.get(field_name)
     return getattr(api_instance, field_name, None)
 
 
