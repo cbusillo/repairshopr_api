@@ -79,7 +79,7 @@ def create_or_update_django_instance(
     django_model: type[models.Model],
     api_instance: ApiInstance,
     extra_fields: Mapping[str, FieldValue] | None = None,
-) -> models.Model:
+) -> models.Model | None:
     if extra_fields is None:
         extra_fields = {}
 
@@ -117,6 +117,10 @@ def create_or_update_django_instance(
     lookup_identifier = _normalize_identifier(getattr(api_instance, "id", None))
     primary_key_field = getattr(django_model._meta, "pk", None)
     is_auto_primary_key = isinstance(primary_key_field, models.AutoField)
+    if lookup_identifier is None and primary_key_field is not None and not is_auto_primary_key:
+        logger.warning("Skipping %s import because id is missing or invalid.", django_model.__name__)
+        return None
+
     try:
         if lookup_identifier is None and is_auto_primary_key:
             obj = django_model.objects.create(**field_data)
@@ -190,6 +194,8 @@ class Command(BaseCommand):
         api_instances = self.client.get_model(api_model, last_updated_at, num_last_pages, params)
         for api_instance in api_instances:
             django_instance = create_or_update_django_instance(django_model, api_instance)
+            if django_instance is None:
+                continue
             parent_model_name = django_model.__name__
 
             # noinspection PyProtectedMember
@@ -202,6 +208,8 @@ class Command(BaseCommand):
                     sub_django_instances = []
                     for sub_api_instance in sub_api_instances:
                         sub_django_instance = create_or_update_django_instance(sub_django_model, sub_api_instance)
+                        if sub_django_instance is None:
+                            continue
                         setattr(sub_django_instance, related_obj.field.name, django_instance)
                         if hasattr(sub_django_instance, "save"):
                             save = getattr(sub_django_instance, "save")
