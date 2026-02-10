@@ -44,24 +44,21 @@ def _mysql_align_column_collation_to_table(apps, schema_editor) -> None:
             SELECT
                 c.COLLATION_NAME,
                 c.DATA_TYPE,
-                c.IS_NULLABLE,
-                cca.CHARACTER_SET_NAME
+                c.IS_NULLABLE
             FROM information_schema.COLUMNS c
-            JOIN information_schema.COLLATION_CHARACTER_SET_APPLICABILITY cca
-                ON cca.COLLATION_NAME = %s
             WHERE
                 c.TABLE_SCHEMA = DATABASE()
                 AND c.TABLE_NAME = %s
                 AND c.COLUMN_NAME = %s
             """,
-            [table_collation, table_name, column_name],
+            [table_name, column_name],
         )
         column_row = cursor.fetchone()
 
     if not column_row:
         return
 
-    column_collation, data_type, is_nullable, table_charset = column_row
+    column_collation, data_type, is_nullable = column_row
     if column_collation == table_collation:
         return
 
@@ -70,7 +67,6 @@ def _mysql_align_column_collation_to_table(apps, schema_editor) -> None:
         return
 
     null_sql = "NULL" if (is_nullable or "").upper() == "YES" else "NOT NULL"
-    table_charset = _safe_identifier(table_charset)
     table_collation = _safe_identifier(table_collation)
 
     schema_editor.execute(
@@ -81,7 +77,6 @@ def _mysql_align_column_collation_to_table(apps, schema_editor) -> None:
                 schema_editor.quote_name(column_name),
                 data_type,
                 null_sql,
-                f"CHARACTER SET {table_charset}",
                 f"COLLATE {table_collation}",
             ]
         )
