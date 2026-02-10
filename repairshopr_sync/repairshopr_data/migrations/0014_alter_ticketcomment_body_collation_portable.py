@@ -8,7 +8,6 @@ import re
 
 from django.db import migrations
 
-
 _SAFE_IDENTIFIER_RE = re.compile(r"^[0-9A-Za-z_]+$")
 
 
@@ -90,6 +89,8 @@ def _mysql_align_column_collation_to_table(apps, schema_editor) -> None:
 
 
 class Migration(migrations.Migration):
+    atomic = False
+
     dependencies = [
         ("repairshopr_data", "0013_add_api_fields"),
     ]
@@ -100,4 +101,3 @@ class Migration(migrations.Migration):
             reverse_code=migrations.RunPython.noop,
         )
     ]
-
