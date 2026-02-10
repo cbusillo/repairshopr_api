@@ -12,6 +12,16 @@ Python client and sync utilities for RepairShopr.
 - Install development dependencies: `uv sync --group dev`
 - Build package: `uv build`
 
+## Lockfile Guardrails
+
+This repo treats `uv.lock` as a committed artifact and enforces lockfile
+consistency with local checks and CI.
+
+- Check lockfile consistency: `./scripts/check-lockfile.sh`
+- Refresh lockfile after dependency/version changes: `uv lock`
+- Ensure both files are committed together when needed:
+  `git add pyproject.toml uv.lock`
+
 ## Tests
 
 The repository uses `pytest` with coverage gates.
@@ -40,8 +50,10 @@ Releases are tag-driven. The GitHub Actions workflow publishes to PyPI only
 when a tag matching `v*` is pushed.
 
 1. Bump the version in `pyproject.toml`.
-2. Commit the changes on `main`.
-3. Create a tag `vX.Y.Z` at that commit.
-4. Push the commit and tag: `git push origin main --follow-tags`.
+2. Refresh lockfile: `uv lock`.
+3. Confirm lockfile is clean: `./scripts/check-lockfile.sh`.
+4. Commit the changes on `main`.
+5. Create a tag `vX.Y.Z` at that commit.
+6. Push the commit and tag: `git push origin main --follow-tags`.
 
 Pushing to `main` without a tag does not publish.

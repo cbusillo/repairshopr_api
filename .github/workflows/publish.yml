@@ -23,6 +23,9 @@ jobs:
         with:
           enable-cache: true
 
+      - name: Verify lockfile is in sync
+        run: ./scripts/check-lockfile.sh
+
       - name: Build package
         run: uv build
 
