@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/4.2/ref/settings/
 """
 
+import os
 from pathlib import Path
 
 from repairshopr_api.config import settings
@@ -80,11 +81,11 @@ WSGI_APPLICATION = "repairshopr_sync.wsgi.application"
 
 DATABASES = {
     "default": {
-        "ENGINE": f"django.db.backends.{settings.django.db_engine}",
-        "HOST": settings.django.db_host,
-        "NAME": settings.django.db_name,
-        "USER": settings.django.db_user,
-        "PASSWORD": settings.django.db_password,
+        "ENGINE": f"django.db.backends.{os.getenv('SYNC_DB_ENGINE') or settings.django.db_engine}",
+        "HOST": os.getenv("SYNC_DB_HOST") or settings.django.db_host,
+        "NAME": os.getenv("SYNC_DB_NAME") or settings.django.db_name,
+        "USER": os.getenv("SYNC_DB_USER") or settings.django.db_user,
+        "PASSWORD": os.getenv("SYNC_DB_PASSWORD") or settings.django.db_password,
     }
 }
 

@@ -43,6 +43,38 @@ def _coerce_datetime(value: object, *, field_name: str) -> datetime | None:
     return coerced
 
 
+def _normalize_identifier(raw_identifier: object) -> int | None:
+    if raw_identifier is None:
+        return None
+    if isinstance(raw_identifier, int):
+        return None if raw_identifier == 0 else raw_identifier
+    if isinstance(raw_identifier, str):
+        stripped_value = raw_identifier.strip()
+        if stripped_value in {"", "0"}:
+            return None
+        if stripped_value.isdigit() or (stripped_value.startswith("-") and stripped_value[1:].isdigit()):
+            return int(stripped_value)
+    return None
+
+
+def _coerce_integer_value(value: object, *, field_name: str) -> object:
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return int(value)
+    if isinstance(value, int):
+        return value
+    if isinstance(value, str):
+        stripped_value = value.strip()
+        if stripped_value == "":
+            return None
+        if stripped_value.isdigit() or (stripped_value.startswith("-") and stripped_value[1:].isdigit()):
+            return int(stripped_value)
+        logger.warning("Unable to parse integer for %s: %r", field_name, value)
+        return None
+    return value
+
+
 def create_or_update_django_instance(
     django_model: type[models.Model],
     api_instance: ApiInstance,
@@ -59,8 +91,8 @@ def create_or_update_django_instance(
             continue
         if hasattr(api_instance, field.name):
             value = getattr(api_instance, field.name)
-            if value == "" and isinstance(field, (models.IntegerField, models.BigIntegerField)):
-                value = None
+            if isinstance(field, models.IntegerField):
+                value = _coerce_integer_value(value, field_name=f"{django_model.__name__}.{field.name}")
             if isinstance(field, models.DateTimeField):
                 parsed_value = _coerce_datetime(value, field_name=f"{django_model.__name__}.{field.name}")
                 if parsed_value is not None:
@@ -75,15 +107,21 @@ def create_or_update_django_instance(
                     raise TypeError(f"Expected Django model type for foreign key, got {related_django_model!r}")
 
                 related_api_instance = getattr(api_instance, field.name)
-                if related_api_instance.id == 0:
+                if _normalize_identifier(getattr(related_api_instance, "id", None)) is None:
                     related_api_instance.id = None
 
                 value = create_or_update_django_instance(related_django_model, related_api_instance)
             field_data[field.name] = value
 
     field_data.update(extra_fields)
+    lookup_identifier = _normalize_identifier(getattr(api_instance, "id", None))
+    primary_key_field = getattr(django_model._meta, "pk", None)
+    is_auto_primary_key = isinstance(primary_key_field, models.AutoField)
     try:
-        obj, _created = django_model.objects.update_or_create(defaults=field_data, id=api_instance.id)
+        if lookup_identifier is None and is_auto_primary_key:
+            obj = django_model.objects.create(**field_data)
+        else:
+            obj, _created = django_model.objects.update_or_create(defaults=field_data, id=lookup_identifier)
     except DataError as e:
         formatted_field_data = pprint.pformat(field_data)
         logger.error(f"DataError on {django_model.__name__} with data {formatted_field_data}: {e}")
