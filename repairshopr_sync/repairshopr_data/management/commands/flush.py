@@ -13,7 +13,10 @@ class Command(FlushCommand):
         settings.django.last_updated_at = None
         settings.save()
 
-        if django_settings.DATABASES["default"]["ENGINE"] == "django.db.backends.sqlite3":
+        if (
+            django_settings.DATABASES["default"]["ENGINE"]
+            == "django.db.backends.sqlite3"
+        ):
             Path(django_settings.DATABASES["default"]["NAME"]).unlink()
 
         for migration in Path(django_settings.BASE_DIR).glob("*/migrations/*.py"):

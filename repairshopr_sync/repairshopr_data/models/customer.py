@@ -40,7 +40,9 @@ class Customer(models.Model):
     no_email = models.BooleanField(null=True)
     location_name = models.CharField(max_length=255, null=True)
     location_id = models.IntegerField(null=True)
-    properties = models.ForeignKey(CustomerProperties, related_name="customer", on_delete=models.CASCADE, null=True)
+    properties = models.ForeignKey(
+        CustomerProperties, related_name="customer", on_delete=models.CASCADE, null=True
+    )
     online_profile_url = models.URLField(max_length=1024, null=True)
     tax_rate_id = models.IntegerField(null=True)
     notification_email = models.CharField(max_length=255, null=True)
@@ -73,13 +75,17 @@ class CustomerContact(models.Model):
     created_at = models.DateTimeField(null=True)
     updated_at = models.DateTimeField(null=True)
     vendor_id = models.IntegerField(null=True)
-    properties = models.ForeignKey(CustomerProperties, on_delete=models.CASCADE, null=True)
+    properties = models.ForeignKey(
+        CustomerProperties, on_delete=models.CASCADE, null=True
+    )
     opt_out = models.BooleanField(null=True)
     extension = models.CharField(max_length=255, null=True)
     processed_phone = models.CharField(max_length=255, null=True)
     processed_mobile = models.CharField(max_length=255, null=True)
 
-    parent_customer = models.ForeignKey(Customer, related_name="contacts", on_delete=models.CASCADE, null=True)
+    parent_customer = models.ForeignKey(
+        Customer, related_name="contacts", on_delete=models.CASCADE, null=True
+    )
 
     def __str__(self) -> str:
         return f"{self.id} - {self.name} - {self.phone} - {self.email}"

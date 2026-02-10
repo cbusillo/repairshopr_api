@@ -8,13 +8,26 @@ from time import sleep
 from typing import Generator, TypeAlias, TypeVar
 
 import requests
-from tenacity import RetryCallState, retry, retry_if_exception_type, stop_after_attempt, wait_exponential
+from tenacity import (
+    RetryCallState,
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential,
+)
 
 from repairshopr_api.config import settings
 from repairshopr_api import models
 from repairshopr_api.base.model import BaseModel
 from repairshopr_api.converters.strings import snake_case
-from repairshopr_api.type_defs import JsonArray, JsonObject, is_json_array, is_json_object, is_query_params, QueryParams
+from repairshopr_api.type_defs import (
+    JsonArray,
+    JsonObject,
+    is_json_array,
+    is_json_object,
+    is_query_params,
+    QueryParams,
+)
 from repairshopr_api.utils import relative_cutoff
 
 logger = logging.getLogger(__name__)
@@ -52,11 +65,15 @@ class Client(requests.Session):
         environment_url_store_name = os.getenv("REPAIRSHOPR_URL_STORE_NAME", "").strip()
         environment_token = os.getenv("REPAIRSHOPR_TOKEN", "").strip()
         if not url_store_name:
-            url_store_name = environment_url_store_name or settings.repairshopr.url_store_name
+            url_store_name = (
+                environment_url_store_name or settings.repairshopr.url_store_name
+            )
         if not token:
             token = environment_token or settings.repairshopr.token
         if not url_store_name or not token:
-            raise ValueError("url_store_name and token must be provided in either the constructor or the config file.")
+            raise ValueError(
+                "url_store_name and token must be provided in either the constructor or the config file."
+            )
 
         self.token = token or settings.repairshopr.token
         self.base_url = f"https://{url_store_name}.repairshopr.com/api/v1"
@@ -71,7 +88,9 @@ class Client(requests.Session):
 
     def _clear_old_request_timestamps(self) -> None:
         current_time = datetime.now()
-        while self._request_timestamps and self._request_timestamps[0] < current_time - timedelta(seconds=60):
+        while self._request_timestamps and self._request_timestamps[
+            0
+        ] < current_time - timedelta(seconds=60):
             self._request_timestamps.popleft()
 
     def _wait_for_rate_limit(self) -> None:
@@ -94,7 +113,9 @@ class Client(requests.Session):
             if durations:
                 average_duration = sum(durations) / len(durations)
                 count = self.api_call_counter.get(api_call_type, 0)
-                stats_str += f"{api_call_type} (C: {count}, A: {average_duration:.3f}s), "
+                stats_str += (
+                    f"{api_call_type} (C: {count}, A: {average_duration:.3f}s), "
+                )
                 total_time += sum(durations)
         api_request_time = timedelta(seconds=total_time)
 
@@ -159,7 +180,10 @@ class Client(requests.Session):
                 raise ValueError("Received 404 error.")
 
             case _:
-                logger.warning("Request failed with status code %s. Retrying...", response.status_code)
+                logger.warning(
+                    "Request failed with status code %s. Retrying...",
+                    response.status_code,
+                )
                 raise requests.RequestException(
                     f"Received unexpected status code: {response.status_code}. Response content: {response.text}"
                 )
@@ -191,18 +215,26 @@ class Client(requests.Session):
         if self._has_line_item_in_cache:
             return
         if self.updated_at:
-            prefetch_cutoff = relative_cutoff(self.updated_at, delta=timedelta(weeks=52))
+            prefetch_cutoff = relative_cutoff(
+                self.updated_at, delta=timedelta(weeks=52)
+            )
 
             if self.updated_at > prefetch_cutoff:
                 return
         logger.info("Prefetching line items...")
-        lines_items = list(self.get_model(models.LineItem, params={"invoice_id_not_null": "true"}))
+        lines_items = list(
+            self.get_model(models.LineItem, params={"invoice_id_not_null": "true"})
+        )
 
         invoice_line_item_map = defaultdict(list)
         for line_item in lines_items:
             invoice_id = line_item.invoice_id
             invoice_line_item_map[invoice_id].append(
-                {key: value for key, value in line_item.__dict__.items() if not key.startswith("_")}
+                {
+                    key: value
+                    for key, value in line_item.__dict__.items()
+                    if not key.startswith("_")
+                }
             )
 
         for invoice_id, line_items in invoice_line_item_map.items():
@@ -214,7 +246,12 @@ class Client(requests.Session):
                 end_index = start_index + 100
                 paginated_line_items = line_items[start_index:end_index]
 
-                meta_data = {"page": page, "per_page": 100, "total_entries": total_entries, "total_pages": total_pages}
+                meta_data = {
+                    "page": page,
+                    "per_page": 100,
+                    "total_entries": total_entries,
+                    "total_pages": total_pages,
+                }
                 cache_data = (paginated_line_items, meta_data)
 
                 params = {"invoice_id": invoice_id}
@@ -242,30 +279,44 @@ class Client(requests.Session):
         response = self.get(f"{self.base_url}/{model_name}s", params=params)
         payload = response.json()
         if not isinstance(payload, dict):
-            raise ValueError(f"Unexpected payload type for {model_name} list request: {type(payload).__name__}")
+            raise ValueError(
+                f"Unexpected payload type for {model_name} list request: {type(payload).__name__}"
+            )
 
         collection_key = f"{model_name}s"
         response_data = payload.get(collection_key)
         if not isinstance(response_data, list):
-            raise ValueError(f"Missing or invalid '{collection_key}' list in payload keys: {sorted(payload.keys())}")
+            raise ValueError(
+                f"Missing or invalid '{collection_key}' list in payload keys: {sorted(payload.keys())}"
+            )
 
-        if not all(is_json_object(item) or is_json_array(item) for item in response_data):
+        if not all(
+            is_json_object(item) or is_json_array(item) for item in response_data
+        ):
             raise ValueError(
                 f"Invalid item payload type in '{collection_key}'; expected list of objects or row arrays"
             )
 
         meta_data = payload.get("meta")
         if meta_data is not None and not is_json_object(meta_data):
-            raise ValueError(f"Invalid 'meta' payload type for {model_name}: {type(meta_data).__name__}")
+            raise ValueError(
+                f"Invalid 'meta' payload type for {model_name}: {type(meta_data).__name__}"
+            )
 
-        typed_response_data: list[ListItem] = [item for item in response_data if is_json_object(item) or is_json_array(item)]
+        typed_response_data: list[ListItem] = [
+            item
+            for item in response_data
+            if is_json_object(item) or is_json_array(item)
+        ]
         typed_meta_data: JsonObject | None = meta_data
         result: ListResult = typed_response_data, typed_meta_data
         self._cache[cache_key] = result
 
         return result
 
-    def fetch_from_api_by_id(self, model: type[ModelType], instance_id: int) -> JsonObject:
+    def fetch_from_api_by_id(
+        self, model: type[ModelType], instance_id: int
+    ) -> JsonObject:
         if model.__name__ == "LineItem" and "invoice" in model.__module__:
             self.prefetch_line_items()
         cache_key = f"{model.__name__.lower()}_{instance_id}"
@@ -274,11 +325,17 @@ class Client(requests.Session):
             cached = self._cache[cache_key]
             if is_json_object(cached):
                 return cached
-            raise TypeError(f"Unexpected cache payload type for {cache_key}: {type(cached).__name__}")
-        response = self.get(f"{self.base_url}/{snake_case(model.__name__)}s/{instance_id}")
+            raise TypeError(
+                f"Unexpected cache payload type for {cache_key}: {type(cached).__name__}"
+            )
+        response = self.get(
+            f"{self.base_url}/{snake_case(model.__name__)}s/{instance_id}"
+        )
         payload = response.json()
         if not isinstance(payload, dict):
-            raise ValueError(f"Unexpected payload type for {model.__name__} id request: {type(payload).__name__}")
+            raise ValueError(
+                f"Unexpected payload type for {model.__name__} id request: {type(payload).__name__}"
+            )
 
         model_keys = [snake_case(model.__name__), model.__name__.lower()]
         result: JsonObject | None = None
@@ -338,7 +395,9 @@ class Client(requests.Session):
             if not meta_data or page >= meta_data.get("total_pages", 0):
                 break
             if page == 1 and meta_data.get("total_pages", 0) > 1 and num_last_pages:
-                start_page = max(1, meta_data.get("total_pages", 0) - num_last_pages + 1)
+                start_page = max(
+                    1, meta_data.get("total_pages", 0) - num_last_pages + 1
+                )
                 page = max(page + 1, start_page)
             else:
                 page += 1

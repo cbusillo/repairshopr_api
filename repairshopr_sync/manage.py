@@ -1,9 +1,11 @@
 #!/usr/bin/env python
 """Django's command-line utility for administrative tasks."""
+
 import os
 import sys
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'repairshopr_sync.settings')
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "repairshopr_sync.settings")
+
 
 def main() -> None:
     """Run administrative tasks."""

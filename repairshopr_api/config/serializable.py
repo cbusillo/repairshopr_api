@@ -31,7 +31,9 @@ class Serializable:
 
             if isinstance(existing_attr, Serializable):
                 if not is_json_object(value):
-                    logger.warning(f"Expected dict for {key} in {self.__class__.__name__}, got {type(value)}. Skipping...")
+                    logger.warning(
+                        f"Expected dict for {key} in {self.__class__.__name__}, got {type(value)}. Skipping..."
+                    )
                     continue
                 existing_attr.from_dict(value)
             else:
@@ -42,11 +44,17 @@ class Serializable:
     def validate(self) -> None:
         for key, _value in getattr(self, "__annotations__", {}).items():
             if getattr(self, key, None) is None:
-                logger.warning(f"Warning: Configuration value '{key}' is missing or None in {self.__class__.__name__}")
+                logger.warning(
+                    f"Warning: Configuration value '{key}' is missing or None in {self.__class__.__name__}"
+                )
 
     def get_all_keys(self) -> set[str]:
         instance_keys = set(self.__dict__.keys())
-        annotation_keys = set(self.__annotations__.keys()) if hasattr(self, "__annotations__") else set()
+        annotation_keys = (
+            set(self.__annotations__.keys())
+            if hasattr(self, "__annotations__")
+            else set()
+        )
         return instance_keys | annotation_keys
 
     def gather_missing_data(self, parent_name: str = "") -> None:
@@ -56,7 +64,9 @@ class Serializable:
                 value = getattr(self, key, None)
                 full_key_name = f"{parent_name}.{key}" if parent_name else key
                 if value == "from_terminal":
-                    new_value = input(f"{full_key_name} not in configuration. Please enter a value: ")
+                    new_value = input(
+                        f"{full_key_name} not in configuration. Please enter a value: "
+                    )
                     setattr(self, key, new_value)
                 elif isinstance(value, Serializable):
                     value.gather_missing_data(full_key_name)

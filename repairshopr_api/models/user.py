@@ -20,7 +20,9 @@ class User(BaseModel):
 
     def __post_init__(self) -> None:
         if not self.updated_at and self.rs_client.updated_at:
-            refresh_cutoff = relative_cutoff(self.rs_client.updated_at, delta=timedelta(days=1))
+            refresh_cutoff = relative_cutoff(
+                self.rs_client.updated_at, delta=timedelta(days=1)
+            )
 
             if self.rs_client.updated_at >= refresh_cutoff:
                 return

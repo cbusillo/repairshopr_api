@@ -3,7 +3,6 @@ from __future__ import annotations
 import re
 from datetime import date, datetime, timedelta, timezone
 
-
 _TZ_WITHOUT_COLON_RE = re.compile(r"([+-]\d{2})(\d{2})$")
 _EXCESS_MICROS_RE = re.compile(r"(\.\d{6})\d+")
 
@@ -65,4 +64,3 @@ def relative_cutoff(reference: datetime, *, delta: timedelta) -> datetime:
     if reference.tzinfo is None:
         return datetime.now() - delta
     return datetime.now(tz=reference.tzinfo) - delta
-

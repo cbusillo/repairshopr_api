@@ -42,7 +42,9 @@ class EstimateLineItem(models.Model):
     discount_dollars = models.FloatField(null=True)
     product_category = models.CharField(max_length=255, null=True)
 
-    parent_estimate = models.ForeignKey(Estimate, on_delete=models.CASCADE, related_name="line_items", null=True)
+    parent_estimate = models.ForeignKey(
+        Estimate, on_delete=models.CASCADE, related_name="line_items", null=True
+    )
 
     def __str__(self) -> str:
         return f"{self.id} - {self.name} - {self.cost} - {self.price} - {self.quantity} - {self.product_id} - {self.taxable} - {self.discount_percent} - {self.position} - {self.invoice_bundle_id} - {self.discount_dollars} - {self.product_category}"

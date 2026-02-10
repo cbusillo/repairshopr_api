@@ -43,7 +43,9 @@ class Ticket(models.Model):
     billing_status = models.CharField(max_length=255, null=True)
     ticket_type_id = models.IntegerField(null=True)
     ticket_type_name = models.CharField(max_length=255, null=True)
-    properties = models.ForeignKey(TicketProperties, related_name="tickets", on_delete=models.CASCADE, null=True)
+    properties = models.ForeignKey(
+        TicketProperties, related_name="tickets", on_delete=models.CASCADE, null=True
+    )
     user_id = models.IntegerField(null=True)
     user = models.JSONField(null=True, blank=True)
     updated_at = models.CharField(max_length=255, null=True)
@@ -81,4 +83,6 @@ class TicketComment(models.Model):
     hidden = models.BooleanField(null=True)
     user_id = models.IntegerField(null=True)
 
-    ticket = models.ForeignKey(Ticket, related_name="comments", on_delete=models.CASCADE, null=True)
+    ticket = models.ForeignKey(
+        Ticket, related_name="comments", on_delete=models.CASCADE, null=True
+    )

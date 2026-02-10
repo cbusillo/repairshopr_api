@@ -20,7 +20,10 @@ def is_query_param_value(value: object) -> TypeGuard[QueryParamValue]:
 
 
 def is_query_params(value: object) -> TypeGuard[QueryParams]:
-    return isinstance(value, dict) and all(isinstance(key, str) and is_query_param_value(item) for key, item in value.items())
+    return isinstance(value, dict) and all(
+        isinstance(key, str) and is_query_param_value(item)
+        for key, item in value.items()
+    )
 
 
 def is_json_value(value: object) -> TypeGuard[JsonValue]:
@@ -29,12 +32,16 @@ def is_json_value(value: object) -> TypeGuard[JsonValue]:
     if isinstance(value, list):
         return all(is_json_value(item) for item in value)
     if isinstance(value, dict):
-        return all(isinstance(key, str) and is_json_value(item) for key, item in value.items())
+        return all(
+            isinstance(key, str) and is_json_value(item) for key, item in value.items()
+        )
     return False
 
 
 def is_json_object(value: object) -> TypeGuard[JsonObject]:
-    return isinstance(value, dict) and all(isinstance(key, str) and is_json_value(item) for key, item in value.items())
+    return isinstance(value, dict) and all(
+        isinstance(key, str) and is_json_value(item) for key, item in value.items()
+    )
 
 
 def is_json_array(value: object) -> TypeGuard[JsonArray]:

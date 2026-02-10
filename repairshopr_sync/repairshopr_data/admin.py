@@ -12,7 +12,9 @@ class CustomerAdmin(admin.ModelAdmin):
     list_display = ("id", "business_then_name", "phone", "email")
 
 
-class EstimateLineItemInline(admin.TabularInline):  # or admin.StackedInline for a different layout
+class EstimateLineItemInline(
+    admin.TabularInline
+):  # or admin.StackedInline for a different layout
     model = EstimateLineItem
     extra = 1  # Number of empty forms displayed
 

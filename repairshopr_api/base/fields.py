@@ -8,19 +8,36 @@ ID_SUFFIX = "_id"
 PLURAL_SUFFIX = "s"
 
 
-def related_field(model_cls: type[BaseModel]) -> Callable[[Callable[..., BaseModel]], property]:
+def related_field(
+    model_cls: type[BaseModel],
+) -> Callable[[Callable[..., BaseModel]], property]:
     def build_id_key(default_key: str | None) -> str:
-        return default_key if default_key else f"{model_cls.__name__.lower()}{ID_SUFFIX}"
+        return (
+            default_key if default_key else f"{model_cls.__name__.lower()}{ID_SUFFIX}"
+        )
 
-    def fetch_single_related_model(instance: BaseModel, model_id: int) -> BaseModel | None:
-        return instance.rs_client.get_model_by_id(model_cls, model_id) if model_id else None
+    def fetch_single_related_model(
+        instance: BaseModel, model_id: int
+    ) -> BaseModel | None:
+        return (
+            instance.rs_client.get_model_by_id(model_cls, model_id)
+            if model_id
+            else None
+        )
 
-    def fetch_multiple_related_models(instance: BaseModel, model_ids: list[int]) -> list[JsonObject]:
+    def fetch_multiple_related_models(
+        instance: BaseModel, model_ids: list[int]
+    ) -> list[JsonObject]:
         valid_model_ids = [model_id for model_id in model_ids if model_id]
-        return [instance.rs_client.fetch_from_api_by_id(model_cls, model_id) for model_id in valid_model_ids]
+        return [
+            instance.rs_client.fetch_from_api_by_id(model_cls, model_id)
+            for model_id in valid_model_ids
+        ]
 
     def decorator(_f: Callable[..., BaseModel]) -> property:
-        def wrapper(instance: BaseModel, id_key: str | None = None) -> BaseModel | list[JsonObject] | None:
+        def wrapper(
+            instance: BaseModel, id_key: str | None = None
+        ) -> BaseModel | list[JsonObject] | None:
             id_key = build_id_key(id_key)
 
             if hasattr(instance, id_key):
@@ -31,8 +48,14 @@ def related_field(model_cls: type[BaseModel]) -> Callable[[Callable[..., BaseMod
                 model_ids = getattr(instance, f"{id_key}{PLURAL_SUFFIX}", [])
 
                 if not model_ids:
-                    query_params = {f"{type(instance).__name__.lower()}{ID_SUFFIX}": getattr(instance, "id", None)}
-                    results, _ = instance.rs_client.fetch_from_api(snake_case(model_cls.__name__), params=query_params)
+                    query_params = {
+                        f"{type(instance).__name__.lower()}{ID_SUFFIX}": getattr(
+                            instance, "id", None
+                        )
+                    }
+                    results, _ = instance.rs_client.fetch_from_api(
+                        snake_case(model_cls.__name__), params=query_params
+                    )
 
                     if not results:
                         return []

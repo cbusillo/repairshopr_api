@@ -34,7 +34,9 @@ class AppSettings(Serializable):
 
     @property
     def config_file_path(self) -> Path:
-        configured_path = os.getenv("REPAIRSHOPR_CONFIG_FILE") or os.getenv("CONFIG_FILE")
+        configured_path = os.getenv("REPAIRSHOPR_CONFIG_FILE") or os.getenv(
+            "CONFIG_FILE"
+        )
         if configured_path:
             return Path(configured_path).expanduser()
         project_name = Path(__file__).parent.parent.name.replace("_", "-")
