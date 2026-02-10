@@ -6,9 +6,9 @@ from repairshopr_api.utils import coerce_datetime, parse_datetime, relative_cuto
 
 
 def test_parse_datetime_handles_inconsistent_formats() -> None:
-    assert parse_datetime("2026-01-01T00:00:00Z") == datetime(2026, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
-    assert parse_datetime("2026-01-01T00:00:00+0000") == datetime(2026, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
-    assert parse_datetime("2026-01-01 00:00:00+00:00") == datetime(2026, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
+    assert parse_datetime("2026-01-01T00:00:00Z") == datetime(2026, 1, 1, tzinfo=timezone.utc)
+    assert parse_datetime("2026-01-01T00:00:00+0000") == datetime(2026, 1, 1, tzinfo=timezone.utc)
+    assert parse_datetime("2026-01-01 00:00:00+00:00") == datetime(2026, 1, 1, tzinfo=timezone.utc)
     assert parse_datetime("2026-01-01T00:00:00.123456789Z") == datetime(
         2026, 1, 1, 0, 0, 0, 123456, tzinfo=timezone.utc
     )
@@ -16,10 +16,10 @@ def test_parse_datetime_handles_inconsistent_formats() -> None:
 
 
 def test_coerce_datetime_supports_date_strings_and_epoch_values() -> None:
-    assert coerce_datetime(date(2026, 1, 1)) == datetime(2026, 1, 1, 0, 0, 0)
-    assert coerce_datetime("2026-01-01T00:00:00Z") == datetime(2026, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
-    assert coerce_datetime(1_704_067_200) == datetime(2024, 1, 1, 0, 0, tzinfo=timezone.utc)
-    assert coerce_datetime(1_704_067_200_000) == datetime(2024, 1, 1, 0, 0, tzinfo=timezone.utc)
+    assert coerce_datetime(date(2026, 1, 1)) == datetime(2026, 1, 1)
+    assert coerce_datetime("2026-01-01T00:00:00Z") == datetime(2026, 1, 1, tzinfo=timezone.utc)
+    assert coerce_datetime(1_704_067_200) == datetime(2024, 1, 1, tzinfo=timezone.utc)
+    assert coerce_datetime(1_704_067_200_000) == datetime(2024, 1, 1, tzinfo=timezone.utc)
     assert coerce_datetime(object()) is None
 
 
@@ -31,4 +31,3 @@ def test_relative_cutoff_uses_reference_timezone() -> None:
     naive_reference = datetime.now()
     naive_cutoff = relative_cutoff(naive_reference, delta=timedelta(days=1))
     assert naive_cutoff.tzinfo is None
-

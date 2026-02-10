@@ -1,12 +1,14 @@
 import logging
 import re
+from collections.abc import Mapping
 from abc import ABC
 from dataclasses import dataclass, field, fields
 from datetime import datetime
 from types import UnionType
-from typing import Any, Self, TYPE_CHECKING, TypeVar, Union, get_args, get_origin
+from typing import Self, TYPE_CHECKING, TypeVar, Union, get_args, get_origin
 
 from repairshopr_api.config import settings
+from repairshopr_api.type_defs import is_json_object, JsonValue
 from repairshopr_api.utils import parse_datetime
 
 if TYPE_CHECKING:
@@ -28,16 +30,18 @@ class BaseModel(ABC):
         cls.rs_client = client
 
     @classmethod
-    def from_dict(cls: type[ModelType], data: dict[str, Any]) -> ModelType:
-        instance = cls(id=data.get("id", 0))
-        cleaned_data = {cls.clean_key(key): value for key, value in data.items() if value is not None}
+    def from_dict(cls: type[ModelType], data: Mapping[str, JsonValue]) -> ModelType:
+        raw_id = data.get("id", 0)
+        instance_id = raw_id if isinstance(raw_id, int) else 0
+        instance = cls(id=instance_id)
+        cleaned_data: dict[str, JsonValue] = {cls.clean_key(key): value for key, value in data.items() if value is not None}
 
         for current_field in fields(cls):
             if not current_field.init:
                 continue
 
             if current_field.name in cleaned_data:
-                value = cleaned_data[current_field.name]
+                value: JsonValue | datetime | BaseModel | list[BaseModel] = cleaned_data[current_field.name]
 
                 if isinstance(value, str) and cls._field_accepts_datetime(current_field.type):
                     parsed_value = cls._parse_datetime(value)
@@ -47,7 +51,7 @@ class BaseModel(ABC):
                 if isinstance(value, list) and all(isinstance(item, dict) for item in value):
                     model_type = cls._resolve_list_model_type(current_field.type)
                     if model_type is not None:
-                        value = [model_type.from_dict(item) for item in value]
+                        value = [model_type.from_dict(item) for item in value if is_json_object(item)]
 
                 elif isinstance(value, dict):
                     model_type = cls._resolve_model_type(current_field.type)
@@ -101,7 +105,7 @@ class BaseModel(ABC):
         return list(field_names)
 
     @classmethod
-    def from_list(cls: type[ModelType], data: list[dict[str, Any]]) -> list[ModelType]:
+    def from_list(cls: type[ModelType], data: list[JsonValue]) -> ModelType | list[ModelType]:
         raise NotImplementedError("This method should be implemented in the subclass that expects a list.")
 
     @staticmethod

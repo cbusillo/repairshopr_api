@@ -5,26 +5,31 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from http import HTTPStatus
 from types import SimpleNamespace
+from typing import Iterator
 from unittest.mock import Mock
 
 import pytest
 import requests
 from tenacity import stop_after_attempt, wait_none
 
+from repairshopr_api.base.model import BaseModel
 from repairshopr_api.client import Client
+from repairshopr_api.type_defs import JsonValue
 
 
 @dataclass
-class DummyModel:
+class DummyModel(BaseModel):
     id: int
 
     @classmethod
-    def from_dict(cls, data: dict) -> "DummyModel":
-        return cls(id=data["id"])
+    def from_dict(cls, data: dict[str, JsonValue]) -> "DummyModel":
+        raw_id = data.get("id")
+        return cls(id=raw_id if isinstance(raw_id, int) else 0)
 
     @classmethod
-    def from_list(cls, data: list[int]) -> "DummyModel":
-        return cls(id=data[0])
+    def from_list(cls, data: list[JsonValue]) -> "DummyModel":
+        raw_id = data[0] if data else 0
+        return cls(id=raw_id if isinstance(raw_id, int) else 0)
 
 
 def _make_client() -> Client:
@@ -40,7 +45,7 @@ def test_get_model_paginates_and_formats_since_updated_at() -> None:
         params = dict(params or {})
         calls.append(params)
         page = params["page"]
-        return ([{"id": page}], {"total_pages": 3})
+        return [{"id": page}], {"total_pages": 3}
 
     client.fetch_from_api = fake_fetch  # type: ignore[method-assign]
 
@@ -58,7 +63,7 @@ def test_get_model_num_last_pages_requests_last_window() -> None:
     def fake_fetch(_model_name: str, params: dict | None = None):
         page = (params or {})["page"]
         requested_pages.append(page)
-        return ([{"id": page}], {"total_pages": 5})
+        return [{"id": page}], {"total_pages": 5}
 
     client.fetch_from_api = fake_fetch  # type: ignore[method-assign]
 
@@ -75,7 +80,7 @@ def test_request_retries_429_and_returns_success(monkeypatch: pytest.MonkeyPatch
 
     attempts = {"count": 0}
 
-    def fake_request(_self: requests.Session, method: str, url: str, *args, **kwargs):
+    def fake_request(_self: requests.Session, method: str, url: str, *_args, **_kwargs):
         assert method == "GET"
         assert url.endswith("/tickets")
         attempts["count"] += 1
@@ -117,7 +122,7 @@ def test_prefetch_line_items_skips_when_recent_updated_at(monkeypatch: pytest.Mo
 
     called = {"value": False}
 
-    def fake_get_model(*_args, **_kwargs):
+    def fake_get_model(*_args: object, **_kwargs: object) -> Iterator[object]:
         called["value"] = True
         return iter([])
 
@@ -156,7 +161,7 @@ def test_prefetch_line_items_aware_vs_naive_regression() -> None:
 
 def test_clear_cache_resets_memory_cache() -> None:
     client = _make_client()
-    client._cache["k"] = "v"
+    client._cache["k"] = {"value": "v"}
     client._has_line_item_in_cache = True
 
     client.clear_cache()
@@ -170,7 +175,7 @@ def test_wait_for_rate_limit_sleeps_when_limit_exceeded(monkeypatch: pytest.Monk
     client.REQUEST_LIMIT = 1
     client._request_timestamps.clear()
 
-    now = datetime(2026, 2, 1, 12, 0, 0)
+    now = datetime(2026, 2, 1, 12)
     client._request_timestamps.extend([now - timedelta(seconds=10), now - timedelta(seconds=5)])
 
     monkeypatch.setattr("repairshopr_api.client.datetime", Mock(now=lambda: now))
@@ -239,13 +244,14 @@ def test_fetch_ticket_settings_validates_payload(monkeypatch: pytest.MonkeyPatch
     client = _make_client()
 
     class FakeResponse:
-        def __init__(self, payload):
+        def __init__(self, payload: object) -> None:
             self._payload = payload
 
-        def raise_for_status(self) -> None:
+        @staticmethod
+        def raise_for_status() -> None:
             return None
 
-        def json(self):
+        def json(self) -> object:
             return self._payload
 
     monkeypatch.setattr("repairshopr_api.client.requests.get", lambda *_args, **_kwargs: FakeResponse({"a": 1}))
@@ -300,7 +306,7 @@ def test_fetch_from_api_by_id_uses_cache() -> None:
     response_payload = {"dummymodel": {"id": 3}}
     calls = {"count": 0}
 
-    def fake_get(*_args, **_kwargs):
+    def fake_get(*_args: object, **_kwargs: object) -> SimpleNamespace:
         calls["count"] += 1
         return SimpleNamespace(json=lambda: response_payload)
 

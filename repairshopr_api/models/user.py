@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 from typing import Self
 
 from repairshopr_api.base.model import BaseModel
+from repairshopr_api.type_defs import JsonValue
 from repairshopr_api.utils import relative_cutoff
 
 
@@ -29,5 +30,10 @@ class User(BaseModel):
                 setattr(self, key, value)
 
     @classmethod
-    def from_list(cls, data: list[str | int]) -> Self:
-        return cls(id=data[0], full_name=data[1])
+    def from_list(cls, data: list[JsonValue]) -> Self:
+        raw_id = data[0] if data else 0
+        raw_full_name = data[1] if len(data) > 1 else None
+
+        user_id = raw_id if isinstance(raw_id, int) else 0
+        full_name = raw_full_name if isinstance(raw_full_name, str) else None
+        return cls(id=user_id, full_name=full_name)

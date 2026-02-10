@@ -53,7 +53,7 @@ def coerce_datetime(value: object) -> datetime | None:
     if isinstance(value, (int, float)):
         timestamp = float(value)
         if timestamp > 10_000_000_000:
-            timestamp = timestamp / 1000.0
+            timestamp /= 1000.0
         try:
             return datetime.fromtimestamp(timestamp, tz=timezone.utc)
         except (OSError, OverflowError, ValueError):

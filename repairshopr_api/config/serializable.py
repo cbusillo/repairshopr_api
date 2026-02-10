@@ -1,12 +1,14 @@
 import logging
-from typing import Any
+from typing import Mapping
+
+from repairshopr_api.type_defs import is_json_object, JsonObject, JsonValue
 
 logger = logging.getLogger(__name__)
 
 
 class Serializable:
-    def to_dict(self) -> dict[str, Any] | Any:
-        result = {}
+    def to_dict(self) -> JsonObject:
+        result: JsonObject = {}
         all_keys = self.get_all_keys()
         for key in all_keys:
             if not key.startswith("_"):
@@ -17,7 +19,7 @@ class Serializable:
                     result[key] = value
         return result
 
-    def from_dict(self, data: dict[str, Any]) -> None:
+    def from_dict(self, data: Mapping[str, JsonValue]) -> None:
         for key, _type_hint in getattr(self, "__annotations__", {}).items():
             value = data.get(key, getattr(self, key, None))
 
@@ -28,7 +30,7 @@ class Serializable:
                 continue
 
             if isinstance(existing_attr, Serializable):
-                if not isinstance(value, dict):
+                if not is_json_object(value):
                     logger.warning(f"Expected dict for {key} in {self.__class__.__name__}, got {type(value)}. Skipping...")
                     continue
                 existing_attr.from_dict(value)

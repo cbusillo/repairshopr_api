@@ -1,7 +1,8 @@
 import logging
 import pprint
 from datetime import datetime, timezone
-from typing import Any
+from types import SimpleNamespace
+from typing import Mapping, TypeAlias, TypeGuard
 
 from django.core.management.base import BaseCommand
 from django.db import DataError, OperationalError, models
@@ -9,10 +10,23 @@ from django.utils.timezone import make_aware, now
 
 from repairshopr_api.config import settings
 from repairshopr_api.client import Client, ModelType
+from repairshopr_api.base.model import BaseModel
+from repairshopr_api.type_defs import JsonValue, QueryParams
 from repairshopr_api.utils import coerce_datetime, parse_datetime
 from repairshopr_data.models import TicketType, TicketTypeField, TicketTypeFieldAnswer
 
 logger = logging.getLogger(__name__)
+
+ApiInstance: TypeAlias = ModelType | SimpleNamespace
+FieldValue: TypeAlias = JsonValue | datetime | models.Model
+
+
+def _is_base_model_type(candidate: type) -> TypeGuard[type[BaseModel]]:
+    return issubclass(candidate, BaseModel)
+
+
+def _is_django_model_like(candidate: type) -> TypeGuard[type[models.Model]]:
+    return hasattr(candidate, "_meta") and hasattr(candidate, "objects")
 
 
 def _parse_datetime(value: str, *, field_name: str) -> datetime | None:
@@ -30,14 +44,17 @@ def _coerce_datetime(value: object, *, field_name: str) -> datetime | None:
 
 
 def create_or_update_django_instance(
-    django_model: type[models.Model], api_instance: type[ModelType], extra_fields: dict[str, Any] | None = None
+    django_model: type[models.Model],
+    api_instance: ApiInstance,
+    extra_fields: Mapping[str, FieldValue] | None = None,
 ) -> models.Model:
     if extra_fields is None:
         extra_fields = {}
 
-    field_data = {}
+    model_fields = django_model._meta.fields
+    field_data: dict[str, FieldValue] = {}
     # noinspection PyProtectedMember
-    for field in django_model._meta.fields:
+    for field in model_fields:
         if field.auto_created or isinstance(field, models.AutoField):
             continue
         if hasattr(api_instance, field.name):
@@ -54,17 +71,19 @@ def create_or_update_django_instance(
                 value = make_aware(value)
             if isinstance(field, models.ForeignKey):
                 related_django_model = field.related_model
+                if not isinstance(related_django_model, type) or not _is_django_model_like(related_django_model):
+                    raise TypeError(f"Expected Django model type for foreign key, got {related_django_model!r}")
+
                 related_api_instance = getattr(api_instance, field.name)
                 if related_api_instance.id == 0:
                     related_api_instance.id = None
 
-                # noinspection PyTypeChecker
                 value = create_or_update_django_instance(related_django_model, related_api_instance)
             field_data[field.name] = value
 
     field_data.update(extra_fields)
     try:
-        obj, created = django_model.objects.update_or_create(defaults=field_data, id=api_instance.id)
+        obj, _created = django_model.objects.update_or_create(defaults=field_data, id=api_instance.id)
     except DataError as e:
         formatted_field_data = pprint.pformat(field_data)
         logger.error(f"DataError on {django_model.__name__} with data {formatted_field_data}: {e}")
@@ -99,11 +118,20 @@ class Command(BaseCommand):
             sub_model_suffix = sub_model_suffix[:-1]
 
         formatted_sub_model_suffix = sub_model_suffix.title()
-        return self.dynamic_import(
+        imported = self.dynamic_import(
             f"repairshopr_data.models.{parent_model_name.lower()}.{parent_model_name}{formatted_sub_model_suffix}"
         )
+        if not _is_django_model_like(imported):
+            raise TypeError(f"Expected Django model class for submodel, got {imported!r}")
+        return imported
 
-    def handle_model(self, django_model_path, api_model_path, num_last_pages: int | None = None, params: dict | None = None):
+    def handle_model(
+        self,
+        django_model_path: str,
+        api_model_path: str,
+        num_last_pages: int | None = None,
+        params: QueryParams | None = None,
+    ) -> None:
         last_updated_at = settings.django.last_updated_at
         if last_updated_at and last_updated_at.tzinfo is None:
             last_updated_at = make_aware(last_updated_at)
@@ -111,8 +139,15 @@ class Command(BaseCommand):
         if not last_updated_at or last_updated_at < baseline_updated_at:
             num_last_pages = None
 
-        django_model = self.dynamic_import(django_model_path)
-        api_model = self.dynamic_import(api_model_path)
+        django_model_candidate = self.dynamic_import(django_model_path)
+        if not _is_django_model_like(django_model_candidate):
+            raise TypeError(f"Expected Django model class, got {django_model_candidate!r}")
+        django_model = django_model_candidate
+
+        api_model_candidate = self.dynamic_import(api_model_path)
+        if not _is_base_model_type(api_model_candidate):
+            raise TypeError(f"Expected BaseModel subclass, got {api_model_candidate!r}")
+        api_model = api_model_candidate
 
         api_instances = self.client.get_model(api_model, last_updated_at, num_last_pages, params)
         for api_instance in api_instances:
@@ -130,7 +165,10 @@ class Command(BaseCommand):
                     for sub_api_instance in sub_api_instances:
                         sub_django_instance = create_or_update_django_instance(sub_django_model, sub_api_instance)
                         setattr(sub_django_instance, related_obj.field.name, django_instance)
-                        sub_django_instance.save()
+                        if hasattr(sub_django_instance, "save"):
+                            save = getattr(sub_django_instance, "save")
+                            if callable(save):
+                                save()
                         sub_django_instances.append(sub_django_instance)
 
                     if hasattr(django_instance, related_obj.name):
@@ -139,7 +177,7 @@ class Command(BaseCommand):
             logger.info(self.style.SUCCESS(f"Successfully imported {parent_model_name.rsplit('.', 1)[0]} {api_instance.id}"))
 
     @staticmethod
-    def dynamic_import(path: str) -> type[ModelType] | type[models.Model]:
+    def dynamic_import(path: str) -> type:
         module_path, class_name = path.rsplit(".", 1)
         module = __import__(module_path, fromlist=[class_name])
         return getattr(module, class_name.replace("_", ""))

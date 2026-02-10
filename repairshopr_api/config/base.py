@@ -1,12 +1,13 @@
 import logging
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Generator, Self
+from typing import Generator, Mapping, Self
 
 import toml
 
 from repairshopr_api.config.sections import Django, Repairshopr
 from repairshopr_api.config.serializable import Serializable
+from repairshopr_api.type_defs import JsonObject, JsonValue
 
 logger = logging.getLogger(__name__)
 
@@ -37,14 +38,14 @@ class AppSettings(Serializable):
         return file_path
 
     @property
-    def config_data(self) -> dict[str, Any]:
+    def config_data(self) -> JsonObject:
         if not self.config_file_path.exists():
             return {}
         with self.config_file_path.open() as file:
             return toml.load(file)
 
     @config_data.setter
-    def config_data(self, data: dict[str, Any]):
+    def config_data(self, data: JsonObject):
         with self.config_file_path.open("w") as file:
             toml.dump(data, file)
 
@@ -74,7 +75,7 @@ class AppSettings(Serializable):
         except (FileNotFoundError, OSError) as error:
             logger.exception(f"Error saving configuration: {str(error)}")
 
-    def update_and_save(self, **kwargs: Any) -> None:
+    def update_and_save(self, **kwargs: JsonValue) -> None:
         for key, value in kwargs.items():
             parts = key.split("__")
             if len(parts) > 1 and hasattr(self, parts[0]):
@@ -84,8 +85,8 @@ class AppSettings(Serializable):
                 setattr(self, key, value)
         self.save()
 
-    def sort_dict(self, d: dict) -> dict:
-        sorted_dict = {}
+    def sort_dict(self, d: Mapping[str, JsonValue]) -> JsonObject:
+        sorted_dict: JsonObject = {}
         for key in sorted(d.keys()):
             value = d[key]
             if isinstance(value, dict):

@@ -56,11 +56,12 @@ class Estimate(BaseModel):
         pass
 
     @property
-    def user(self) -> User:
+    def user(self) -> User | None:
         users = self.rs_client.get_model(User)
         for user in users:
             if user.email == self.employee:
                 return user
+        return None
 
     @related_field(LineItem)
     def line_items(self) -> list[LineItem]:

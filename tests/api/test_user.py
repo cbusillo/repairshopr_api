@@ -2,11 +2,13 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
+from repairshopr_api.client import Client
 from repairshopr_api.models.user import User
 
 
-class StubClient:
+class StubClient(Client):
     def __init__(self, updated_at: datetime | None) -> None:
+        super().__init__(token="token", url_store_name="store")
         self.updated_at = updated_at
         self.fetch_calls: list[int] = []
 
@@ -46,4 +48,3 @@ def test_user_post_init_aware_vs_naive_regression() -> None:
     user = User(id=99)
 
     assert user.email == "refreshed@example.com"
-

@@ -3,10 +3,12 @@ from __future__ import annotations
 import logging
 from datetime import date, datetime, timezone
 from types import SimpleNamespace
+from typing import Mapping, TypedDict, TypeAlias, TypeGuard
 
 import pytest
 from django.db import models
 
+from repairshopr_api.base.model import BaseModel
 from repairshopr_api.config import settings
 from repairshopr_data.management.commands import import_from_repairshopr as command_module
 from repairshopr_data.management.commands.import_from_repairshopr import (
@@ -18,22 +20,77 @@ from repairshopr_data.management.commands.import_from_repairshopr import (
 
 class FakeClient:
     def __init__(self) -> None:
-        self.calls: list[tuple] = []
+        self.calls: list[tuple[type, datetime | None, int | None, dict[str, object] | None]] = []
         self.cleared = False
 
-    def get_model(self, model, updated_at, num_last_pages, params):
+    def get_model(
+        self,
+        model: type,
+        updated_at: datetime | None,
+        num_last_pages: int | None,
+        params: dict[str, object] | None,
+    ) -> list[SimpleNamespace]:
         self.calls.append((model, updated_at, num_last_pages, params))
         return []
 
     def clear_cache(self) -> None:
         self.cleared = True
 
-    def fetch_ticket_settings(self) -> dict:
+    @staticmethod
+    def fetch_ticket_settings() -> dict[str, object]:
         return {}
 
 
+CommandFixture: TypeAlias = tuple[command_module.Command, FakeClient]
+
+
+class DummyApiModel(BaseModel):
+    pass
+
+
+class StoringManager:
+    def __init__(self) -> None:
+        self.store: dict[int, SimpleNamespace] = {}
+
+    def update_or_create(self, defaults: dict[str, object], **lookup: object) -> tuple[SimpleNamespace, bool]:
+        instance_id = lookup.get("id")
+        assert isinstance(instance_id, int)
+        obj = self.store.get(instance_id, SimpleNamespace(id=instance_id))
+        for key, value in defaults.items():
+            setattr(obj, key, value)
+        created = instance_id not in self.store
+        self.store[instance_id] = obj
+        return obj, created
+
+
+def set_simple_dynamic_import(
+    monkeypatch: pytest.MonkeyPatch,
+    cmd: command_module.Command,
+    api_model: type[BaseModel] = DummyApiModel,
+) -> None:
+    django_model = type(
+        "DjangoModel",
+        (),
+        {"_meta": SimpleNamespace(related_objects=[]), "objects": SimpleNamespace()},
+    )
+    monkeypatch.setattr(
+        cmd,
+        "dynamic_import",
+        lambda path: django_model if path.startswith("repairshopr_data") else api_model,
+    )
+
+
+def is_django_model_type(candidate: type) -> TypeGuard[type[models.Model]]:
+    return hasattr(candidate, "_meta") and hasattr(candidate, "objects")
+
+
+def as_django_model_type(candidate: type) -> type[models.Model]:
+    assert is_django_model_type(candidate)
+    return candidate
+
+
 @pytest.fixture
-def command(monkeypatch: pytest.MonkeyPatch):
+def command(monkeypatch: pytest.MonkeyPatch) -> CommandFixture:
     fake_client = FakeClient()
     monkeypatch.setattr(command_module, "Client", lambda: fake_client)
     cmd = command_module.Command()
@@ -42,30 +99,24 @@ def command(monkeypatch: pytest.MonkeyPatch):
 
 def test_parse_datetime_and_coerce_datetime(caplog: pytest.LogCaptureFixture) -> None:
     parsed = _parse_datetime("2026-01-01T00:00:00Z", field_name="x")
-    assert parsed == datetime(2026, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
+    assert parsed == datetime(2026, 1, 1, tzinfo=timezone.utc)
 
     caplog.set_level(logging.WARNING)
     invalid = _parse_datetime("nope", field_name="x")
     assert invalid is None
     assert "Unable to parse datetime" in caplog.text
 
-    assert _coerce_datetime(date(2026, 1, 2), field_name="x") == datetime(2026, 1, 2, 0, 0, 0)
-    assert _coerce_datetime("2026-01-03T00:00:00+00:00", field_name="x") == datetime(
-        2026, 1, 3, 0, 0, 0, tzinfo=timezone.utc
-    )
-    assert _coerce_datetime(1_704_067_200, field_name="x") == datetime(2024, 1, 1, 0, 0, tzinfo=timezone.utc)
+    assert _coerce_datetime(date(2026, 1, 2), field_name="x") == datetime(2026, 1, 2)
+    assert _coerce_datetime("2026-01-03T00:00:00+00:00", field_name="x") == datetime(2026, 1, 3, tzinfo=timezone.utc)
+    assert _coerce_datetime(1_704_067_200, field_name="x") == datetime(2024, 1, 1, tzinfo=timezone.utc)
     assert _coerce_datetime(object(), field_name="x") is None
 
 
-def test_handle_model_coerces_naive_last_updated_at(command, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_handle_model_coerces_naive_last_updated_at(command: CommandFixture, monkeypatch: pytest.MonkeyPatch) -> None:
     cmd, fake_client = command
-    settings.django.last_updated_at = datetime(2026, 1, 1, 0, 0, 0)
+    settings.django.last_updated_at = datetime(2026, 1, 1)
 
-    monkeypatch.setattr(
-        cmd,
-        "dynamic_import",
-        lambda path: type("DjangoModel", (), {}) if path.startswith("repairshopr_data") else type("ApiModel", (), {}),
-    )
+    set_simple_dynamic_import(monkeypatch, cmd)
 
     cmd.handle_model("repairshopr_data.models.user.User", "repairshopr_api.models.User", num_last_pages=3)
 
@@ -75,15 +126,14 @@ def test_handle_model_coerces_naive_last_updated_at(command, monkeypatch: pytest
     assert num_last_pages_arg == 3
 
 
-def test_handle_model_uses_baseline_when_last_updated_is_too_old(command, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_handle_model_uses_baseline_when_last_updated_is_too_old(
+    command: CommandFixture,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     cmd, fake_client = command
     settings.django.last_updated_at = datetime(2000, 1, 1, tzinfo=timezone.utc)
 
-    monkeypatch.setattr(
-        cmd,
-        "dynamic_import",
-        lambda path: type("DjangoModel", (), {}) if path.startswith("repairshopr_data") else type("ApiModel", (), {}),
-    )
+    set_simple_dynamic_import(monkeypatch, cmd)
 
     cmd.handle_model("repairshopr_data.models.user.User", "repairshopr_api.models.User", num_last_pages=8)
 
@@ -91,26 +141,22 @@ def test_handle_model_uses_baseline_when_last_updated_is_too_old(command, monkey
     assert num_last_pages_arg is None
 
 
-def test_handle_model_naive_vs_aware_regression(command, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_handle_model_naive_vs_aware_regression(command: CommandFixture, monkeypatch: pytest.MonkeyPatch) -> None:
     cmd, _fake_client = command
-    settings.django.last_updated_at = datetime(2026, 1, 1, 0, 0, 0)
+    settings.django.last_updated_at = datetime(2026, 1, 1)
 
-    monkeypatch.setattr(
-        cmd,
-        "dynamic_import",
-        lambda path: type("DjangoModel", (), {}) if path.startswith("repairshopr_data") else type("ApiModel", (), {}),
-    )
+    set_simple_dynamic_import(monkeypatch, cmd)
 
     cmd.handle_model("repairshopr_data.models.user.User", "repairshopr_api.models.User", num_last_pages=1)
 
 
 def test_handle_logs_timing_and_updates_last_updated_at(
-    command,
+    command: CommandFixture,
     monkeypatch: pytest.MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     cmd, fake_client = command
-    start = datetime(2026, 2, 1, 12, 0, 0, tzinfo=timezone.utc)
+    start = datetime(2026, 2, 1, 12, tzinfo=timezone.utc)
     end = datetime(2026, 2, 1, 12, 1, 5, tzinfo=timezone.utc)
     tick = iter([start, end])
 
@@ -139,19 +185,7 @@ def test_handle_logs_timing_and_updates_last_updated_at(
 
 
 def test_create_or_update_django_instance_is_idempotent(monkeypatch: pytest.MonkeyPatch) -> None:
-    class FakeManager:
-        def __init__(self) -> None:
-            self.store: dict[int, SimpleNamespace] = {}
-
-        def update_or_create(self, defaults: dict, id: int):
-            obj = self.store.get(id, SimpleNamespace(id=id))
-            for key, value in defaults.items():
-                setattr(obj, key, value)
-            created = id not in self.store
-            self.store[id] = obj
-            return obj, created
-
-    fake_manager = FakeManager()
+    fake_manager = StoringManager()
 
     created_at_field = models.DateTimeField()
     created_at_field.name = "created_at"
@@ -160,7 +194,7 @@ def test_create_or_update_django_instance_is_idempotent(monkeypatch: pytest.Monk
     full_name_field = SimpleNamespace(name="full_name", auto_created=False)
     color_field = SimpleNamespace(name="color", auto_created=False)
 
-    FakeDjangoModel = type(
+    fake_django_model_cls = type(
         "FakeDjangoModel",
         (),
         {
@@ -172,14 +206,14 @@ def test_create_or_update_django_instance_is_idempotent(monkeypatch: pytest.Monk
     api_instance = SimpleNamespace(
         id=501,
         full_name="First",
-        created_at=datetime(2026, 2, 1, 10, 0, 0),
+        created_at=datetime(2026, 2, 1, 10),
         color="blue",
     )
-    create_or_update_django_instance(FakeDjangoModel, api_instance)
+    create_or_update_django_instance(as_django_model_type(fake_django_model_cls), api_instance)
 
     api_instance.full_name = "Updated"
     api_instance.color = "green"
-    create_or_update_django_instance(FakeDjangoModel, api_instance)
+    create_or_update_django_instance(as_django_model_type(fake_django_model_cls), api_instance)
 
     assert len(fake_manager.store) == 1
     stored = fake_manager.store[501]
@@ -188,19 +222,7 @@ def test_create_or_update_django_instance_is_idempotent(monkeypatch: pytest.Monk
 
 
 def test_create_or_update_django_instance_coerces_blank_integer_fields_to_none() -> None:
-    class FakeManager:
-        def __init__(self) -> None:
-            self.store: dict[int, SimpleNamespace] = {}
-
-        def update_or_create(self, defaults: dict, id: int):
-            obj = self.store.get(id, SimpleNamespace(id=id))
-            for key, value in defaults.items():
-                setattr(obj, key, value)
-            created = id not in self.store
-            self.store[id] = obj
-            return obj, created
-
-    fake_manager = FakeManager()
+    fake_manager = StoringManager()
 
     type_field = models.IntegerField(null=True)
     type_field.name = "type"
@@ -215,30 +237,36 @@ def test_create_or_update_django_instance_coerces_blank_integer_fields_to_none()
         },
     )
 
-    create_or_update_django_instance(model_cls, SimpleNamespace(id=42, type=""))
+    create_or_update_django_instance(as_django_model_type(model_cls), SimpleNamespace(id=42, type=""))
 
     assert fake_manager.store[42].type is None
 
 
 def test_create_or_update_django_instance_handles_foreign_keys(monkeypatch: pytest.MonkeyPatch) -> None:
     class FakeForeignKey:
-        def __init__(self, name: str, related_model) -> None:
+        def __init__(self, name: str, related_model: type) -> None:
             self.name = name
             self.related_model = related_model
             self.auto_created = False
 
     monkeypatch.setattr(command_module.models, "ForeignKey", FakeForeignKey)
 
+    class UpdateCall(TypedDict):
+        id: int | None
+        defaults: dict[str, object]
+
     class FakeManager:
         def __init__(self) -> None:
-            self.calls: list[dict] = []
+            self.calls: list[UpdateCall] = []
 
-        def update_or_create(self, defaults: dict, id: int):
-            self.calls.append({"id": id, "defaults": defaults})
-            return SimpleNamespace(id=id, **defaults), True
+        def update_or_create(self, defaults: dict[str, object], **lookup: object) -> tuple[SimpleNamespace, bool]:
+            lookup_id = lookup.get("id")
+            assert lookup_id is None or isinstance(lookup_id, int)
+            self.calls.append({"id": lookup_id, "defaults": defaults})
+            return SimpleNamespace(id=lookup_id, **defaults), True
 
     related_manager = FakeManager()
-    RelatedModel = type(
+    related_model_cls = type(
         "RelatedModel",
         (),
         {
@@ -251,9 +279,9 @@ def test_create_or_update_django_instance_handles_foreign_keys(monkeypatch: pyte
     created_at_field = models.DateTimeField()
     created_at_field.name = "created_at"
     created_at_field.auto_created = False
-    owner_field = FakeForeignKey("owner", RelatedModel)
+    owner_field = FakeForeignKey("owner", related_model_cls)
 
-    ParentModel = type(
+    parent_model_cls = type(
         "ParentModel",
         (),
         {
@@ -268,17 +296,26 @@ def test_create_or_update_django_instance_handles_foreign_keys(monkeypatch: pyte
         owner=SimpleNamespace(id=0, name="Owner Name"),
     )
 
-    result = create_or_update_django_instance(ParentModel, api_instance, extra_fields={"extra": "value"})
+    result = create_or_update_django_instance(
+        as_django_model_type(parent_model_cls),
+        api_instance,
+        extra_fields={"extra": "value"},
+    )
 
-    assert result.id == 10
+    assert getattr(result, "id", None) == 10
     assert related_manager.calls[0]["id"] is None
-    assert parent_manager.calls[0]["defaults"]["extra"] == "value"
-    assert parent_manager.calls[0]["defaults"]["created_at"].tzinfo is not None
+    parent_defaults = parent_manager.calls[0]["defaults"]
+    assert parent_defaults["extra"] == "value"
+    created_at = parent_defaults["created_at"]
+    assert isinstance(created_at, datetime)
+    assert created_at.tzinfo is not None
 
 
 def test_create_or_update_django_instance_surfaces_data_errors(monkeypatch: pytest.MonkeyPatch) -> None:
     class ErrorManager:
-        def update_or_create(self, defaults: dict, id: int):
+        @staticmethod
+        def update_or_create(defaults: dict[str, object], **_lookup: object) -> tuple[SimpleNamespace, bool]:
+            _ = defaults
             raise command_module.DataError("bad data")
 
     model_cls = type(
@@ -291,12 +328,14 @@ def test_create_or_update_django_instance_surfaces_data_errors(monkeypatch: pyte
     )
 
     with pytest.raises(command_module.DataError):
-        create_or_update_django_instance(model_cls, SimpleNamespace(id=1, name="x"))
+        create_or_update_django_instance(as_django_model_type(model_cls), SimpleNamespace(id=1, name="x"))
 
 
 def test_create_or_update_django_instance_surfaces_operational_errors(monkeypatch: pytest.MonkeyPatch) -> None:
     class ErrorManager:
-        def update_or_create(self, defaults: dict, id: int):
+        @staticmethod
+        def update_or_create(defaults: dict[str, object], **_lookup: object) -> tuple[SimpleNamespace, bool]:
+            _ = defaults
             raise command_module.OperationalError("db down")
 
     model_cls = type(
@@ -309,16 +348,20 @@ def test_create_or_update_django_instance_surfaces_operational_errors(monkeypatc
     )
 
     with pytest.raises(command_module.OperationalError):
-        create_or_update_django_instance(model_cls, SimpleNamespace(id=1, name="x"))
+        create_or_update_django_instance(as_django_model_type(model_cls), SimpleNamespace(id=1, name="x"))
 
 
-def test_get_submodel_class_and_dynamic_import(command, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_get_submodel_class_and_dynamic_import(command: CommandFixture, monkeypatch: pytest.MonkeyPatch) -> None:
     cmd, _ = command
     seen_paths: list[str] = []
 
-    def fake_import(path: str):
+    def fake_import(path: str) -> type:
         seen_paths.append(path)
-        return object
+        return type(
+            "FakeSubModel",
+            (),
+            {"_meta": SimpleNamespace(related_objects=[]), "objects": SimpleNamespace()},
+        )
 
     monkeypatch.setattr(cmd, "dynamic_import", fake_import)
     cmd.get_submodel_class("Ticket", "comments")
@@ -331,20 +374,26 @@ def test_get_submodel_class_and_dynamic_import(command, monkeypatch: pytest.Monk
     assert imported.__name__ == "User"
 
 
-def test_handle_model_processes_related_submodels(command, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_handle_model_processes_related_submodels(command: CommandFixture, monkeypatch: pytest.MonkeyPatch) -> None:
     cmd, fake_client = command
     settings.django.last_updated_at = datetime(2026, 1, 1, tzinfo=timezone.utc)
 
-    set_calls: list[list] = []
+    set_calls: list[list[SimpleNamespace]] = []
     saved_children: list[int] = []
 
     class ParentCollection:
-        def set(self, value):
+        @staticmethod
+        def set(value: list[SimpleNamespace]) -> None:
             set_calls.append(value)
 
     parent_instance = SimpleNamespace(id=1, ticketcomments=ParentCollection())
 
-    def fake_create_or_update(model_cls, api_instance, extra_fields=None):
+    def fake_create_or_update(
+        model_cls: type[models.Model],
+        api_instance: SimpleNamespace,
+        extra_fields: Mapping[str, object] | None = None,
+    ) -> SimpleNamespace:
+        _ = extra_fields
         if model_cls.__name__ == "DjangoModel":
             return parent_instance
 
@@ -363,14 +412,19 @@ def test_handle_model_processes_related_submodels(command, monkeypatch: pytest.M
         _meta = SimpleNamespace(
             related_objects=[SimpleNamespace(name="ticketcomments", field=SimpleNamespace(name="ticket"))]
         )
+        objects = SimpleNamespace()
 
-    class ApiModel:
+    class ApiModel(BaseModel):
         pass
 
     child_api_items = [SimpleNamespace(id=11), SimpleNamespace(id=12)]
     fake_client.get_model = lambda *_args, **_kwargs: [SimpleNamespace(id=1, ticketcomments=child_api_items)]
 
-    monkeypatch.setattr(cmd, "dynamic_import", lambda path: DjangoModel if path.startswith("repairshopr_data") else ApiModel)
+    monkeypatch.setattr(
+        cmd,
+        "dynamic_import",
+        lambda path: DjangoModel if path.startswith("repairshopr_data") else ApiModel,
+    )
     monkeypatch.setattr(cmd, "get_submodel_class", lambda *_args, **_kwargs: type("SubModel", (), {}))
 
     cmd.handle_model("repairshopr_data.models.ticket.Ticket", "repairshopr_api.models.Ticket")
@@ -381,7 +435,7 @@ def test_handle_model_processes_related_submodels(command, monkeypatch: pytest.M
 
 
 def test_sync_ticket_settings_success_and_failure_paths(
-    command,
+    command: CommandFixture,
     monkeypatch: pytest.MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
@@ -389,9 +443,9 @@ def test_sync_ticket_settings_success_and_failure_paths(
 
     class CaptureManager:
         def __init__(self) -> None:
-            self.calls: list[dict] = []
+            self.calls: list[dict[str, object]] = []
 
-        def update_or_create(self, **kwargs):
+        def update_or_create(self, **kwargs: object) -> None:
             self.calls.append(kwargs)
 
     type_manager = CaptureManager()

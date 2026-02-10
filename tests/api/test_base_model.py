@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+from collections.abc import Generator
 from datetime import datetime, timezone
-from types import SimpleNamespace
 
 import pytest
 
+from repairshopr_api.base.model import BaseModel
+from repairshopr_api.client import Client
+from repairshopr_api.type_defs import QueryParams
 from repairshopr_api.models.invoice import Invoice
 from repairshopr_api.models.ticket import Comment, Properties, Ticket
 
@@ -112,7 +115,23 @@ def test_get_field_names_and_properties_fields() -> None:
         }
     )
 
-    Ticket.rs_client = SimpleNamespace(get_model=lambda _model: [ticket_one, ticket_two])
+    class StubClient(Client):
+        def __init__(self) -> None:
+            super().__init__(token="token", url_store_name="store")
+            self._tickets = [ticket_one, ticket_two]
+
+        def get_model(
+            self,
+            _model: type[BaseModel],
+            updated_at: datetime | None = None,
+            num_last_pages: int | None = None,
+            params: QueryParams | None = None,
+        ) -> Generator[Ticket, None, None]:
+            _ = updated_at, num_last_pages, params
+            for ticket in self._tickets:
+                yield ticket
+
+    Ticket.rs_client = StubClient()
     try:
         names = set(Ticket.get_fields())
         properties = set(Ticket.get_properties_fields())
