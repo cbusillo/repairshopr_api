@@ -21,26 +21,28 @@ ApiInstance: TypeAlias = ModelType | SimpleNamespace
 FieldValue: TypeAlias = JsonValue | datetime | models.Model
 
 
-def _instance_values(api_instance: object) -> Mapping[str, object]:
+def _instance_values(api_instance: object) -> Mapping[str, object] | None:
+    """Return instance values without triggering computed properties when possible."""
+
     if isinstance(api_instance, Mapping):
         return api_instance
     try:
         raw_values = vars(api_instance)
     except TypeError:
-        return {}
-    return raw_values if isinstance(raw_values, dict) else {}
+        return None
+    return raw_values if isinstance(raw_values, Mapping) else None
 
 
 def _instance_has_field(api_instance: object, field_name: str) -> bool:
     values = _instance_values(api_instance)
-    if values:
+    if values is not None:
         return field_name in values
     return hasattr(api_instance, field_name)
 
 
 def _instance_get_field(api_instance: object, field_name: str) -> object:
     values = _instance_values(api_instance)
-    if values:
+    if values is not None:
         return values.get(field_name)
     return getattr(api_instance, field_name, None)
 

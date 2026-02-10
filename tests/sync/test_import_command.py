@@ -15,6 +15,7 @@ from repairshopr_data.management.commands import (
 )
 from repairshopr_data.management.commands.import_from_repairshopr import (
     _coerce_datetime,
+    _instance_get_field,
     _instance_has_field,
     _parse_datetime,
     create_or_update_django_instance,
@@ -168,6 +169,29 @@ def test_instance_has_field_avoids_triggering_computed_properties() -> None:
 
     assert _instance_has_field(instance, "id") is True
     assert _instance_has_field(instance, "line_items") is False
+    assert property_reads["count"] == 0
+
+
+def test_instance_field_helpers_do_not_fall_back_for_empty_values_mapping() -> None:
+    empty_payload: Mapping[str, object] = {}
+    assert _instance_has_field(empty_payload, "items") is False
+    assert _instance_get_field(empty_payload, "items") is None
+
+    populated_payload: Mapping[str, object] = {"items": [1, 2]}
+    assert _instance_has_field(populated_payload, "items") is True
+    assert _instance_get_field(populated_payload, "items") == [1, 2]
+
+    property_reads = {"count": 0}
+
+    class ApiInstanceWithOnlyProperty:
+        @property
+        def items(self) -> list[int]:
+            property_reads["count"] += 1
+            return [1]
+
+    instance = ApiInstanceWithOnlyProperty()
+    assert _instance_has_field(instance, "items") is False
+    assert _instance_get_field(instance, "items") is None
     assert property_reads["count"] == 0
 
 
