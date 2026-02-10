@@ -1,6 +1,6 @@
 [project]
 name = "repairshopr-api"
-version = "0.3.5"
+version = "0.4.0"
 description = ""
 readme = "README.md"
 requires-python = ">=3.14"
