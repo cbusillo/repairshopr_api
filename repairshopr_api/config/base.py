@@ -1,3 +1,4 @@
+import os
 import logging
 from contextlib import contextmanager
 from pathlib import Path
@@ -33,6 +34,9 @@ class AppSettings(Serializable):
 
     @property
     def config_file_path(self) -> Path:
+        configured_path = os.getenv("REPAIRSHOPR_CONFIG_FILE") or os.getenv("CONFIG_FILE")
+        if configured_path:
+            return Path(configured_path).expanduser()
         project_name = Path(__file__).parent.parent.name.replace("_", "-")
         file_path = Path.home() / ".config" / project_name / "config.toml"
         return file_path

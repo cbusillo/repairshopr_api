@@ -1,4 +1,5 @@
 import logging
+import os
 from collections import Counter, defaultdict, deque
 from contextlib import contextmanager
 from datetime import datetime, timedelta
@@ -48,10 +49,12 @@ class Client(requests.Session):
 
     def __init__(self, token: str = "", url_store_name: str = ""):
         super().__init__()
+        environment_url_store_name = os.getenv("REPAIRSHOPR_URL_STORE_NAME", "").strip()
+        environment_token = os.getenv("REPAIRSHOPR_TOKEN", "").strip()
         if not url_store_name:
-            url_store_name = settings.repairshopr.url_store_name
+            url_store_name = environment_url_store_name or settings.repairshopr.url_store_name
         if not token:
-            token = settings.repairshopr.token
+            token = environment_token or settings.repairshopr.token
         if not url_store_name or not token:
             raise ValueError("url_store_name and token must be provided in either the constructor or the config file.")
 
