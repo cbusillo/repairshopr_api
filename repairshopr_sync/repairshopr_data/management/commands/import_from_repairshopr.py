@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 
 ApiInstance: TypeAlias = ModelType | SimpleNamespace
 FieldValue: TypeAlias = JsonValue | datetime | models.Model
+RELATED_PROPERTY_COLLECTIONS = frozenset({"line_items"})
 
 
 def _instance_values(api_instance: object) -> Mapping[str, object] | None:
@@ -44,6 +45,20 @@ def _instance_get_field(api_instance: object, field_name: str) -> object:
     values = _instance_values(api_instance)
     if values is not None:
         return values.get(field_name)
+    return getattr(api_instance, field_name, None)
+
+
+def _resolve_related_collection(api_instance: object, field_name: str) -> object:
+    if _instance_has_field(api_instance, field_name):
+        return _instance_get_field(api_instance, field_name)
+
+    if field_name not in RELATED_PROPERTY_COLLECTIONS:
+        return None
+
+    descriptor = getattr(type(api_instance), field_name, None)
+    if not isinstance(descriptor, property):
+        return None
+
     return getattr(api_instance, field_name, None)
 
 
@@ -294,30 +309,32 @@ class Command(BaseCommand):
                     parent_model_name, sub_model_suffix
                 )
 
-                if _instance_has_field(api_instance, related_obj.name):
-                    sub_api_instances = _instance_get_field(api_instance, related_obj.name)
-                    if not isinstance(sub_api_instances, list):
-                        continue
-                    sub_django_instances = []
-                    for sub_api_instance in sub_api_instances:
-                        sub_django_instance = create_or_update_django_instance(
-                            sub_django_model, sub_api_instance
-                        )
-                        if sub_django_instance is None:
-                            continue
-                        setattr(
-                            sub_django_instance, related_obj.field.name, django_instance
-                        )
-                        if hasattr(sub_django_instance, "save"):
-                            save = getattr(sub_django_instance, "save")
-                            if callable(save):
-                                save()
-                        sub_django_instances.append(sub_django_instance)
+                sub_api_instances = _resolve_related_collection(
+                    api_instance, related_obj.name
+                )
+                if not isinstance(sub_api_instances, list):
+                    continue
 
-                    if hasattr(django_instance, related_obj.name):
-                        getattr(django_instance, related_obj.name).set(
-                            sub_django_instances
-                        )
+                sub_django_instances = []
+                for sub_api_instance in sub_api_instances:
+                    sub_django_instance = create_or_update_django_instance(
+                        sub_django_model, sub_api_instance
+                    )
+                    if sub_django_instance is None:
+                        continue
+                    setattr(
+                        sub_django_instance, related_obj.field.name, django_instance
+                    )
+                    if hasattr(sub_django_instance, "save"):
+                        save = getattr(sub_django_instance, "save")
+                        if callable(save):
+                            save()
+                    sub_django_instances.append(sub_django_instance)
+
+                if hasattr(django_instance, related_obj.name):
+                    getattr(django_instance, related_obj.name).set(
+                        sub_django_instances
+                    )
 
             logger.info(
                 self.style.SUCCESS(

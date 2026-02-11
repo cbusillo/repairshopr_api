@@ -18,6 +18,7 @@ from repairshopr_data.management.commands.import_from_repairshopr import (
     _instance_get_field,
     _instance_has_field,
     _parse_datetime,
+    _resolve_related_collection,
     create_or_update_django_instance,
 )
 
@@ -193,6 +194,28 @@ def test_instance_field_helpers_do_not_fall_back_for_empty_values_mapping() -> N
     assert _instance_has_field(instance, "items") is False
     assert _instance_get_field(instance, "items") is None
     assert property_reads["count"] == 0
+
+
+def test_resolve_related_collection_allows_line_items_property() -> None:
+    calls = {"count": 0}
+
+    class ApiInstanceWithLineItems:
+        @property
+        def line_items(self) -> list[dict[str, int]]:
+            calls["count"] += 1
+            return [{"id": 5}]
+
+    class ApiInstanceWithOtherProperty:
+        @property
+        def comments(self) -> list[dict[str, int]]:
+            calls["count"] += 1
+            return [{"id": 6}]
+
+    assert _resolve_related_collection(ApiInstanceWithLineItems(), "line_items") == [
+        {"id": 5}
+    ]
+    assert _resolve_related_collection(ApiInstanceWithOtherProperty(), "comments") is None
+    assert calls["count"] == 1
 
 
 def test_handle_model_coerces_naive_last_updated_at(
@@ -626,6 +649,78 @@ def test_handle_model_processes_related_submodels(
     assert saved_children == [11, 12]
     assert len(set_calls) == 1
     assert [item.id for item in set_calls[0]] == [11, 12]
+
+
+def test_handle_model_processes_line_items_from_property(
+    command: CommandFixture, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    cmd, fake_client = command
+    settings.django.last_updated_at = datetime(2026, 1, 1, tzinfo=timezone.utc)
+
+    set_calls: list[list[SimpleNamespace]] = []
+    saved_children: list[int] = []
+
+    class ParentCollection:
+        @staticmethod
+        def set(value: list[SimpleNamespace]) -> None:
+            set_calls.append(value)
+
+    parent_instance = SimpleNamespace(id=1, line_items=ParentCollection())
+
+    def fake_create_or_update(
+        model_cls: type[models.Model],
+        api_instance: object,
+        extra_fields: Mapping[str, object] | None = None,
+    ) -> SimpleNamespace:
+        _ = extra_fields
+        if model_cls.__name__ == "DjangoModel":
+            return parent_instance
+
+        item_id = int(getattr(api_instance, "id", 0))
+        child = SimpleNamespace(id=item_id)
+
+        def fake_save() -> None:
+            saved_children.append(item_id)
+
+        child.save = fake_save
+        return child
+
+    monkeypatch.setattr(
+        command_module, "create_or_update_django_instance", fake_create_or_update
+    )
+
+    class DjangoModel:
+        __name__ = "Invoice"
+        _meta = SimpleNamespace(
+            related_objects=[
+                SimpleNamespace(name="line_items", field=SimpleNamespace(name="parent_invoice"))
+            ]
+        )
+        objects = SimpleNamespace()
+
+    class ApiModel(BaseModel):
+        @property
+        def line_items(self) -> list[SimpleNamespace]:
+            return [SimpleNamespace(id=21), SimpleNamespace(id=22)]
+
+    fake_client.get_model = lambda *_args, **_kwargs: [ApiModel(id=1)]
+
+    monkeypatch.setattr(
+        cmd,
+        "dynamic_import",
+        lambda path: DjangoModel if path.startswith("repairshopr_data") else ApiModel,
+    )
+    monkeypatch.setattr(
+        cmd, "get_submodel_class", lambda *_args, **_kwargs: type("SubModel", (), {})
+    )
+
+    cmd.handle_model(
+        "repairshopr_data.models.invoice.Invoice", "repairshopr_api.models.Invoice"
+    )
+
+    assert saved_children == [21, 22]
+    assert len(set_calls) == 1
+    assert [item.id for item in set_calls[0]] == [21, 22]
 
 
 def test_sync_ticket_settings_success_and_failure_paths(

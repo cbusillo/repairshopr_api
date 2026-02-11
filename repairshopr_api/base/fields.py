@@ -34,6 +34,47 @@ def related_field(
             for model_id in valid_model_ids
         ]
 
+    def is_invoice_line_item_model() -> bool:
+        return model_cls.__name__ == "LineItem" and "invoice" in model_cls.__module__
+
+    def fetch_related_models_by_parent(
+        instance: BaseModel, query_params: dict[str, int | None]
+    ) -> list[JsonObject]:
+        if is_invoice_line_item_model():
+            instance.rs_client.prefetch_line_items()
+
+        related_models: list[JsonObject] = []
+        page = 1
+        while True:
+            page_params = dict(query_params)
+            if page > 1:
+                page_params["page"] = page
+
+            results, meta_data = instance.rs_client.fetch_from_api(
+                snake_case(model_cls.__name__), params=page_params
+            )
+
+            for result in results:
+                if not is_json_object(result):
+                    continue
+
+                result_id = result.get("id")
+                if isinstance(result_id, int):
+                    cache_key = f"{model_cls.__name__.lower()}_{result_id}"
+                    # noinspection PyProtectedMember
+                    instance.rs_client._cache[cache_key] = result
+                related_models.append(result)
+
+            if not isinstance(meta_data, dict):
+                break
+
+            total_pages = meta_data.get("total_pages")
+            if not isinstance(total_pages, int) or page >= total_pages:
+                break
+            page += 1
+
+        return related_models
+
     def decorator(_f: Callable[..., BaseModel]) -> property:
         def wrapper(
             instance: BaseModel, id_key: str | None = None
@@ -47,33 +88,15 @@ def related_field(
             else:
                 model_ids = getattr(instance, f"{id_key}{PLURAL_SUFFIX}", [])
 
-                if not model_ids:
-                    query_params = {
-                        f"{type(instance).__name__.lower()}{ID_SUFFIX}": getattr(
-                            instance, "id", None
-                        )
-                    }
-                    results, _ = instance.rs_client.fetch_from_api(
-                        snake_case(model_cls.__name__), params=query_params
+                if model_ids:
+                    return fetch_multiple_related_models(instance, model_ids)
+
+                query_params = {
+                    f"{type(instance).__name__.lower()}{ID_SUFFIX}": getattr(
+                        instance, "id", None
                     )
-
-                    if not results:
-                        return []
-
-                    for result in results:
-                        if not is_json_object(result):
-                            continue
-
-                        result_id = result.get("id")
-                        if not isinstance(result_id, int):
-                            continue
-
-                        model_ids.append(result_id)
-                        cache_key = f"{model_cls.__name__.lower()}_{result_id}"
-                        # noinspection PyProtectedMember
-                        instance.rs_client._cache[cache_key] = result
-
-                return fetch_multiple_related_models(instance, model_ids)
+                }
+                return fetch_related_models_by_parent(instance, query_params)
 
         return property(wrapper)
 
