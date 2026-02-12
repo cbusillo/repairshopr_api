@@ -38,4 +38,9 @@ The `Publish to PyPI` workflow is tag-driven and runs only on tags matching
 ## Code Quality
 
 - Run PyCharm inspections on changed files before merge.
+- Treat inspections as a hard gate: zero `error`, `warning`, and
+  `weak_warning` findings on touched files.
+- Do not add suppression comments (`# noinspection`, `# noqa`,
+  `# type: ignore`, etc.) unless the maintainer has been notified
+  first with rationale and has explicitly approved.
 - Follow the inspection gate in [`README.md` - Code Quality Gates](README.md#code-quality-gates).

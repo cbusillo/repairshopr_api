@@ -49,8 +49,13 @@ Notes:
 In addition to tests, run IDE inspections on changed code before opening a PR.
 
 - PyCharm: run **Inspect Code** on changed files (or whole project for larger changes).
-- Required threshold: no `error` severity inspection findings.
-- Recommended threshold: no new `warning` severity findings in touched files.
+- Required threshold: zero `error`, `warning`, and `weak_warning`
+  findings in touched files.
+- Do not add suppressions (`# noinspection`, `# noqa`,
+  `# type: ignore`, etc.) without explicit maintainer approval.
+- If a suppression seems necessary, stop and document the exact
+  rule, why it is unavoidable/false-positive, and the narrowest
+  possible suppression for approval first.
 
 This is a local quality gate and complements (does not replace) the pytest/coverage
 gates above.
