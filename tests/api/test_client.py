@@ -14,7 +14,7 @@ from tenacity import stop_after_attempt, wait_none
 
 from repairshopr_api.base.model import BaseModel
 from repairshopr_api.client import Client, _preview_response_body, _request_error_context
-from repairshopr_api.type_defs import JsonValue, is_json_object
+from repairshopr_api.type_defs import JsonObject, JsonValue, is_json_object
 
 
 @dataclass
@@ -416,11 +416,9 @@ def test_preview_response_body_and_error_context_helpers() -> None:
     assert preview.endswith("...")
     assert len(preview) == 303
 
-    response = SimpleNamespace(
-        status_code=500,
-        text="error text",
-        headers=SimpleNamespace(),
-    )
+    response = requests.Response()
+    response.status_code = 500
+    response._content = b"error text"
     context = _request_error_context("https://store.repairshopr.com/api/v1/invoices", response)
     assert "url=/api/v1/invoices" in context
     assert "content_type=unknown" in context
@@ -435,7 +433,7 @@ def test_client_init_raises_when_credentials_missing(
     monkeypatch.setattr("repairshopr_api.client.settings.repairshopr.token", "")
 
     with pytest.raises(ValueError, match="must be provided"):
-        Client(token="", url_store_name="")
+        Client()
 
 
 def test_prefetch_line_items_returns_when_already_cached() -> None:
@@ -466,7 +464,7 @@ def test_fetch_from_api_rejects_invalid_row_item_payload() -> None:
 
 def test_fetch_from_api_by_id_rejects_bad_cached_and_empty_payloads() -> None:
     client = _make_client()
-    client._cache["dummymodel_1"] = ({}, {"total_pages": 1})
+    client._cache["dummymodel_1"] = ([], {"total_pages": 1})
 
     with pytest.raises(TypeError, match="Unexpected cache payload type"):
         client.fetch_from_api_by_id(DummyModel, 1)
@@ -479,7 +477,7 @@ def test_fetch_from_api_by_id_rejects_bad_cached_and_empty_payloads() -> None:
 
 def test_get_model_handles_row_arrays_and_progress_callback() -> None:
     client = _make_client()
-    progress_calls: list[tuple[str, int, int, int, dict[str, int] | None]] = []
+    progress_calls: list[tuple[str, int, int, int, JsonObject | None]] = []
     client.set_progress_callback(
         lambda model_name, page, processed_rows, processed_on_page, meta: progress_calls.append(
             (model_name, page, processed_rows, processed_on_page, meta)
@@ -492,7 +490,7 @@ def test_get_model_handles_row_arrays_and_progress_callback() -> None:
             return cls(id=int(data["id"]))
 
         @classmethod
-        def from_list(cls, data: list[JsonValue]) -> list["ListModel"]:
+        def from_list(cls, data: list[JsonValue]) -> list[BaseModel]:
             return [cls(id=int(data[0])), cls(id=int(data[0]) + 100)]
 
     client.fetch_from_api = lambda *_args, **_kwargs: (  # type: ignore[method-assign]
