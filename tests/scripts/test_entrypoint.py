@@ -24,6 +24,7 @@ def stubbed_runtime(tmp_path: Path) -> dict[str, str]:
 
     log_file = tmp_path / "events.log"
     db_attempt_file = tmp_path / "db-attempts.txt"
+    sync_status_check_file = tmp_path / "sync-status-checks.txt"
 
     python_stub = """#!/usr/bin/env bash
 set -euo pipefail
@@ -31,12 +32,62 @@ set -euo pipefail
 REAL_PYTHON="${REAL_PYTHON:-python3}"
 LOG_FILE="${MOCK_LOG_FILE:-/tmp/entrypoint-mock.log}"
 DB_ATTEMPT_FILE="${DB_ATTEMPT_FILE:-/tmp/db-attempts.log}"
+SYNC_STATUS_CHECK_FILE="${SYNC_STATUS_CHECK_FILE:-/tmp/sync-status-checks.log}"
 DB_READY_AFTER="${DB_READY_AFTER:-1}"
 IMPORT_FAIL="${MOCK_IMPORT_FAIL:-0}"
+IMPORT_DURATION_SECONDS="${MOCK_IMPORT_DURATION_SECONDS:-0}"
+IMPORT_IGNORE_TERM="${MOCK_IMPORT_IGNORE_TERM:-0}"
+SYNC_STATUS_STALE_AFTER="${MOCK_SYNC_STATUS_STALE_AFTER:-0}"
+SYNC_STATUS_DURATION_SECONDS="${MOCK_SYNC_STATUS_DURATION_SECONDS:-0}"
 
 if [[ "${1:-}" == *"repairshopr_sync/manage.py" ]]; then
   cmd="${2:-}"
   echo "manage:${cmd}" >> "${LOG_FILE}"
+  if [[ "${cmd}" == "sync_status" ]]; then
+    check_count=0
+    if [[ -f "${SYNC_STATUS_CHECK_FILE}" ]]; then
+      check_count="$(cat "${SYNC_STATUS_CHECK_FILE}")"
+    fi
+    check_count="$((check_count + 1))"
+    echo "${check_count}" > "${SYNC_STATUS_CHECK_FILE}"
+
+    if [[ "${SYNC_STATUS_DURATION_SECONDS}" != "0" ]]; then
+      "${REAL_PYTHON}" - "${SYNC_STATUS_DURATION_SECONDS}" <<'PY'
+import sys
+import time
+
+time.sleep(float(sys.argv[1]))
+PY
+    fi
+
+    if [[ "${SYNC_STATUS_STALE_AFTER}" -gt "0" && "${check_count}" -ge "${SYNC_STATUS_STALE_AFTER}" ]]; then
+      echo '{"is_stale":true}'
+      if [[ " $* " == *" --fail-on-stale "* ]]; then
+        exit 2
+      fi
+      exit 0
+    fi
+
+    echo '{"is_stale":false}'
+    exit 0
+  fi
+
+  if [[ "${cmd}" == "import_from_repairshopr" && "${IMPORT_IGNORE_TERM}" == "1" ]]; then
+    trap '' TERM
+    while true; do
+      sleep 1
+    done
+  fi
+
+  if [[ "${cmd}" == "import_from_repairshopr" && "${IMPORT_DURATION_SECONDS}" != "0" ]]; then
+    "${REAL_PYTHON}" - "${IMPORT_DURATION_SECONDS}" <<'PY'
+import sys
+import time
+
+time.sleep(float(sys.argv[1]))
+PY
+  fi
+
   if [[ "${cmd}" == "import_from_repairshopr" && "${IMPORT_FAIL}" == "1" ]]; then
     exit 1
   fi
@@ -87,6 +138,7 @@ exit 0
         "REAL_PYTHON": sys.executable,
         "MOCK_LOG_FILE": str(log_file),
         "DB_ATTEMPT_FILE": str(db_attempt_file),
+        "SYNC_STATUS_CHECK_FILE": str(sync_status_check_file),
         "REPAIRSHOPR_TOKEN": "token",
         "REPAIRSHOPR_URL_STORE_NAME": "store",
         "SYNC_DB_HOST": "db",
@@ -188,3 +240,87 @@ def test_entrypoint_failure_path_logs_and_uses_failure_sleep(
     event_log = Path(env["MOCK_LOG_FILE"]).read_text()
     assert "manage:import_from_repairshopr" in event_log
     assert "sleep:7" in event_log
+
+
+@pytest.mark.scripts
+def test_entrypoint_watchdog_detects_stale_sync_and_restarts_cycle(
+    stubbed_runtime: dict[str, str],
+) -> None:
+    env = dict(stubbed_runtime)
+    env.update(
+        {
+            "SYNC_WATCHDOG_ENABLED": "1",
+            "SYNC_WATCHDOG_POLL_SECONDS": "1",
+            "SYNC_WATCHDOG_STARTUP_GRACE_SECONDS": "0",
+            "SYNC_STALE_HEARTBEAT_SECONDS": "30",
+            "MOCK_IMPORT_DURATION_SECONDS": "5",
+            "MOCK_SYNC_STATUS_STALE_AFTER": "2",
+            "SYNC_FAILURE_SLEEP_SECONDS": "7",
+            "STOP_ON_SLEEP_ARG": "7",
+            "STOP_EXIT_CODE": "77",
+        }
+    )
+
+    result = _run_entrypoint(env)
+
+    assert result.returncode == 77
+    assert "watchdog detected stale sync status" in result.stderr
+    assert "Import failed; sleeping for 7s before next attempt." in result.stderr
+
+    event_log = Path(env["MOCK_LOG_FILE"]).read_text()
+    assert "manage:import_from_repairshopr" in event_log
+    assert "manage:sync_status" in event_log
+    assert "sleep:7" in event_log
+
+
+@pytest.mark.scripts
+def test_entrypoint_watchdog_status_timeout_does_not_block_import(
+    stubbed_runtime: dict[str, str],
+) -> None:
+    env = dict(stubbed_runtime)
+    env.update(
+        {
+            "SYNC_WATCHDOG_ENABLED": "1",
+            "SYNC_WATCHDOG_POLL_SECONDS": "1",
+            "SYNC_WATCHDOG_STARTUP_GRACE_SECONDS": "0",
+            "SYNC_WATCHDOG_STATUS_TIMEOUT_SECONDS": "1",
+            "MOCK_SYNC_STATUS_DURATION_SECONDS": "5",
+            "MOCK_IMPORT_DURATION_SECONDS": "2",
+            "SYNC_INTERVAL_SECONDS": "30",
+            "STOP_ON_SLEEP_ARG": "30",
+            "STOP_EXIT_CODE": "77",
+        }
+    )
+
+    result = _run_entrypoint(env)
+
+    assert result.returncode == 77
+    assert "watchdog status check timed out" in result.stderr
+    assert "SYNC_LOOP done" in result.stderr
+
+
+@pytest.mark.scripts
+def test_entrypoint_watchdog_escalates_to_sigkill_for_stuck_import(
+    stubbed_runtime: dict[str, str],
+) -> None:
+    env = dict(stubbed_runtime)
+    env.update(
+        {
+            "SYNC_WATCHDOG_ENABLED": "1",
+            "SYNC_WATCHDOG_POLL_SECONDS": "1",
+            "SYNC_WATCHDOG_STARTUP_GRACE_SECONDS": "0",
+            "SYNC_WATCHDOG_TERM_GRACE_SECONDS": "1",
+            "MOCK_IMPORT_IGNORE_TERM": "1",
+            "MOCK_SYNC_STATUS_STALE_AFTER": "1",
+            "SYNC_FAILURE_SLEEP_SECONDS": "7",
+            "STOP_ON_SLEEP_ARG": "7",
+            "STOP_EXIT_CODE": "77",
+        }
+    )
+
+    result = _run_entrypoint(env)
+
+    assert result.returncode == 77
+    assert "watchdog detected stale sync status" in result.stderr
+    assert "forcing SIGKILL" in result.stderr
+    assert "Import failed; sleeping for 7s before next attempt." in result.stderr

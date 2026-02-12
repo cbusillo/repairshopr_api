@@ -35,6 +35,12 @@ SYNC_DB_USER="${SYNC_DB_USER:-repairshopr_api}"
 SYNC_INTERVAL_SECONDS="${SYNC_INTERVAL_SECONDS:-900}"
 REPAIRSHOPR_DEBUG="${REPAIRSHOPR_DEBUG:-false}"
 SYNC_DB_RESET="${SYNC_DB_RESET:-0}"
+SYNC_WATCHDOG_ENABLED="${SYNC_WATCHDOG_ENABLED:-1}"
+SYNC_WATCHDOG_POLL_SECONDS="${SYNC_WATCHDOG_POLL_SECONDS:-30}"
+SYNC_WATCHDOG_STARTUP_GRACE_SECONDS="${SYNC_WATCHDOG_STARTUP_GRACE_SECONDS:-120}"
+SYNC_STALE_HEARTBEAT_SECONDS="${SYNC_STALE_HEARTBEAT_SECONDS:-900}"
+SYNC_WATCHDOG_STATUS_TIMEOUT_SECONDS="${SYNC_WATCHDOG_STATUS_TIMEOUT_SECONDS:-20}"
+SYNC_WATCHDOG_TERM_GRACE_SECONDS="${SYNC_WATCHDOG_TERM_GRACE_SECONDS:-10}"
 
 CONFIG_ROOT="${HOME:-/var/lib/repairshopr}/.config/repairshopr-api"
 CONFIG_FILE="${CONFIG_ROOT}/config.toml"
@@ -130,6 +136,147 @@ run_manage() {
   return 0
 }
 
+WATCHDOG_STATUS_PID=""
+WATCHDOG_STATUS_OUTPUT_FILE=""
+
+terminate_process() {
+  local pid="$1"
+  local grace_seconds="$2"
+  local elapsed=0
+
+  kill "${pid}" 2>/dev/null || true
+
+  while kill -0 "${pid}" 2>/dev/null; do
+    if (( elapsed >= grace_seconds )); then
+      log "SYNC_LOOP watchdog forcing SIGKILL pid=${pid} after ${grace_seconds}s grace."
+      kill -9 "${pid}" 2>/dev/null || true
+      break
+    fi
+    sleep 1
+    elapsed=$((elapsed + 1))
+  done
+}
+
+cleanup_watchdog_status_check() {
+  if [[ -n "${WATCHDOG_STATUS_PID}" ]]; then
+    terminate_process "${WATCHDOG_STATUS_PID}" 1
+    wait "${WATCHDOG_STATUS_PID}" 2>/dev/null || true
+    WATCHDOG_STATUS_PID=""
+  fi
+
+  if [[ -n "${WATCHDOG_STATUS_OUTPUT_FILE}" ]]; then
+    rm -f "${WATCHDOG_STATUS_OUTPUT_FILE}"
+    WATCHDOG_STATUS_OUTPUT_FILE=""
+  fi
+}
+
+check_sync_status_stale() {
+  local is_stale=0
+  local status_pid
+  local status_exit_code
+  local elapsed=0
+
+  WATCHDOG_STATUS_OUTPUT_FILE="$(mktemp)"
+  python "${MANAGE_PY}" sync_status \
+    --stale-threshold-seconds "${SYNC_STALE_HEARTBEAT_SECONDS}" \
+    >"${WATCHDOG_STATUS_OUTPUT_FILE}" 2>&1 &
+  status_pid=$!
+  WATCHDOG_STATUS_PID="${status_pid}"
+
+  while kill -0 "${status_pid}" 2>/dev/null; do
+    if (( elapsed >= SYNC_WATCHDOG_STATUS_TIMEOUT_SECONDS )); then
+      log "SYNC_LOOP watchdog status check timed out after ${SYNC_WATCHDOG_STATUS_TIMEOUT_SECONDS}s."
+      cleanup_watchdog_status_check
+      return 2
+    fi
+    sleep 1
+    elapsed=$((elapsed + 1))
+  done
+
+  set +e
+  wait "${status_pid}"
+  status_exit_code=$?
+  set -e
+
+  if [[ "${status_exit_code}" -ne 0 ]]; then
+    log "SYNC_LOOP watchdog status check failed exit_code=${status_exit_code}."
+    cleanup_watchdog_status_check
+    return 2
+  fi
+
+  if grep -Eq '"is_stale"[[:space:]]*:[[:space:]]*true' "${WATCHDOG_STATUS_OUTPUT_FILE}"; then
+    is_stale=1
+  fi
+
+  cleanup_watchdog_status_check
+
+  if [[ "${is_stale}" -eq 1 ]]; then
+    return 1
+  fi
+
+  return 0
+}
+
+run_import_with_watchdog() {
+  if [[ "${SYNC_WATCHDOG_ENABLED}" != "1" ]]; then
+    run_manage "import" import_from_repairshopr
+    return $?
+  fi
+
+  local current_epoch
+  local import_exit_code
+  local import_pid
+  local status_exit_code
+  local started_epoch
+  local watchdog_pid
+
+  started_epoch="$(date -u +%s)"
+  python "${MANAGE_PY}" import_from_repairshopr &
+  import_pid=$!
+
+  (
+    trap 'cleanup_watchdog_status_check' TERM INT EXIT
+
+    while kill -0 "${import_pid}" 2>/dev/null; do
+      sleep "${SYNC_WATCHDOG_POLL_SECONDS}"
+
+      if ! kill -0 "${import_pid}" 2>/dev/null; then
+        exit 0
+      fi
+
+      current_epoch="$(date -u +%s)"
+      if (( current_epoch - started_epoch < SYNC_WATCHDOG_STARTUP_GRACE_SECONDS )); then
+        continue
+      fi
+
+      if check_sync_status_stale; then
+        continue
+      else
+        status_exit_code=$?
+      fi
+
+      if [[ "${status_exit_code}" -eq 1 ]]; then
+        log "SYNC_LOOP watchdog detected stale sync status; terminating import pid=${import_pid}."
+        terminate_process "${import_pid}" "${SYNC_WATCHDOG_TERM_GRACE_SECONDS}"
+        exit 0
+      fi
+    done
+
+    trap - TERM INT EXIT
+  ) &
+  watchdog_pid=$!
+
+  set +e
+  wait "${import_pid}"
+  import_exit_code=$?
+  set -e
+
+  kill "${watchdog_pid}" 2>/dev/null || true
+  wait "${watchdog_pid}" 2>/dev/null || true
+
+  return "${import_exit_code}"
+}
+
 SYNC_FAILURE_SLEEP_SECONDS="${SYNC_FAILURE_SLEEP_SECONDS:-60}"
 
 if [[ "${SYNC_DB_RESET}" = "1" ]]; then
@@ -148,7 +295,7 @@ fi
 while true; do
   cycle_started_epoch="$(date -u +%s)"
   log "SYNC_LOOP start cycle_started_epoch=${cycle_started_epoch}"
-  if ! run_manage "import" import_from_repairshopr; then
+  if ! run_import_with_watchdog; then
     log "Import failed; sleeping for ${SYNC_FAILURE_SLEEP_SECONDS}s before next attempt."
     sleep "${SYNC_FAILURE_SLEEP_SECONDS}"
   else

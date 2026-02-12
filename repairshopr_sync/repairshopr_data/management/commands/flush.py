@@ -19,7 +19,5 @@ class Command(FlushCommand):
         ):
             Path(django_settings.DATABASES["default"]["NAME"]).unlink()
 
-        for migration in Path(django_settings.BASE_DIR).glob("*/migrations/*.py"):
-            if migration.name == "__init__.py":
-                continue
-            migration.unlink()
+        # Keep migration files intact. Removing them during runtime breaks
+        # subsequent `migrate` executions in long-lived containers.
