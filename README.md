@@ -44,6 +44,17 @@ Notes:
 - The default coverage threshold is enforced at `80%`.
 - A dedicated CI job runs MySQL-backed integration checks for schema/migrations.
 
+## Code Quality Gates
+
+In addition to tests, run IDE inspections on changed code before opening a PR.
+
+- PyCharm: run **Inspect Code** on changed files (or whole project for larger changes).
+- Required threshold: no `error` severity inspection findings.
+- Recommended threshold: no new `warning` severity findings in touched files.
+
+This is a local quality gate and complements (does not replace) the pytest/coverage
+gates above.
+
 ## Release (PyPI)
 
 Releases are tag-driven. The GitHub Actions workflow publishes to PyPI only

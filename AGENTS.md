@@ -34,3 +34,8 @@ The `Publish to PyPI` workflow is tag-driven and runs only on tags matching
 
 - Install test dependencies: `uv sync --group dev`
 - Run test suite: `uv run pytest -q`
+
+## Code Quality
+
+- Run PyCharm inspections on changed files before merge.
+- Follow the inspection gate in `README.md` (`Code Quality Gates`).
