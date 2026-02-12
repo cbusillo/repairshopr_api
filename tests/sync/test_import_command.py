@@ -18,6 +18,8 @@ from repairshopr_data.management.commands.import_from_repairshopr import (
     _coerce_datetime,
     _instance_get_field,
     _instance_has_field,
+    _normalize_identifier,
+    _coerce_integer_value,
     _parse_datetime,
     _resolve_related_collection,
     create_or_update_django_instance,
@@ -949,3 +951,166 @@ def test_sync_ticket_settings_success_and_failure_paths(
     cmd.client.fetch_ticket_settings = lambda: (_ for _ in ()).throw(ValueError("api down"))
     cmd.sync_ticket_settings()
     assert "Failed to fetch ticket settings" in caplog.text
+
+
+def test_identifier_and_integer_coercion_helpers(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    assert _normalize_identifier(None) is None
+    assert _normalize_identifier(0) is None
+    assert _normalize_identifier(7) == 7
+    assert _normalize_identifier(" 0 ") is None
+    assert _normalize_identifier(" -9 ") == -9
+    assert _normalize_identifier("abc") is None
+
+    caplog.set_level(logging.WARNING)
+    assert _coerce_integer_value(True, field_name="x") == 1
+    assert _coerce_integer_value(False, field_name="x") == 0
+    assert _coerce_integer_value("", field_name="x") is None
+    assert _coerce_integer_value("12", field_name="x") == 12
+    assert _coerce_integer_value(" -3 ", field_name="x") == -3
+    assert _coerce_integer_value("nope", field_name="x") is None
+    assert "Unable to parse integer" in caplog.text
+
+
+def test_fetch_line_item_total_entries_and_invoice_pagination(
+    command: CommandFixture,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    cmd, _ = command
+
+    call_log: list[dict[str, object] | None] = []
+
+    def fake_fetch(
+        _model_name: str,
+        params: dict[str, object] | None = None,
+    ) -> tuple[list[dict[str, object]], dict[str, object] | None]:
+        call_log.append(params)
+        if params == {"invoice_id_not_null": True}:
+            return [], {"total_entries": "42"}
+        if params == {"estimate_id_not_null": True}:
+            return [], None
+        if params == {"invoice_id": 17}:
+            return [{"id": 1}, {"id": 2}], {"total_pages": 2}
+        if params == {"invoice_id": 17, "page": 2}:
+            return [{"id": 3}], {"total_pages": 2}
+        raise AssertionError(f"unexpected params: {params}")
+
+    monkeypatch.setattr(cmd.client, "fetch_from_api", fake_fetch)
+
+    assert cmd._fetch_line_item_total_entries("invoice_id_not_null") == 42
+    assert cmd._fetch_line_item_total_entries("estimate_id_not_null") is None
+    assert cmd._fetch_invoice_line_item_count(17) == 3
+    assert {"invoice_id": 17, "page": 2} in call_log
+
+
+def test_evaluate_invoice_line_item_sample_parity_reports_mismatches(
+    command: CommandFixture,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    cmd, _ = command
+    monkeypatch.setattr(cmd, "_build_invoice_sample_ids", lambda _sample_size: [1, 2, 3])
+    monkeypatch.setattr(
+        cmd,
+        "_fetch_invoice_line_item_count",
+        lambda invoice_id: {1: 3, 2: 1, 3: 2}[invoice_id],
+    )
+
+    class FilterResult:
+        def __init__(self, invoice_id: int) -> None:
+            self.invoice_id = invoice_id
+
+        def count(self) -> int:
+            return {1: 3, 2: 5, 3: 2}[self.invoice_id]
+
+    monkeypatch.setattr(
+        command_module,
+        "InvoiceLineItem",
+        SimpleNamespace(
+            objects=SimpleNamespace(
+                filter=lambda **kwargs: FilterResult(kwargs["parent_invoice_id"])
+            )
+        ),
+    )
+
+    report = cmd._evaluate_invoice_line_item_sample_parity(sample_size=3)
+
+    assert report["sample_size"] == 3
+    assert report["mismatch_count"] == 1
+    assert report["mismatches"] == [{"invoice_id": 2, "api_count": 1, "db_count": 5}]
+
+
+def test_validate_sync_completeness_handles_metadata_failure_modes(
+    command: CommandFixture,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    cmd, _ = command
+    caplog.set_level(logging.WARNING)
+
+    monkeypatch.setattr(
+        cmd,
+        "_fetch_line_item_total_entries",
+        lambda filter_key: None if filter_key == "invoice_id_not_null" else 10,
+    )
+    monkeypatch.setattr(
+        command_module,
+        "InvoiceLineItem",
+        SimpleNamespace(objects=SimpleNamespace(count=lambda: 0)),
+    )
+    monkeypatch.setattr(
+        command_module,
+        "EstimateLineItem",
+        SimpleNamespace(objects=SimpleNamespace(count=lambda: 10)),
+    )
+    monkeypatch.setattr(
+        cmd,
+        "_evaluate_invoice_line_item_sample_parity",
+        lambda *_args, **_kwargs: {"sample_size": 0, "mismatch_count": 0, "mismatches": []},
+    )
+
+    cmd.validate_sync_completeness(full_sync=False)
+    assert "did not include total_entries" in caplog.text
+
+    monkeypatch.setattr(
+        cmd,
+        "_fetch_line_item_total_entries",
+        lambda _key: (_ for _ in ()).throw(requests.RequestException("boom")),
+    )
+    with pytest.raises(RuntimeError, match="Failed to fetch expected totals"):
+        cmd.validate_sync_completeness(full_sync=True)
+
+
+def test_handle_marks_sync_failed_on_exception(
+    command: CommandFixture,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    cmd, fake_client = command
+    settings.django.last_updated_at = None
+
+    started: list[bool] = []
+    finished_errors: list[str | None] = []
+
+    monkeypatch.setattr(
+        cmd,
+        "_mark_sync_cycle_started",
+        lambda *, full_sync: started.append(full_sync),
+    )
+    monkeypatch.setattr(
+        cmd,
+        "handle_model",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("import exploded")),
+    )
+    monkeypatch.setattr(
+        cmd,
+        "_mark_sync_cycle_finished",
+        lambda *, error_message=None: finished_errors.append(error_message),
+    )
+
+    with pytest.raises(RuntimeError, match="import exploded"):
+        cmd.handle()
+
+    assert started == [True]
+    assert finished_errors == ["import exploded"]
+    assert fake_client.progress_callback is None
+    assert fake_client.cleared is True

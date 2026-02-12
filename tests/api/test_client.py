@@ -13,7 +13,7 @@ import requests
 from tenacity import stop_after_attempt, wait_none
 
 from repairshopr_api.base.model import BaseModel
-from repairshopr_api.client import Client
+from repairshopr_api.client import Client, _preview_response_body, _request_error_context
 from repairshopr_api.type_defs import JsonValue, is_json_object
 
 
@@ -408,3 +408,99 @@ def test_get_model_by_id_builds_model_instance() -> None:
 
     assert isinstance(record, DummyModel)
     assert record.id == 44
+
+
+def test_preview_response_body_and_error_context_helpers() -> None:
+    long_text = "x" * 400
+    preview = _preview_response_body(long_text)
+    assert preview.endswith("...")
+    assert len(preview) == 303
+
+    response = SimpleNamespace(
+        status_code=500,
+        text="error text",
+        headers=SimpleNamespace(),
+    )
+    context = _request_error_context("https://store.repairshopr.com/api/v1/invoices", response)
+    assert "url=/api/v1/invoices" in context
+    assert "content_type=unknown" in context
+
+
+def test_client_init_raises_when_credentials_missing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("REPAIRSHOPR_URL_STORE_NAME", "")
+    monkeypatch.setenv("REPAIRSHOPR_TOKEN", "")
+    monkeypatch.setattr("repairshopr_api.client.settings.repairshopr.url_store_name", "")
+    monkeypatch.setattr("repairshopr_api.client.settings.repairshopr.token", "")
+
+    with pytest.raises(ValueError, match="must be provided"):
+        Client(token="", url_store_name="")
+
+
+def test_prefetch_line_items_returns_when_already_cached() -> None:
+    client = _make_client()
+    client._has_line_item_in_cache = True
+
+    called = {"value": False}
+
+    def fake_get_model(*_args: object, **_kwargs: object) -> Iterator[object]:
+        called["value"] = True
+        return iter([])
+
+    client.get_model = fake_get_model  # type: ignore[method-assign]
+    client.prefetch_line_items()
+
+    assert called["value"] is False
+
+
+def test_fetch_from_api_rejects_invalid_row_item_payload() -> None:
+    client = _make_client()
+    client.get = lambda *_args, **_kwargs: SimpleNamespace(  # type: ignore[method-assign]
+        json=lambda: {"dummy_models": ["bad"], "meta": {"total_pages": 1}}
+    )
+
+    with pytest.raises(ValueError, match="Invalid item payload type"):
+        client.fetch_from_api("dummy_model")
+
+
+def test_fetch_from_api_by_id_rejects_bad_cached_and_empty_payloads() -> None:
+    client = _make_client()
+    client._cache["dummymodel_1"] = ({}, {"total_pages": 1})
+
+    with pytest.raises(TypeError, match="Unexpected cache payload type"):
+        client.fetch_from_api_by_id(DummyModel, 1)
+
+    client = _make_client()
+    client.get = lambda *_args, **_kwargs: SimpleNamespace(json=lambda: {"dummymodel": {}})  # type: ignore[method-assign]
+    with pytest.raises(ValueError, match="Could not find DummyModel"):
+        client.fetch_from_api_by_id(DummyModel, 2)
+
+
+def test_get_model_handles_row_arrays_and_progress_callback() -> None:
+    client = _make_client()
+    progress_calls: list[tuple[str, int, int, int, dict[str, int] | None]] = []
+    client.set_progress_callback(
+        lambda model_name, page, processed_rows, processed_on_page, meta: progress_calls.append(
+            (model_name, page, processed_rows, processed_on_page, meta)
+        )
+    )
+
+    class ListModel(BaseModel):
+        @classmethod
+        def from_dict(cls, data: dict[str, JsonValue]) -> "ListModel":
+            return cls(id=int(data["id"]))
+
+        @classmethod
+        def from_list(cls, data: list[JsonValue]) -> list["ListModel"]:
+            return [cls(id=int(data[0])), cls(id=int(data[0]) + 100)]
+
+    client.fetch_from_api = lambda *_args, **_kwargs: (  # type: ignore[method-assign]
+        [[1]],
+        {"total_pages": 1},
+    )
+
+    results = list(client.get_model(ListModel))
+
+    assert [item.id for item in results] == [1, 101]
+    assert progress_calls == [("list_model", 1, 2, 2, {"total_pages": 1})]
