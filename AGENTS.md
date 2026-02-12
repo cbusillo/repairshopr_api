@@ -38,4 +38,4 @@ The `Publish to PyPI` workflow is tag-driven and runs only on tags matching
 ## Code Quality
 
 - Run PyCharm inspections on changed files before merge.
-- Follow the inspection gate in `README.md` (`Code Quality Gates`).
+- Follow the inspection gate in [`README.md` - Code Quality Gates](README.md#code-quality-gates).
