@@ -6,6 +6,7 @@ from types import SimpleNamespace
 from typing import Mapping, TypedDict, TypeAlias, TypeGuard
 
 import pytest
+import requests
 from django.db import models
 
 from repairshopr_api.base.model import BaseModel
@@ -29,6 +30,7 @@ class FakeClient:
             tuple[type, datetime | None, int | None, dict[str, object] | None]
         ] = []
         self.cleared = False
+        self.progress_callback = None
 
     def get_model(
         self,
@@ -42,6 +44,17 @@ class FakeClient:
 
     def clear_cache(self) -> None:
         self.cleared = True
+
+    def set_progress_callback(self, callback) -> None:  # type: ignore[no-untyped-def]
+        self.progress_callback = callback
+
+    @staticmethod
+    def fetch_from_api(
+        _model_name: str, params: dict[str, object] | None = None
+    ) -> tuple[list[dict[str, object]], dict[str, int]]:
+        if params and "invoice_id" in params:
+            return [], {"total_pages": 1}
+        return [], {"total_entries": 0, "total_pages": 1}
 
     @staticmethod
     def fetch_ticket_settings() -> dict[str, object]:
@@ -127,10 +140,83 @@ def as_django_model_type(candidate: type) -> type[models.Model]:
     return candidate
 
 
+def set_line_item_parity_counts(
+    monkeypatch: pytest.MonkeyPatch,
+    cmd: command_module.Command,
+    *,
+    expected_total: int,
+    invoice_count: int,
+    estimate_count: int,
+) -> None:
+    monkeypatch.setattr(
+        cmd, "_fetch_line_item_total_entries", lambda _key: expected_total
+    )
+    monkeypatch.setattr(
+        command_module,
+        "InvoiceLineItem",
+        SimpleNamespace(objects=SimpleNamespace(count=lambda: invoice_count)),
+    )
+    monkeypatch.setattr(
+        command_module,
+        "EstimateLineItem",
+        SimpleNamespace(objects=SimpleNamespace(count=lambda: estimate_count)),
+    )
+
+
+def set_handle_model_imports_for_submodels(
+    monkeypatch: pytest.MonkeyPatch,
+    cmd: command_module.Command,
+    django_model: type,
+    api_model: type[BaseModel],
+) -> None:
+    monkeypatch.setattr(
+        cmd,
+        "dynamic_import",
+        lambda path: django_model if path.startswith("repairshopr_data") else api_model,
+    )
+    monkeypatch.setattr(
+        cmd, "get_submodel_class", lambda *_args, **_kwargs: type("SubModel", (), {})
+    )
+
+
+def setup_handle_model_test_state(
+    command: CommandFixture,
+    relation_name: str,
+) -> tuple[
+    command_module.Command,
+    FakeClient,
+    list[list[SimpleNamespace]],
+    list[int],
+    SimpleNamespace,
+]:
+    cmd, fake_client = command
+    settings.django.last_updated_at = datetime(2026, 1, 1, tzinfo=timezone.utc)
+
+    set_calls: list[list[SimpleNamespace]] = []
+    saved_children: list[int] = []
+
+    class ParentCollection:
+        @staticmethod
+        def set(value: list[SimpleNamespace]) -> None:
+            set_calls.append(value)
+
+    parent_instance = SimpleNamespace(id=1, **{relation_name: ParentCollection()})
+    return cmd, fake_client, set_calls, saved_children, parent_instance
+
+
 @pytest.fixture
 def command(monkeypatch: pytest.MonkeyPatch) -> CommandFixture:
     fake_client = FakeClient()
     monkeypatch.setattr(command_module, "Client", lambda: fake_client)
+    monkeypatch.setattr(
+        command_module,
+        "SyncStatus",
+        SimpleNamespace(
+            objects=SimpleNamespace(
+                update_or_create=lambda **_kwargs: (SimpleNamespace(id=1), True)
+            )
+        ),
+    )
     cmd = command_module.Command()
     return cmd, fake_client
 
@@ -280,11 +366,21 @@ def test_handle_logs_timing_and_updates_last_updated_at(
     cmd, fake_client = command
     start = datetime(2026, 2, 1, 12, tzinfo=timezone.utc)
     end = datetime(2026, 2, 1, 12, 1, 5, tzinfo=timezone.utc)
-    tick = iter([start, end])
-
-    monkeypatch.setattr(command_module, "now", lambda: next(tick))
+    monkeypatch.setattr(command_module, "now", lambda: end)
     monkeypatch.setattr(cmd, "handle_model", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(cmd, "sync_ticket_settings", lambda: None)
+    monkeypatch.setattr(
+        cmd,
+        "validate_sync_completeness",
+        lambda *_args, **_kwargs: None,
+    )
+
+    def fake_mark_started(*, full_sync: bool) -> None:
+        _ = full_sync
+        cmd._cycle_started_at = start
+
+    monkeypatch.setattr(cmd, "_mark_sync_cycle_started", fake_mark_started)
+    monkeypatch.setattr(cmd, "_mark_sync_cycle_finished", lambda **_kwargs: None)
 
     saved_calls = {"count": 0}
 
@@ -304,6 +400,114 @@ def test_handle_logs_timing_and_updates_last_updated_at(
     assert settings.django.last_updated_at == start
     assert saved_calls["count"] == 1
     assert fake_client.cleared is True
+    assert fake_client.progress_callback is None
+
+
+def test_validate_sync_completeness_raises_for_full_sync_parity_mismatch(
+    command: CommandFixture, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    cmd, _ = command
+
+    monkeypatch.setattr(
+        cmd,
+        "_fetch_line_item_total_entries",
+        lambda filter_key: 10 if filter_key == "invoice_id_not_null" else 6,
+    )
+    monkeypatch.setattr(
+        command_module,
+        "InvoiceLineItem",
+        SimpleNamespace(objects=SimpleNamespace(count=lambda: 200)),
+    )
+    monkeypatch.setattr(
+        command_module,
+        "EstimateLineItem",
+        SimpleNamespace(objects=SimpleNamespace(count=lambda: 6)),
+    )
+    monkeypatch.setattr(
+        cmd,
+        "_evaluate_invoice_line_item_sample_parity",
+        lambda *_args, **_kwargs: {
+            "sample_size": 4,
+            "mismatch_count": 0,
+            "mismatches": [],
+        },
+    )
+
+    with pytest.raises(RuntimeError, match="Sync completeness validation failed"):
+        cmd.validate_sync_completeness(full_sync=True)
+
+
+def test_validate_sync_completeness_warns_but_does_not_raise_for_incremental(
+    command: CommandFixture, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    cmd, _ = command
+
+    set_line_item_parity_counts(
+        monkeypatch,
+        cmd,
+        expected_total=100,
+        invoice_count=20,
+        estimate_count=20,
+    )
+    monkeypatch.setattr(
+        cmd,
+        "_evaluate_invoice_line_item_sample_parity",
+        lambda *_args, **_kwargs: {
+            "sample_size": 4,
+            "mismatch_count": 4,
+            "mismatches": [
+                {"invoice_id": 1, "api_count": 5, "db_count": 1},
+                {"invoice_id": 2, "api_count": 4, "db_count": 2},
+            ],
+        },
+    )
+
+    cmd.validate_sync_completeness(full_sync=False)
+
+
+def test_validate_sync_completeness_does_not_raise_for_incremental_sample_errors(
+    command: CommandFixture, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    cmd, _ = command
+
+    set_line_item_parity_counts(
+        monkeypatch,
+        cmd,
+        expected_total=100,
+        invoice_count=100,
+        estimate_count=100,
+    )
+    monkeypatch.setattr(
+        cmd,
+        "_evaluate_invoice_line_item_sample_parity",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            requests.RequestException("sample broke")
+        ),
+    )
+
+    cmd.validate_sync_completeness(full_sync=False)
+
+
+def test_validate_sync_completeness_raises_for_unexpected_incremental_sample_errors(
+    command: CommandFixture, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    cmd, _ = command
+
+    set_line_item_parity_counts(
+        monkeypatch,
+        cmd,
+        expected_total=100,
+        invoice_count=100,
+        estimate_count=100,
+    )
+    monkeypatch.setattr(
+        cmd,
+        "_evaluate_invoice_line_item_sample_parity",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("bug")),
+    )
+
+    with pytest.raises(RuntimeError, match="bug"):
+        cmd.validate_sync_completeness(full_sync=False)
 
 
 def test_create_or_update_django_instance_is_idempotent(
@@ -580,18 +784,9 @@ def test_get_submodel_class_and_dynamic_import(
 def test_handle_model_processes_related_submodels(
     command: CommandFixture, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    cmd, fake_client = command
-    settings.django.last_updated_at = datetime(2026, 1, 1, tzinfo=timezone.utc)
-
-    set_calls: list[list[SimpleNamespace]] = []
-    saved_children: list[int] = []
-
-    class ParentCollection:
-        @staticmethod
-        def set(value: list[SimpleNamespace]) -> None:
-            set_calls.append(value)
-
-    parent_instance = SimpleNamespace(id=1, ticketcomments=ParentCollection())
+    cmd, fake_client, set_calls, saved_children, parent_instance = (
+        setup_handle_model_test_state(command, "ticketcomments")
+    )
 
     def fake_create_or_update(
         model_cls: type[models.Model],
@@ -633,14 +828,7 @@ def test_handle_model_processes_related_submodels(
         SimpleNamespace(id=1, ticketcomments=child_api_items)
     ]
 
-    monkeypatch.setattr(
-        cmd,
-        "dynamic_import",
-        lambda path: DjangoModel if path.startswith("repairshopr_data") else ApiModel,
-    )
-    monkeypatch.setattr(
-        cmd, "get_submodel_class", lambda *_args, **_kwargs: type("SubModel", (), {})
-    )
+    set_handle_model_imports_for_submodels(monkeypatch, cmd, DjangoModel, ApiModel)
 
     cmd.handle_model(
         "repairshopr_data.models.ticket.Ticket", "repairshopr_api.models.Ticket"
@@ -654,18 +842,9 @@ def test_handle_model_processes_related_submodels(
 def test_handle_model_processes_line_items_from_property(
     command: CommandFixture, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    cmd, fake_client = command
-    settings.django.last_updated_at = datetime(2026, 1, 1, tzinfo=timezone.utc)
-
-    set_calls: list[list[SimpleNamespace]] = []
-    saved_children: list[int] = []
-
-    class ParentCollection:
-        @staticmethod
-        def set(value: list[SimpleNamespace]) -> None:
-            set_calls.append(value)
-
-    parent_instance = SimpleNamespace(id=1, line_items=ParentCollection())
+    cmd, fake_client, set_calls, saved_children, parent_instance = (
+        setup_handle_model_test_state(command, "line_items")
+    )
 
     def fake_create_or_update(
         model_cls: type[models.Model],
@@ -705,14 +884,7 @@ def test_handle_model_processes_line_items_from_property(
 
     fake_client.get_model = lambda *_args, **_kwargs: [ApiModel(id=1)]
 
-    monkeypatch.setattr(
-        cmd,
-        "dynamic_import",
-        lambda path: DjangoModel if path.startswith("repairshopr_data") else ApiModel,
-    )
-    monkeypatch.setattr(
-        cmd, "get_submodel_class", lambda *_args, **_kwargs: type("SubModel", (), {})
-    )
+    set_handle_model_imports_for_submodels(monkeypatch, cmd, DjangoModel, ApiModel)
 
     cmd.handle_model(
         "repairshopr_data.models.invoice.Invoice", "repairshopr_api.models.Invoice"
@@ -774,8 +946,6 @@ def test_sync_ticket_settings_success_and_failure_paths(
     assert len(answer_manager.calls) == 1
 
     caplog.set_level(logging.WARNING)
-    cmd.client.fetch_ticket_settings = lambda: (_ for _ in ()).throw(
-        RuntimeError("api down")
-    )
+    cmd.client.fetch_ticket_settings = lambda: (_ for _ in ()).throw(ValueError("api down"))
     cmd.sync_ticket_settings()
     assert "Failed to fetch ticket settings" in caplog.text

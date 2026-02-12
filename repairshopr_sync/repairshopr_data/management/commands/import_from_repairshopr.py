@@ -1,11 +1,14 @@
 import logging
 import pprint
+import json
+import requests
+from uuid import uuid4
 from datetime import datetime, timezone
 from types import SimpleNamespace
 from typing import Mapping, TypeAlias, TypeGuard
 
 from django.core.management.base import BaseCommand
-from django.db import DataError, OperationalError, models
+from django.db import DataError, DatabaseError, OperationalError, models
 from django.utils.timezone import make_aware, now
 
 from repairshopr_api.config import settings
@@ -13,13 +16,29 @@ from repairshopr_api.client import Client, ModelType
 from repairshopr_api.base.model import BaseModel
 from repairshopr_api.type_defs import JsonValue, QueryParams
 from repairshopr_api.utils import coerce_datetime, parse_datetime
-from repairshopr_data.models import TicketType, TicketTypeField, TicketTypeFieldAnswer
+from repairshopr_data.models import (
+    Invoice,
+    InvoiceLineItem,
+    SyncStatus,
+    TicketType,
+    TicketTypeField,
+    TicketTypeFieldAnswer,
+)
+from repairshopr_data.models.estimate import EstimateLineItem
 
 logger = logging.getLogger(__name__)
 
 ApiInstance: TypeAlias = ModelType | SimpleNamespace
 FieldValue: TypeAlias = JsonValue | datetime | models.Model
 RELATED_PROPERTY_COLLECTIONS = frozenset({"line_items"})
+BASELINE_UPDATED_AT = datetime(2010, 1, 1, tzinfo=timezone.utc)
+LINE_ITEM_PARITY_ABSOLUTE_TOLERANCE = 50
+LINE_ITEM_PARITY_RELATIVE_TOLERANCE = 0.005
+FULL_SYNC_INVOICE_SAMPLE_SIZE = 12
+INCREMENTAL_INVOICE_SAMPLE_SIZE = 4
+HEARTBEAT_PAGE_INTERVAL = 10
+HEARTBEAT_RECORD_INTERVAL = 100
+HEARTBEAT_SECONDS_INTERVAL = 30
 
 
 def _instance_values(api_instance: object) -> Mapping[str, object] | None:
@@ -235,6 +254,15 @@ class Command(BaseCommand):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.client = Client()
+        self._cycle_id: str | None = None
+        self._cycle_mode: str | None = None
+        self._cycle_started_at: datetime | None = None
+        self._status_current_model: str | None = None
+        self._status_current_page: int = 0
+        self._status_records_processed: int = 0
+        self._status_last_written_at: datetime | None = None
+        self._status_last_written_page: int = 0
+        self._status_last_written_records: int = 0
         reverse_sort_on_updated_at = {"sort": "updated_at ASC"}
         self.model_mapping = {
             # Django model name: (num_last_pages, params)
@@ -246,6 +274,96 @@ class Command(BaseCommand):
             "Ticket": (None, None),
             "User": (None, None),
         }
+
+    def _upsert_sync_status(self, **updates: object) -> None:
+        payload: dict[str, object] = {
+            "cycle_id": self._cycle_id,
+            "mode": self._cycle_mode,
+            "status": "running",
+            "current_model": self._status_current_model,
+            "current_page": self._status_current_page,
+            "records_processed": self._status_records_processed,
+            "cycle_started_at": self._cycle_started_at,
+            "last_heartbeat": now(),
+            "last_error": None,
+        }
+        payload.update(updates)
+        SyncStatus.objects.update_or_create(id=1, defaults=payload)
+
+    def _set_model_sync_progress(self, model_name: str) -> None:
+        self._status_current_model = model_name
+        self._status_current_page = 0
+        self._status_records_processed = 0
+        self._status_last_written_page = 0
+        self._status_last_written_records = 0
+        self._status_last_written_at = None
+        self._maybe_write_sync_heartbeat(force=True)
+
+    def _on_page_progress(
+        self,
+        model_name: str,
+        page: int,
+        processed_rows: int,
+        _processed_on_page: int,
+        _meta_data: Mapping[str, object] | None,
+    ) -> None:
+        if self._status_current_model != model_name:
+            self._status_current_model = model_name
+        self._status_current_page = page
+        self._status_records_processed = processed_rows
+        self._maybe_write_sync_heartbeat()
+
+    def _maybe_write_sync_heartbeat(self, *, force: bool = False) -> None:
+        current_time = now()
+        if not force:
+            enough_records = (
+                self._status_records_processed - self._status_last_written_records
+            ) >= HEARTBEAT_RECORD_INTERVAL
+            enough_pages = (
+                self._status_current_page > self._status_last_written_page
+                and self._status_current_page % HEARTBEAT_PAGE_INTERVAL == 0
+            )
+            enough_time = (
+                self._status_last_written_at is None
+                or (current_time - self._status_last_written_at).total_seconds()
+                >= HEARTBEAT_SECONDS_INTERVAL
+            )
+            if not (enough_records or enough_pages or enough_time):
+                return
+
+        self._upsert_sync_status(last_heartbeat=current_time)
+        self._status_last_written_at = current_time
+        self._status_last_written_page = self._status_current_page
+        self._status_last_written_records = self._status_records_processed
+
+    def _mark_sync_cycle_started(self, *, full_sync: bool) -> None:
+        self._cycle_id = uuid4().hex
+        self._cycle_mode = "full" if full_sync else "incremental"
+        self._cycle_started_at = now()
+        self._status_current_model = None
+        self._status_current_page = 0
+        self._status_records_processed = 0
+        self._status_last_written_page = 0
+        self._status_last_written_records = 0
+        self._status_last_written_at = None
+        self._upsert_sync_status(
+            status="running",
+            current_model=None,
+            current_page=0,
+            records_processed=0,
+            cycle_finished_at=None,
+            last_error=None,
+            last_heartbeat=self._cycle_started_at,
+        )
+
+    def _mark_sync_cycle_finished(self, *, error_message: str | None = None) -> None:
+        final_status = "failed" if error_message else "success"
+        self._upsert_sync_status(
+            status=final_status,
+            cycle_finished_at=now(),
+            last_error=error_message,
+            last_heartbeat=now(),
+        )
 
     def get_submodel_class(
         self, parent_model_name: str, sub_model_suffix: str
@@ -273,8 +391,7 @@ class Command(BaseCommand):
         last_updated_at = settings.django.last_updated_at
         if last_updated_at and last_updated_at.tzinfo is None:
             last_updated_at = make_aware(last_updated_at)
-        baseline_updated_at = datetime(2010, 1, 1, tzinfo=timezone.utc)
-        if not last_updated_at or last_updated_at < baseline_updated_at:
+        if not last_updated_at or last_updated_at < BASELINE_UPDATED_AT:
             num_last_pages = None
 
         django_model_candidate = self.dynamic_import(django_model_path)
@@ -289,10 +406,14 @@ class Command(BaseCommand):
             raise TypeError(f"Expected BaseModel subclass, got {api_model_candidate!r}")
         api_model = api_model_candidate
 
+        self._set_model_sync_progress(api_model.__name__.lower())
+
         api_instances = self.client.get_model(
             api_model, last_updated_at, num_last_pages, params
         )
         for api_instance in api_instances:
+            # Keep heartbeat current during slow record-level processing.
+            self._maybe_write_sync_heartbeat()
             django_instance = create_or_update_django_instance(
                 django_model, api_instance
             )
@@ -317,6 +438,7 @@ class Command(BaseCommand):
 
                 sub_django_instances = []
                 for sub_api_instance in sub_api_instances:
+                    self._maybe_write_sync_heartbeat()
                     sub_django_instance = create_or_update_django_instance(
                         sub_django_model, sub_api_instance
                     )
@@ -342,6 +464,269 @@ class Command(BaseCommand):
                 )
             )
 
+        self._maybe_write_sync_heartbeat(force=True)
+
+    @staticmethod
+    def _normalize_total_entries(value: object) -> int | None:
+        if isinstance(value, int):
+            return value
+        if isinstance(value, float):
+            return int(value)
+        if isinstance(value, str) and value.isdigit():
+            return int(value)
+        return None
+
+    @staticmethod
+    def _line_item_allowed_delta(expected_count: int) -> int:
+        ratio_tolerance = int(expected_count * LINE_ITEM_PARITY_RELATIVE_TOLERANCE)
+        return max(LINE_ITEM_PARITY_ABSOLUTE_TOLERANCE, ratio_tolerance)
+
+    @staticmethod
+    def _is_full_sync_run(last_updated_at: datetime | None) -> bool:
+        if last_updated_at is None:
+            return True
+        if last_updated_at.tzinfo is None:
+            last_updated_at = make_aware(last_updated_at)
+        return last_updated_at < BASELINE_UPDATED_AT
+
+    @staticmethod
+    def _log_sync_check(event: str, payload: Mapping[str, object]) -> None:
+        logger.info(
+            "SYNC_CHECK %s",
+            json.dumps({"event": event, **payload}, sort_keys=True, default=str),
+        )
+
+    def _fetch_line_item_total_entries(self, filter_key: str) -> int | None:
+        _rows, meta_data = self.client.fetch_from_api(
+            "line_item", params={filter_key: True}
+        )
+        if not isinstance(meta_data, dict):
+            return None
+        return self._normalize_total_entries(meta_data.get("total_entries"))
+
+    def _fetch_invoice_line_item_count(self, invoice_id: int) -> int:
+        total_rows = 0
+        page = 1
+        while True:
+            params: QueryParams = {"invoice_id": invoice_id}
+            if page > 1:
+                params["page"] = page
+
+            response_data, meta_data = self.client.fetch_from_api(
+                "line_item", params=params
+            )
+            total_rows += len(response_data)
+
+            if not isinstance(meta_data, dict):
+                break
+
+            total_pages = self._normalize_total_entries(meta_data.get("total_pages"))
+            if total_pages is None or page >= total_pages:
+                break
+            page += 1
+
+        return total_rows
+
+    @staticmethod
+    def _pick_first_invoice_id_at_or_after(target_id: int) -> int | None:
+        return (
+            Invoice.objects.filter(id__gte=target_id)
+            .order_by("id")
+            .values_list("id", flat=True)
+            .first()
+        )
+
+    def _build_invoice_sample_ids(self, sample_size: int) -> list[int]:
+        if sample_size <= 0:
+            return []
+
+        newest_count = min(3, sample_size)
+        recent_invoice_ids = list(
+            Invoice.objects.order_by("-updated_at", "-id").values_list("id", flat=True)[:newest_count]
+        )
+
+        aggregate = Invoice.objects.aggregate(min_id=models.Min("id"), max_id=models.Max("id"))
+        min_id = aggregate.get("min_id")
+        max_id = aggregate.get("max_id")
+        if not isinstance(min_id, int) or not isinstance(max_id, int):
+            return recent_invoice_ids
+
+        remaining = max(0, sample_size - len(recent_invoice_ids))
+        sampled_ids: list[int] = []
+        if remaining == 1:
+            sampled_ids = [min_id]
+        elif remaining > 1:
+            step_denominator = remaining - 1
+            for index in range(remaining):
+                target_id = min_id + ((max_id - min_id) * index // step_denominator)
+                candidate_id = self._pick_first_invoice_id_at_or_after(target_id)
+                if candidate_id is None:
+                    candidate_id = (
+                        Invoice.objects.filter(id__lte=target_id)
+                        .order_by("-id")
+                        .values_list("id", flat=True)
+                        .first()
+                    )
+                if isinstance(candidate_id, int):
+                    sampled_ids.append(candidate_id)
+
+        deduplicated_ids: list[int] = []
+        for candidate_id in recent_invoice_ids + sampled_ids:
+            if candidate_id not in deduplicated_ids:
+                deduplicated_ids.append(candidate_id)
+        return deduplicated_ids
+
+    def _evaluate_invoice_line_item_sample_parity(
+        self, sample_size: int
+    ) -> dict[str, object]:
+        sample_invoice_ids = self._build_invoice_sample_ids(sample_size)
+        mismatches: list[dict[str, int]] = []
+
+        for invoice_id in sample_invoice_ids:
+            api_line_item_count = self._fetch_invoice_line_item_count(invoice_id)
+            db_line_item_count = InvoiceLineItem.objects.filter(
+                parent_invoice_id=invoice_id
+            ).count()
+            if api_line_item_count != db_line_item_count:
+                mismatches.append(
+                    {
+                        "invoice_id": invoice_id,
+                        "api_count": api_line_item_count,
+                        "db_count": db_line_item_count,
+                    }
+                )
+
+        return {
+            "sample_size": len(sample_invoice_ids),
+            "mismatch_count": len(mismatches),
+            "mismatches": mismatches[:10],
+        }
+
+    def validate_sync_completeness(self, *, full_sync: bool) -> None:
+        parity_expectations = (
+            (
+                "invoice_line_items",
+                "invoice_id_not_null",
+                InvoiceLineItem.objects.count,
+            ),
+            (
+                "estimate_line_items",
+                "estimate_id_not_null",
+                EstimateLineItem.objects.count,
+            ),
+        )
+
+        parity_failures: list[str] = []
+        for model_name, filter_key, db_counter in parity_expectations:
+            try:
+                expected_total = self._fetch_line_item_total_entries(filter_key)
+            except (
+                requests.RequestException,
+                PermissionError,
+                ValueError,
+                TypeError,
+            ) as exc:
+                if full_sync:
+                    raise RuntimeError(
+                        f"Failed to fetch expected totals for {model_name}: {exc}"
+                    ) from exc
+                logger.warning(
+                    "Unable to fetch expected totals for %s during incremental sync: %s",
+                    model_name,
+                    exc,
+                )
+                continue
+
+            if expected_total is None:
+                if full_sync:
+                    raise RuntimeError(
+                        f"Missing total_entries in RepairShopr metadata for {model_name}."
+                    )
+                logger.warning(
+                    "RepairShopr metadata did not include total_entries for %s.",
+                    model_name,
+                )
+                continue
+
+            actual_total = db_counter()
+            delta = actual_total - expected_total
+            allowed_delta = self._line_item_allowed_delta(expected_total)
+
+            self._log_sync_check(
+                "line_item_parity",
+                {
+                    "model": model_name,
+                    "mode": "full" if full_sync else "incremental",
+                    "expected": expected_total,
+                    "actual": actual_total,
+                    "delta": delta,
+                    "allowed_delta": allowed_delta,
+                },
+            )
+
+            if abs(delta) > allowed_delta:
+                parity_failures.append(
+                    f"{model_name}: expected={expected_total} actual={actual_total} "
+                    f"delta={delta} allowed_delta={allowed_delta}"
+                )
+
+        sample_size = (
+            FULL_SYNC_INVOICE_SAMPLE_SIZE
+            if full_sync
+            else INCREMENTAL_INVOICE_SAMPLE_SIZE
+        )
+        try:
+            sample_report = self._evaluate_invoice_line_item_sample_parity(sample_size)
+        except (
+            requests.RequestException,
+            PermissionError,
+            ValueError,
+            TypeError,
+            DatabaseError,
+        ) as exc:
+            if full_sync:
+                raise RuntimeError(
+                    f"Failed to evaluate invoice line-item sample parity: {exc}"
+                ) from exc
+            logger.warning(
+                "Unable to evaluate invoice line-item sample parity during incremental sync: %s",
+                exc,
+            )
+            self._log_sync_check(
+                "invoice_line_item_sample_error",
+                {
+                    "mode": "incremental",
+                    "error": str(exc),
+                },
+            )
+        else:
+            self._log_sync_check(
+                "invoice_line_item_sample",
+                {
+                    "mode": "full" if full_sync else "incremental",
+                    **sample_report,
+                },
+            )
+
+            mismatch_count = (
+                self._normalize_total_entries(sample_report.get("mismatch_count")) or 0
+            )
+            allowed_sample_mismatches = 1 if full_sync else 2
+            if mismatch_count > allowed_sample_mismatches:
+                mismatch_message = (
+                    f"Invoice line-item sample mismatches={mismatch_count} "
+                    f"allowed={allowed_sample_mismatches}"
+                )
+                if full_sync:
+                    parity_failures.append(mismatch_message)
+                else:
+                    logger.warning(mismatch_message)
+
+        if full_sync and parity_failures:
+            raise RuntimeError(
+                "Sync completeness validation failed: " + "; ".join(parity_failures)
+            )
+
     @staticmethod
     def dynamic_import(path: str) -> type:
         module_path, class_name = path.rsplit(".", 1)
@@ -349,40 +734,66 @@ class Command(BaseCommand):
         return getattr(module, class_name.replace("_", ""))
 
     def handle(self, *_args, **_kwargs) -> None:
-        start_updated_at = now()
-        logger.info("SYNC_RUN start=%s", start_updated_at.isoformat())
-        for model_name, (num_last_pages, params) in self.model_mapping.items():
-            django_model_path = (
-                f"repairshopr_data.models.{model_name.lower()}.{model_name}"
-            )
-            api_model_path = f"repairshopr_api.models.{model_name}"
-            self.handle_model(django_model_path, api_model_path, num_last_pages, params)
-
-        self.sync_ticket_settings()
-
-        settings.django.last_updated_at = start_updated_at
-        settings.save()
-
-        end_updated_at = now()
-        elapsed_seconds = int((end_updated_at - start_updated_at).total_seconds())
-        hours, remainder = divmod(elapsed_seconds, 3600)
-        minutes, seconds = divmod(remainder, 60)
-
+        last_updated_at = settings.django.last_updated_at
+        full_sync = self._is_full_sync_run(last_updated_at)
+        self._mark_sync_cycle_started(full_sync=full_sync)
+        start_updated_at = self._cycle_started_at or now()
         logger.info(
-            "SYNC_RUN done start=%s end=%s elapsed_seconds=%s elapsed_hms=%02d:%02d:%02d",
+            "SYNC_RUN start=%s mode=%s",
             start_updated_at.isoformat(),
-            end_updated_at.isoformat(),
-            elapsed_seconds,
-            hours,
-            minutes,
-            seconds,
+            "full" if full_sync else "incremental",
         )
-        self.client.clear_cache()
+        if hasattr(self.client, "set_progress_callback"):
+            self.client.set_progress_callback(self._on_page_progress)
+
+        try:
+            for model_name, (num_last_pages, params) in self.model_mapping.items():
+                django_model_path = (
+                    f"repairshopr_data.models.{model_name.lower()}.{model_name}"
+                )
+                api_model_path = f"repairshopr_api.models.{model_name}"
+                self.handle_model(
+                    django_model_path, api_model_path, num_last_pages, params
+                )
+
+            self.sync_ticket_settings()
+            self.validate_sync_completeness(full_sync=full_sync)
+
+            settings.django.last_updated_at = start_updated_at
+            settings.save()
+
+            end_updated_at = now()
+            elapsed_seconds = int((end_updated_at - start_updated_at).total_seconds())
+            hours, remainder = divmod(elapsed_seconds, 3600)
+            minutes, seconds = divmod(remainder, 60)
+
+            logger.info(
+                "SYNC_RUN done start=%s end=%s elapsed_seconds=%s elapsed_hms=%02d:%02d:%02d",
+                start_updated_at.isoformat(),
+                end_updated_at.isoformat(),
+                elapsed_seconds,
+                hours,
+                minutes,
+                seconds,
+            )
+            self._mark_sync_cycle_finished()
+        except Exception as exc:
+            self._mark_sync_cycle_finished(error_message=str(exc))
+            raise
+        finally:
+            if hasattr(self.client, "set_progress_callback"):
+                self.client.set_progress_callback(None)
+            self.client.clear_cache()
 
     def sync_ticket_settings(self) -> None:
         try:
             payload = self.client.fetch_ticket_settings()
-        except Exception as exc:
+        except (
+            requests.RequestException,
+            PermissionError,
+            ValueError,
+            TypeError,
+        ) as exc:
             logger.warning("Failed to fetch ticket settings: %s", exc)
             return
 
