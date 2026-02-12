@@ -2,11 +2,11 @@ import logging
 import os
 from collections import Counter, defaultdict, deque
 from contextlib import contextmanager
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from http import HTTPStatus
 from time import sleep
 from urllib.parse import urlparse
-from typing import Generator, TypeAlias, TypeVar
+from typing import Callable, Generator, TypeAlias, TypeVar
 
 import requests
 from tenacity import (
@@ -39,6 +39,9 @@ if settings.debug:
 ListItem: TypeAlias = JsonObject | JsonArray
 ListResult: TypeAlias = tuple[list[ListItem], JsonObject | None]
 CacheValue: TypeAlias = ListResult | JsonObject
+ProgressCallback: TypeAlias = Callable[
+    [str, int, int, int, JsonObject | None], None
+]
 
 
 ModelType = TypeVar("ModelType", bound=BaseModel)
@@ -82,11 +85,12 @@ class Client(requests.Session):
     MAX_RETRIES = 6
     REQUEST_LIMIT = 150
     REQUEST_TIMEOUT: tuple[float, float] = (10.0, 60.0)
-    _cache: dict[str, CacheValue] = {}
-    _request_timestamps: deque[datetime] = deque()
 
     def __init__(self, token: str = "", url_store_name: str = ""):
         super().__init__()
+        # Keep cache/rate state scoped to this client instance.
+        self._cache: dict[str, CacheValue] = {}
+        self._request_timestamps: deque[datetime] = deque()
         environment_url_store_name = os.getenv("REPAIRSHOPR_URL_STORE_NAME", "").strip()
         environment_token = os.getenv("REPAIRSHOPR_TOKEN", "").strip()
         if not url_store_name:
@@ -109,7 +113,11 @@ class Client(requests.Session):
         self.api_call_type = defaultdict(list)
         self.api_call_duration = defaultdict(list)
         self.api_sleep_time = 0.0
+        self._progress_callback: ProgressCallback | None = None
         BaseModel.set_client(self)
+
+    def set_progress_callback(self, callback: ProgressCallback | None) -> None:
+        self._progress_callback = callback
 
     def _clear_old_request_timestamps(self) -> None:
         current_time = datetime.now()
@@ -254,9 +262,15 @@ class Client(requests.Session):
         invoice_line_item_map = defaultdict(list)
         for line_item in lines_items:
             invoice_id = line_item.invoice_id
+            if not isinstance(invoice_id, int):
+                continue
             invoice_line_item_map[invoice_id].append(
                 {
-                    key: value
+                    key: (
+                        value.isoformat()
+                        if isinstance(value, (datetime, date))
+                        else value
+                    )
                     for key, value in line_item.__dict__.items()
                     if not key.startswith("_")
                 }
@@ -403,19 +417,37 @@ class Client(requests.Session):
             params["since_updated_at"] = updated_at.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
 
         page = 1
+        processed_rows = 0
         while True:
             params["page"] = page
             model_name = snake_case(model.__name__)
             response_data, meta_data = self.fetch_from_api(model_name, params=params)
+            processed_on_page = 0
             for data in response_data:
                 if isinstance(data, dict):
+                    processed_rows += 1
+                    processed_on_page += 1
                     yield model.from_dict(data)
                 elif isinstance(data, list):
                     parsed = model.from_list(data)
                     if isinstance(parsed, list):
-                        yield from parsed
+                        for item in parsed:
+                            processed_rows += 1
+                            processed_on_page += 1
+                            yield item
                     else:
+                        processed_rows += 1
+                        processed_on_page += 1
                         yield parsed
+
+            if self._progress_callback is not None:
+                self._progress_callback(
+                    model_name,
+                    page,
+                    processed_rows,
+                    processed_on_page,
+                    meta_data,
+                )
 
             if not meta_data or page >= meta_data.get("total_pages", 0):
                 break

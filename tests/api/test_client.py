@@ -14,7 +14,7 @@ from tenacity import stop_after_attempt, wait_none
 
 from repairshopr_api.base.model import BaseModel
 from repairshopr_api.client import Client
-from repairshopr_api.type_defs import JsonValue
+from repairshopr_api.type_defs import JsonValue, is_json_object
 
 
 @dataclass
@@ -146,15 +146,34 @@ def test_prefetch_line_items_builds_cache_for_old_updated_at() -> None:
     client.updated_at = datetime.now(tz=timezone.utc) - timedelta(days=370)
 
     line_items = [
-        SimpleNamespace(id=1, invoice_id=100, name="A", _private="x"),
-        SimpleNamespace(id=2, invoice_id=100, name="B", _private="y"),
+        SimpleNamespace(
+            id=1,
+            invoice_id=100,
+            name="A",
+            updated_at=datetime(2026, 2, 1, 1, 2, tzinfo=timezone.utc),
+            _private="x",
+        ),
+        SimpleNamespace(
+            id=2,
+            invoice_id=100,
+            name="B",
+            updated_at=datetime(2026, 2, 1, 1, 3, tzinfo=timezone.utc),
+            _private="y",
+        ),
     ]
 
     client.get_model = lambda *_args, **_kwargs: iter(line_items)  # type: ignore[method-assign]
     client.prefetch_line_items()
 
     assert client._has_line_item_in_cache is True
-    assert any(key.startswith("line_item_list_") for key in client._cache)
+    cached_entries = [
+        value for key, value in client._cache.items() if key.startswith("line_item_list_")
+    ]
+    assert cached_entries
+    first_page_rows, _meta = cached_entries[0]
+    assert first_page_rows
+    assert is_json_object(first_page_rows[0])
+    assert first_page_rows[0]["updated_at"] == "2026-02-01T01:02:00+00:00"
 
 
 def test_prefetch_line_items_aware_vs_naive_regression() -> None:
@@ -176,6 +195,14 @@ def test_clear_cache_resets_memory_cache() -> None:
 
     assert client._cache == {}
     assert client._has_line_item_in_cache is False
+
+
+def test_client_cache_and_rate_state_are_instance_scoped() -> None:
+    first_client = _make_client()
+    second_client = _make_client()
+
+    assert first_client._cache is not second_client._cache
+    assert first_client._request_timestamps is not second_client._request_timestamps
 
 
 def test_wait_for_rate_limit_sleeps_when_limit_exceeded(

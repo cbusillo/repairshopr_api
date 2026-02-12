@@ -1,3 +1,4 @@
+from datetime import date, datetime
 from typing import Callable
 
 from repairshopr_api.base.model import BaseModel
@@ -40,6 +41,22 @@ def related_field(
     def fetch_related_models_by_parent(
         instance: BaseModel, query_params: dict[str, int | None]
     ) -> list[JsonObject]:
+        def normalize_related_payload(candidate: object) -> JsonObject | None:
+            if not isinstance(candidate, dict):
+                return None
+
+            normalized: JsonObject = {}
+            for key, value in candidate.items():
+                if not isinstance(key, str):
+                    return None
+
+                if isinstance(value, (datetime, date)):
+                    normalized[key] = value.isoformat()
+                else:
+                    normalized[key] = value
+
+            return normalized if is_json_object(normalized) else None
+
         if is_invoice_line_item_model():
             instance.rs_client.prefetch_line_items()
 
@@ -55,15 +72,16 @@ def related_field(
             )
 
             for result in results:
-                if not is_json_object(result):
+                normalized_result = normalize_related_payload(result)
+                if normalized_result is None:
                     continue
 
-                result_id = result.get("id")
+                result_id = normalized_result.get("id")
                 if isinstance(result_id, int):
                     cache_key = f"{model_cls.__name__.lower()}_{result_id}"
                     # noinspection PyProtectedMember
-                    instance.rs_client._cache[cache_key] = result
-                related_models.append(result)
+                    instance.rs_client._cache[cache_key] = normalized_result
+                related_models.append(normalized_result)
 
             if not isinstance(meta_data, dict):
                 break
