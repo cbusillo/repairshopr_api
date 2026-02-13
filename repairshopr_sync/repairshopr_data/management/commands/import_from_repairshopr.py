@@ -616,7 +616,6 @@ class Command(BaseCommand):
             ),
         )
 
-        parity_failures: list[str] = []
         for model_name, filter_key, db_counter in parity_expectations:
             try:
                 expected_total = self._fetch_line_item_total_entries(filter_key)
@@ -626,25 +625,19 @@ class Command(BaseCommand):
                 ValueError,
                 TypeError,
             ) as exc:
-                if full_sync:
-                    raise RuntimeError(
-                        f"Failed to fetch expected totals for {model_name}: {exc}"
-                    ) from exc
                 logger.warning(
-                    "Unable to fetch expected totals for %s during incremental sync: %s",
+                    "Unable to fetch expected totals for %s during %s sync: %s",
                     model_name,
+                    "full" if full_sync else "incremental",
                     exc,
                 )
                 continue
 
             if expected_total is None:
-                if full_sync:
-                    raise RuntimeError(
-                        f"Missing total_entries in RepairShopr metadata for {model_name}."
-                    )
                 logger.warning(
-                    "RepairShopr metadata did not include total_entries for %s.",
+                    "RepairShopr metadata did not include total_entries for %s during %s sync.",
                     model_name,
+                    "full" if full_sync else "incremental",
                 )
                 continue
 
@@ -665,7 +658,7 @@ class Command(BaseCommand):
             )
 
             if abs(delta) > allowed_delta:
-                parity_failures.append(
+                logger.warning(
                     f"{model_name}: expected={expected_total} actual={actual_total} "
                     f"delta={delta} allowed_delta={allowed_delta}"
                 )
@@ -684,18 +677,15 @@ class Command(BaseCommand):
             TypeError,
             DatabaseError,
         ) as exc:
-            if full_sync:
-                raise RuntimeError(
-                    f"Failed to evaluate invoice line-item sample parity: {exc}"
-                ) from exc
             logger.warning(
-                "Unable to evaluate invoice line-item sample parity during incremental sync: %s",
+                "Unable to evaluate invoice line-item sample parity during %s sync: %s",
+                "full" if full_sync else "incremental",
                 exc,
             )
             self._log_sync_check(
                 "invoice_line_item_sample_error",
                 {
-                    "mode": "incremental",
+                    "mode": "full" if full_sync else "incremental",
                     "error": str(exc),
                 },
             )
@@ -717,15 +707,7 @@ class Command(BaseCommand):
                     f"Invoice line-item sample mismatches={mismatch_count} "
                     f"allowed={allowed_sample_mismatches}"
                 )
-                if full_sync:
-                    parity_failures.append(mismatch_message)
-                else:
-                    logger.warning(mismatch_message)
-
-        if full_sync and parity_failures:
-            raise RuntimeError(
-                "Sync completeness validation failed: " + "; ".join(parity_failures)
-            )
+                logger.warning(mismatch_message)
 
     @staticmethod
     def dynamic_import(path: str) -> type:

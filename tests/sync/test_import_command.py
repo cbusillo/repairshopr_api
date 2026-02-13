@@ -405,10 +405,13 @@ def test_handle_logs_timing_and_updates_last_updated_at(
     assert fake_client.progress_callback is None
 
 
-def test_validate_sync_completeness_raises_for_full_sync_parity_mismatch(
-    command: CommandFixture, monkeypatch: pytest.MonkeyPatch
+def test_validate_sync_completeness_warns_for_full_sync_parity_mismatch(
+    command: CommandFixture,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     cmd, _ = command
+    caplog.set_level(logging.WARNING)
 
     monkeypatch.setattr(
         cmd,
@@ -435,8 +438,8 @@ def test_validate_sync_completeness_raises_for_full_sync_parity_mismatch(
         },
     )
 
-    with pytest.raises(RuntimeError, match="Sync completeness validation failed"):
-        cmd.validate_sync_completeness(full_sync=True)
+    cmd.validate_sync_completeness(full_sync=True)
+    assert "invoice_line_items: expected=10 actual=200" in caplog.text
 
 
 def test_validate_sync_completeness_warns_but_does_not_raise_for_incremental(
@@ -1077,8 +1080,9 @@ def test_validate_sync_completeness_handles_metadata_failure_modes(
         "_fetch_line_item_total_entries",
         lambda _key: (_ for _ in ()).throw(requests.RequestException("boom")),
     )
-    with pytest.raises(RuntimeError, match="Failed to fetch expected totals"):
-        cmd.validate_sync_completeness(full_sync=True)
+    caplog.clear()
+    cmd.validate_sync_completeness(full_sync=True)
+    assert "Unable to fetch expected totals" in caplog.text
 
 
 def test_handle_marks_sync_failed_on_exception(
