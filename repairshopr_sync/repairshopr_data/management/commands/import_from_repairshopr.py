@@ -39,6 +39,7 @@ INCREMENTAL_INVOICE_SAMPLE_SIZE = 4
 HEARTBEAT_PAGE_INTERVAL = 10
 HEARTBEAT_RECORD_INTERVAL = 100
 HEARTBEAT_SECONDS_INTERVAL = 30
+LINE_ITEM_REPAIR_MAX_PASSES = 2
 
 
 def _instance_values(api_instance: object) -> Mapping[str, object] | None:
@@ -436,7 +437,6 @@ class Command(BaseCommand):
                 if not isinstance(sub_api_instances, list):
                     continue
 
-                sub_django_instances = []
                 for sub_api_instance in sub_api_instances:
                     self._maybe_write_sync_heartbeat()
                     sub_django_instance = create_or_update_django_instance(
@@ -451,12 +451,6 @@ class Command(BaseCommand):
                         save = getattr(sub_django_instance, "save")
                         if callable(save):
                             save()
-                    sub_django_instances.append(sub_django_instance)
-
-                if hasattr(django_instance, related_obj.name):
-                    getattr(django_instance, related_obj.name).set(
-                        sub_django_instances
-                    )
 
             logger.info(
                 self.style.SUCCESS(
@@ -504,6 +498,36 @@ class Command(BaseCommand):
             return None
         return self._normalize_total_entries(meta_data.get("total_entries"))
 
+    def _fetch_invoice_line_item_index(self) -> dict[int, int]:
+        line_item_invoice_index: dict[int, int] = {}
+        page = 1
+        while True:
+            params: QueryParams = {"invoice_id_not_null": True}
+            if page > 1:
+                params["page"] = page
+
+            response_data, meta_data = self.client.fetch_from_api(
+                "line_item", params=params
+            )
+            for row in response_data:
+                if not isinstance(row, dict):
+                    continue
+                line_item_id = _normalize_identifier(row.get("id"))
+                invoice_id = _normalize_identifier(row.get("invoice_id"))
+                if line_item_id is None or invoice_id is None:
+                    continue
+                line_item_invoice_index[line_item_id] = invoice_id
+
+            if not isinstance(meta_data, dict):
+                break
+
+            total_pages = self._normalize_total_entries(meta_data.get("total_pages"))
+            if total_pages is None or page >= total_pages:
+                break
+            page += 1
+
+        return line_item_invoice_index
+
     def _fetch_invoice_line_item_count(self, invoice_id: int) -> int:
         total_rows = 0
         page = 1
@@ -526,6 +550,109 @@ class Command(BaseCommand):
             page += 1
 
         return total_rows
+
+    def _sync_invoice_line_items_for_invoice(self, invoice_id: int) -> int:
+        total_rows = 0
+        page = 1
+        while True:
+            params: QueryParams = {"invoice_id": invoice_id}
+            if page > 1:
+                params["page"] = page
+
+            response_data, meta_data = self.client.fetch_from_api(
+                "line_item", params=params
+            )
+            for row in response_data:
+                if not isinstance(row, dict):
+                    continue
+                self._maybe_write_sync_heartbeat()
+                synchronized_line_item = create_or_update_django_instance(
+                    InvoiceLineItem,
+                    row,
+                    extra_fields={"parent_invoice_id": invoice_id},
+                )
+                if synchronized_line_item is None:
+                    continue
+                total_rows += 1
+
+            if not isinstance(meta_data, dict):
+                break
+
+            total_pages = self._normalize_total_entries(meta_data.get("total_pages"))
+            if total_pages is None or page >= total_pages:
+                break
+            page += 1
+
+        return total_rows
+
+    def _repair_missing_invoice_line_items(self) -> dict[str, object]:
+        report: dict[str, object] = {
+            "passes": 0,
+            "line_items_scanned": 0,
+            "missing_count_before": 0,
+            "missing_count_after": 0,
+            "invoice_repairs": 0,
+            "rows_upserted": 0,
+            "skipped_invoice_count": 0,
+            "skipped_invoice_examples": [],
+        }
+        total_invoice_repairs = 0
+        total_rows_upserted = 0
+
+        for repair_pass in range(1, LINE_ITEM_REPAIR_MAX_PASSES + 1):
+            self.client.clear_cache()
+            api_line_items = self._fetch_invoice_line_item_index()
+            report["passes"] = repair_pass
+            report["line_items_scanned"] = len(api_line_items)
+
+            db_line_item_ids = set(InvoiceLineItem.objects.values_list("id", flat=True))
+            missing_line_item_ids = set(api_line_items) - db_line_item_ids
+            if repair_pass == 1:
+                report["missing_count_before"] = len(missing_line_item_ids)
+
+            if not missing_line_item_ids:
+                report["missing_count_after"] = 0
+                return report
+
+            missing_invoice_ids = sorted(
+                {
+                    api_line_items[line_item_id]
+                    for line_item_id in missing_line_item_ids
+                    if line_item_id in api_line_items
+                }
+            )
+            existing_invoice_ids = set(
+                Invoice.objects.filter(id__in=missing_invoice_ids).values_list(
+                    "id", flat=True
+                )
+            )
+
+            skipped_invoice_ids = [
+                invoice_id
+                for invoice_id in missing_invoice_ids
+                if invoice_id not in existing_invoice_ids
+            ]
+            report["skipped_invoice_count"] = len(skipped_invoice_ids)
+            report["skipped_invoice_examples"] = skipped_invoice_ids[:10]
+
+            rows_upserted = 0
+            repaired_invoice_count = 0
+            for invoice_id in missing_invoice_ids:
+                if invoice_id not in existing_invoice_ids:
+                    continue
+                repaired_invoice_count += 1
+                rows_upserted += self._sync_invoice_line_items_for_invoice(invoice_id)
+            total_invoice_repairs += repaired_invoice_count
+            total_rows_upserted += rows_upserted
+            report["invoice_repairs"] = total_invoice_repairs
+            report["rows_upserted"] = total_rows_upserted
+
+            db_line_item_ids = set(InvoiceLineItem.objects.values_list("id", flat=True))
+            report["missing_count_after"] = len(set(api_line_items) - db_line_item_ids)
+            if report["missing_count_after"] == 0:
+                return report
+
+        return report
 
     @staticmethod
     def _pick_first_invoice_id_at_or_after(target_id: int) -> int | None:
@@ -603,6 +730,7 @@ class Command(BaseCommand):
         }
 
     def validate_sync_completeness(self, *, full_sync: bool) -> None:
+        needs_invoice_line_item_repair = False
         parity_expectations = (
             (
                 "invoice_line_items",
@@ -662,6 +790,8 @@ class Command(BaseCommand):
                     f"{model_name}: expected={expected_total} actual={actual_total} "
                     f"delta={delta} allowed_delta={allowed_delta}"
                 )
+                if model_name == "invoice_line_items" and delta < 0:
+                    needs_invoice_line_item_repair = True
 
         sample_size = (
             FULL_SYNC_INVOICE_SAMPLE_SIZE
@@ -708,6 +838,37 @@ class Command(BaseCommand):
                     f"allowed={allowed_sample_mismatches}"
                 )
                 logger.warning(mismatch_message)
+                needs_invoice_line_item_repair = True
+
+        if full_sync and needs_invoice_line_item_repair:
+            try:
+                repair_report = self._repair_missing_invoice_line_items()
+            except (
+                requests.RequestException,
+                PermissionError,
+                ValueError,
+                TypeError,
+                DatabaseError,
+            ) as exc:
+                logger.warning(
+                    "Unable to repair invoice line-item mismatches during full sync: %s",
+                    exc,
+                )
+                self._log_sync_check(
+                    "invoice_line_item_repair_error",
+                    {
+                        "mode": "full",
+                        "error": str(exc),
+                    },
+                )
+            else:
+                self._log_sync_check(
+                    "invoice_line_item_repair",
+                    {
+                        "mode": "full",
+                        **repair_report,
+                    },
+                )
 
     @staticmethod
     def dynamic_import(path: str) -> type:
