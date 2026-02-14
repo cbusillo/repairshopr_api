@@ -206,6 +206,24 @@ def setup_handle_model_test_state(
     return cmd, fake_client, set_calls, saved_children, parent_instance
 
 
+def build_invoice_line_items_models() -> tuple[type, type[BaseModel]]:
+    class DjangoModel:
+        __name__ = "Invoice"
+        _meta = SimpleNamespace(
+            related_objects=[
+                SimpleNamespace(name="line_items", field=SimpleNamespace(name="parent_invoice"))
+            ]
+        )
+        objects = SimpleNamespace()
+
+    class ApiModel(BaseModel):
+        @property
+        def line_items(self) -> list[SimpleNamespace]:
+            return [SimpleNamespace(id=21), SimpleNamespace(id=22)]
+
+    return DjangoModel, ApiModel
+
+
 @pytest.fixture
 def command(monkeypatch: pytest.MonkeyPatch) -> CommandFixture:
     fake_client = FakeClient()
@@ -840,7 +858,8 @@ def test_handle_model_processes_related_submodels(
     )
 
     assert saved_children == [11, 12]
-    assert len(set_calls) == 0
+    assert len(set_calls) == 1
+    assert [item.id for item in set_calls[0]] == [11, 12]
 
 
 def test_handle_model_processes_line_items_from_property(
@@ -872,30 +891,64 @@ def test_handle_model_processes_line_items_from_property(
         command_module, "create_or_update_django_instance", fake_create_or_update
     )
 
-    class DjangoModel:
-        __name__ = "Invoice"
-        _meta = SimpleNamespace(
-            related_objects=[
-                SimpleNamespace(name="line_items", field=SimpleNamespace(name="parent_invoice"))
-            ]
-        )
-        objects = SimpleNamespace()
+    django_model_cls, api_model_cls = build_invoice_line_items_models()
 
-    class ApiModel(BaseModel):
-        @property
-        def line_items(self) -> list[SimpleNamespace]:
-            return [SimpleNamespace(id=21), SimpleNamespace(id=22)]
+    fake_client.get_model = lambda *_args, **_kwargs: [api_model_cls(id=1)]
 
-    fake_client.get_model = lambda *_args, **_kwargs: [ApiModel(id=1)]
-
-    set_handle_model_imports_for_submodels(monkeypatch, cmd, DjangoModel, ApiModel)
+    set_handle_model_imports_for_submodels(
+        monkeypatch, cmd, django_model_cls, api_model_cls
+    )
 
     cmd.handle_model(
         "repairshopr_data.models.invoice.Invoice", "repairshopr_api.models.Invoice"
     )
 
     assert saved_children == [21, 22]
+    assert len(set_calls) == 1
+    assert [item.id for item in set_calls[0]] == [21, 22]
+
+
+def test_handle_model_skips_relation_reset_when_child_imports_are_skipped(
+    command: CommandFixture,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    cmd, fake_client, set_calls, _saved_children, parent_instance = (
+        setup_handle_model_test_state(command, "line_items")
+    )
+
+    django_model_cls, api_model_cls = build_invoice_line_items_models()
+
+    def fake_create_or_update(
+        model_cls: type[models.Model],
+        api_instance: object,
+        extra_fields: Mapping[str, object] | None = None,
+    ) -> SimpleNamespace | None:
+        _ = extra_fields
+        if model_cls.__name__ == "DjangoModel":
+            return parent_instance
+        item_id = int(getattr(api_instance, "id", 0))
+        if item_id == 22:
+            return None
+        child = SimpleNamespace(id=item_id)
+        child.save = lambda: None
+        return child
+
+    monkeypatch.setattr(
+        command_module, "create_or_update_django_instance", fake_create_or_update
+    )
+    fake_client.get_model = lambda *_args, **_kwargs: [api_model_cls(id=1)]
+    set_handle_model_imports_for_submodels(
+        monkeypatch, cmd, django_model_cls, api_model_cls
+    )
+
+    caplog.set_level(logging.WARNING)
+    cmd.handle_model(
+        "repairshopr_data.models.invoice.Invoice", "repairshopr_api.models.Invoice"
+    )
+
     assert len(set_calls) == 0
+    assert "Skipping relation reset for DjangoModel.line_items" in caplog.text
 
 
 def test_repair_missing_invoice_line_items_repairs_existing_invoices_only(

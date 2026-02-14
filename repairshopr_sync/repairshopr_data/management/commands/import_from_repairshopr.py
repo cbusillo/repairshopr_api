@@ -437,12 +437,15 @@ class Command(BaseCommand):
                 if not isinstance(sub_api_instances, list):
                     continue
 
+                sub_django_instances = []
+                skipped_submodel_instances = 0
                 for sub_api_instance in sub_api_instances:
                     self._maybe_write_sync_heartbeat()
                     sub_django_instance = create_or_update_django_instance(
                         sub_django_model, sub_api_instance
                     )
                     if sub_django_instance is None:
+                        skipped_submodel_instances += 1
                         continue
                     setattr(
                         sub_django_instance, related_obj.field.name, django_instance
@@ -451,6 +454,23 @@ class Command(BaseCommand):
                         save = getattr(sub_django_instance, "save")
                         if callable(save):
                             save()
+                    sub_django_instances.append(sub_django_instance)
+
+                if not hasattr(django_instance, related_obj.name):
+                    continue
+                related_manager = getattr(django_instance, related_obj.name)
+                set_method = getattr(related_manager, "set", None)
+                if not callable(set_method):
+                    continue
+                if skipped_submodel_instances > 0:
+                    logger.warning(
+                        "Skipping relation reset for %s.%s due to %s skipped child imports.",
+                        parent_model_name,
+                        related_obj.name,
+                        skipped_submodel_instances,
+                    )
+                    continue
+                set_method(sub_django_instances)
 
             logger.info(
                 self.style.SUCCESS(
