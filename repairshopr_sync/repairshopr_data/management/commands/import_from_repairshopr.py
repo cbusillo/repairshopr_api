@@ -463,13 +463,14 @@ class Command(BaseCommand):
                 if not callable(set_method):
                     continue
                 if skipped_submodel_instances > 0:
-                    logger.warning(
-                        "Skipping relation reset for %s.%s due to %s skipped child imports.",
-                        parent_model_name,
-                        related_obj.name,
-                        skipped_submodel_instances,
-                    )
-                    continue
+                    if related_obj.name in RELATED_PROPERTY_COLLECTIONS:
+                        logger.warning(
+                            "Skipping relation reset for %s.%s due to %s skipped child imports.",
+                            parent_model_name,
+                            related_obj.name,
+                            skipped_submodel_instances,
+                        )
+                        continue
                 set_method(sub_django_instances)
 
             logger.info(

@@ -951,6 +951,57 @@ def test_handle_model_skips_relation_reset_when_child_imports_are_skipped(
     assert "Skipping relation reset for DjangoModel.line_items" in caplog.text
 
 
+def test_handle_model_resets_non_line_item_relations_even_with_skipped_children(
+    command: CommandFixture,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    cmd, fake_client, set_calls, _saved_children, parent_instance = (
+        setup_handle_model_test_state(command, "ticketcomments")
+    )
+
+    class DjangoModel:
+        __name__ = "Ticket"
+        _meta = SimpleNamespace(
+            related_objects=[
+                SimpleNamespace(name="ticketcomments", field=SimpleNamespace(name="ticket"))
+            ]
+        )
+        objects = SimpleNamespace()
+
+    class ApiModel(BaseModel):
+        pass
+
+    def fake_create_or_update(
+        model_cls: type[models.Model],
+        api_instance: object,
+        extra_fields: Mapping[str, object] | None = None,
+    ) -> SimpleNamespace | None:
+        _ = extra_fields
+        if model_cls.__name__ == "DjangoModel":
+            return parent_instance
+        child_id = int(getattr(api_instance, "id", 0))
+        if child_id == 12:
+            return None
+        child = SimpleNamespace(id=child_id)
+        child.save = lambda: None
+        return child
+
+    monkeypatch.setattr(
+        command_module, "create_or_update_django_instance", fake_create_or_update
+    )
+    fake_client.get_model = lambda *_args, **_kwargs: [
+        SimpleNamespace(id=1, ticketcomments=[SimpleNamespace(id=11), SimpleNamespace(id=12)])
+    ]
+    set_handle_model_imports_for_submodels(monkeypatch, cmd, DjangoModel, ApiModel)
+
+    cmd.handle_model(
+        "repairshopr_data.models.ticket.Ticket", "repairshopr_api.models.Ticket"
+    )
+
+    assert len(set_calls) == 1
+    assert [item.id for item in set_calls[0]] == [11]
+
+
 def test_repair_missing_invoice_line_items_repairs_existing_invoices_only(
     command: CommandFixture,
     monkeypatch: pytest.MonkeyPatch,
