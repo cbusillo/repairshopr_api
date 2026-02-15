@@ -1362,9 +1362,12 @@ def test_fetch_invoice_line_item_index_and_invoice_sync_pagination(
     synced_rows = cmd._sync_invoice_line_items_for_invoice(77)
 
     assert index == {1: 10, 2: 20, 3: 20}
+    assert cmd._status_current_model == "line_item_repair"
+    assert cmd._status_current_page == 2
+    assert cmd._status_records_processed == 3
     assert synced_rows == 2
     assert upserted_ids == [501, 503]
-    assert len(heartbeat_calls) == 3
+    assert len(heartbeat_calls) == 7
     assert {"invoice_id": 77, "page": 2} in fetch_calls
 
 

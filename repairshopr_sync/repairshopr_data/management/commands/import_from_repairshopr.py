@@ -521,8 +521,11 @@ class Command(BaseCommand):
 
     def _fetch_invoice_line_item_index(self) -> dict[int, int]:
         line_item_invoice_index: dict[int, int] = {}
+        self._status_current_model = "line_item_repair"
         page = 1
         while True:
+            self._status_current_page = page
+            self._maybe_write_sync_heartbeat()
             params: QueryParams = {"invoice_id_not_null": True}
             if page > 1:
                 params["page"] = page
@@ -538,6 +541,9 @@ class Command(BaseCommand):
                 if line_item_id is None or invoice_id is None:
                     continue
                 line_item_invoice_index[line_item_id] = invoice_id
+
+            self._status_records_processed = len(line_item_invoice_index)
+            self._maybe_write_sync_heartbeat()
 
             if not isinstance(meta_data, dict):
                 break
