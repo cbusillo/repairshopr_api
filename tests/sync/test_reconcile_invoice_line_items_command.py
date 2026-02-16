@@ -71,12 +71,15 @@ def test_reconcile_scan_reports_duplicates_and_missing(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     db_line_item_ids = {1, 2, 4}
+    fetched_pages: list[int] = []
 
     class FakeClient:
         @staticmethod
         def fetch_from_api(model_name: str, params: dict[str, object] | None = None):
             assert model_name == "line_item"
             page = (params or {}).get("page", 1)
+            assert isinstance(page, int)
+            fetched_pages.append(page)
             if page == 1:
                 return [
                     {"id": 1, "invoice_id": 10},
@@ -119,6 +122,7 @@ def test_reconcile_scan_reports_duplicates_and_missing(
     assert summary["missing_invoice_ids_count"] == 1
     assert summary["missing_invoice_ids_without_parent_invoice_row"] == 0
     assert not any(line["event"] == "repair_summary" for line in parsed_lines)
+    assert fetched_pages == [1, 2]
 
 
 def test_reconcile_compute_db_not_in_api_unique(
