@@ -49,6 +49,9 @@ Notes:
 Use the dedicated reconcile command to diagnose and optionally repair invoice
 line-item drift without waiting for a full sync cycle.
 
+See the production runbook in
+`docs/ops/repairshopr-sync-confidence-runbook.md`.
+
 - Forensic scan only:
 
   ```bash

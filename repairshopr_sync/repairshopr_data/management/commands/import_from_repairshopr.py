@@ -39,8 +39,6 @@ INCREMENTAL_INVOICE_SAMPLE_SIZE = 4
 HEARTBEAT_PAGE_INTERVAL = 10
 HEARTBEAT_RECORD_INTERVAL = 100
 HEARTBEAT_SECONDS_INTERVAL = 30
-LINE_ITEM_REPAIR_MAX_PASSES = 2
-LINE_ITEM_EXISTENCE_BATCH_SIZE = 5_000
 
 
 def _instance_values(api_instance: object) -> Mapping[str, object] | None:
@@ -520,67 +518,6 @@ class Command(BaseCommand):
             return None
         return self._normalize_total_entries(meta_data.get("total_entries"))
 
-    def _fetch_invoice_line_item_index(self) -> dict[int, int]:
-        line_item_invoice_index: dict[int, int] = {}
-        self._status_current_model = "line_item_repair"
-        page = 1
-        while True:
-            self._status_current_page = page
-            self._maybe_write_sync_heartbeat()
-            params: QueryParams = {"invoice_id_not_null": "true"}
-            if page > 1:
-                params["page"] = page
-
-            response_data, meta_data = self.client.fetch_from_api(
-                "line_item", params=params
-            )
-            for row in response_data:
-                if not isinstance(row, dict):
-                    continue
-                line_item_id = _normalize_identifier(row.get("id"))
-                invoice_id = _normalize_identifier(row.get("invoice_id"))
-                if line_item_id is None or invoice_id is None:
-                    continue
-                line_item_invoice_index[line_item_id] = invoice_id
-
-            self._status_records_processed = len(line_item_invoice_index)
-            self._maybe_write_sync_heartbeat()
-
-            if not isinstance(meta_data, dict):
-                break
-
-            total_pages = self._normalize_total_entries(meta_data.get("total_pages"))
-            if total_pages is None or page >= total_pages:
-                break
-            page += 1
-
-        return line_item_invoice_index
-
-    def _fetch_existing_invoice_line_item_ids(
-        self, candidate_line_item_ids: set[int]
-    ) -> set[int]:
-        if not candidate_line_item_ids:
-            return set()
-
-        existing_ids: set[int] = set()
-        candidate_ids = list(candidate_line_item_ids)
-        for chunk_index, start in enumerate(
-            range(0, len(candidate_ids), LINE_ITEM_EXISTENCE_BATCH_SIZE),
-            start=1,
-        ):
-            chunk_ids = candidate_ids[start : start + LINE_ITEM_EXISTENCE_BATCH_SIZE]
-            self._status_current_model = "line_item_repair_db_check"
-            self._status_current_page = chunk_index
-            self._maybe_write_sync_heartbeat()
-            chunk_existing_ids = InvoiceLineItem.objects.filter(id__in=chunk_ids).values_list(
-                "id", flat=True
-            )
-            existing_ids.update(chunk_existing_ids)
-            self._status_records_processed = len(existing_ids)
-            self._maybe_write_sync_heartbeat()
-
-        return existing_ids
-
     def _fetch_invoice_line_item_count(self, invoice_id: int) -> int:
         total_rows = 0
         page = 1
@@ -608,117 +545,6 @@ class Command(BaseCommand):
 
         return total_rows
 
-    def _sync_invoice_line_items_for_invoice(self, invoice_id: int) -> int:
-        total_rows = 0
-        page = 1
-        while True:
-            params: QueryParams = {"invoice_id": invoice_id}
-            if page > 1:
-                params["page"] = page
-
-            response_data, meta_data = self.client.fetch_from_api(
-                "line_item", params=params
-            )
-            for row in response_data:
-                if not isinstance(row, dict):
-                    continue
-                self._maybe_write_sync_heartbeat()
-                synchronized_line_item = create_or_update_django_instance(
-                    InvoiceLineItem,
-                    row,
-                    extra_fields={"parent_invoice_id": invoice_id},
-                )
-                if synchronized_line_item is None:
-                    continue
-                total_rows += 1
-
-            if not isinstance(meta_data, dict):
-                break
-
-            total_pages = self._normalize_total_entries(meta_data.get("total_pages"))
-            if total_pages is None or page >= total_pages:
-                break
-            page += 1
-
-        return total_rows
-
-    def _repair_missing_invoice_line_items(self) -> dict[str, object]:
-        report: dict[str, object] = {
-            "passes": 0,
-            "line_items_scanned": 0,
-            "missing_count_before": 0,
-            "missing_count_after": 0,
-            "invoice_repairs": 0,
-            "rows_upserted": 0,
-            "skipped_invoice_count": 0,
-            "skipped_invoice_examples": [],
-        }
-        total_invoice_repairs = 0
-        total_rows_upserted = 0
-
-        for repair_pass in range(1, LINE_ITEM_REPAIR_MAX_PASSES + 1):
-            self._status_current_model = "line_item_repair"
-            self._status_current_page = repair_pass
-            self._maybe_write_sync_heartbeat(force=True)
-            self.client.clear_cache()
-            api_line_items = self._fetch_invoice_line_item_index()
-            report["passes"] = repair_pass
-            report["line_items_scanned"] = len(api_line_items)
-
-            api_line_item_ids = set(api_line_items)
-            existing_db_line_item_ids = self._fetch_existing_invoice_line_item_ids(
-                api_line_item_ids
-            )
-            missing_line_item_ids = api_line_item_ids - existing_db_line_item_ids
-            if repair_pass == 1:
-                report["missing_count_before"] = len(missing_line_item_ids)
-
-            if not missing_line_item_ids:
-                report["missing_count_after"] = 0
-                return report
-
-            missing_invoice_ids = sorted(
-                {
-                    api_line_items[line_item_id]
-                    for line_item_id in missing_line_item_ids
-                    if line_item_id in api_line_items
-                }
-            )
-            existing_invoice_ids = set(
-                Invoice.objects.filter(id__in=missing_invoice_ids).values_list(
-                    "id", flat=True
-                )
-            )
-
-            skipped_invoice_ids = [
-                invoice_id
-                for invoice_id in missing_invoice_ids
-                if invoice_id not in existing_invoice_ids
-            ]
-            report["skipped_invoice_count"] = len(skipped_invoice_ids)
-            report["skipped_invoice_examples"] = skipped_invoice_ids[:10]
-
-            rows_upserted = 0
-            repaired_invoice_count = 0
-            for invoice_id in missing_invoice_ids:
-                self._maybe_write_sync_heartbeat()
-                if invoice_id not in existing_invoice_ids:
-                    continue
-                repaired_invoice_count += 1
-                rows_upserted += self._sync_invoice_line_items_for_invoice(invoice_id)
-            total_invoice_repairs += repaired_invoice_count
-            total_rows_upserted += rows_upserted
-            report["invoice_repairs"] = total_invoice_repairs
-            report["rows_upserted"] = total_rows_upserted
-
-            remaining_line_item_ids = missing_line_item_ids - self._fetch_existing_invoice_line_item_ids(
-                missing_line_item_ids
-            )
-            report["missing_count_after"] = len(remaining_line_item_ids)
-            if report["missing_count_after"] == 0:
-                return report
-
-        return report
 
     @staticmethod
     def _pick_first_invoice_id_at_or_after(target_id: int) -> int | None:

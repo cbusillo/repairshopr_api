@@ -165,6 +165,35 @@ def set_line_item_parity_counts(
     )
 
 
+def configure_deferred_line_item_repair_check(
+    monkeypatch: pytest.MonkeyPatch,
+    cmd: command_module.Command,
+) -> list[tuple[str, Mapping[str, object]]]:
+    set_line_item_parity_counts(
+        monkeypatch,
+        cmd,
+        expected_total=100,
+        invoice_count=20,
+        estimate_count=100,
+    )
+    monkeypatch.setattr(
+        cmd,
+        "_evaluate_invoice_line_item_sample_parity",
+        lambda *_args, **_kwargs: {
+            "sample_size": 4,
+            "mismatch_count": 0,
+            "mismatches": [],
+        },
+    )
+    check_events: list[tuple[str, Mapping[str, object]]] = []
+    monkeypatch.setattr(
+        cmd,
+        "_log_sync_check",
+        lambda event, payload: check_events.append((event, payload)),
+    )
+    return check_events
+
+
 def set_handle_model_imports_for_submodels(
     monkeypatch: pytest.MonkeyPatch,
     cmd: command_module.Command,
@@ -1002,106 +1031,12 @@ def test_handle_model_resets_non_line_item_relations_even_with_skipped_children(
     assert [item.id for item in set_calls[0]] == [11]
 
 
-def test_repair_missing_invoice_line_items_repairs_existing_invoices_only(
-    command: CommandFixture,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    cmd, _ = command
-    db_line_item_ids = {1, 2}
-    api_index = {1: 10, 2: 10, 3: 20, 4: 999}
-
-    class InvoiceLineItemFilterResult:
-        def __init__(self, ids: list[int], existing_ids: set[int]) -> None:
-            self._ids = ids
-            self._existing_ids = existing_ids
-
-        def values_list(self, field_name: str, *, flat: bool = False) -> list[int]:
-            assert field_name == "id"
-            assert flat is True
-            return [line_item_id for line_item_id in self._ids if line_item_id in self._existing_ids]
-
-    class InvoiceLineItemManager:
-        @staticmethod
-        def filter(*, id__in: list[int]) -> InvoiceLineItemFilterResult:
-            return InvoiceLineItemFilterResult(id__in, db_line_item_ids)
-
-    class InvoiceFilterResult:
-        def __init__(self, ids: list[int], existing_ids: set[int]) -> None:
-            self._ids = ids
-            self._existing_ids = existing_ids
-
-        def values_list(self, field_name: str, *, flat: bool = False) -> list[int]:
-            assert field_name == "id"
-            assert flat is True
-            return [invoice_id for invoice_id in self._ids if invoice_id in self._existing_ids]
-
-    class InvoiceManager:
-        @staticmethod
-        def filter(*, id__in: list[int]) -> InvoiceFilterResult:
-            return InvoiceFilterResult(id__in, {20})
-
-    monkeypatch.setattr(
-        command_module,
-        "InvoiceLineItem",
-        SimpleNamespace(objects=InvoiceLineItemManager()),
-    )
-    monkeypatch.setattr(
-        command_module,
-        "Invoice",
-        SimpleNamespace(objects=InvoiceManager()),
-    )
-
-    clear_calls: list[str] = []
-    monkeypatch.setattr(cmd.client, "clear_cache", lambda: clear_calls.append("clear"))
-    monkeypatch.setattr(cmd, "_fetch_invoice_line_item_index", lambda: api_index)
-
-    def fake_sync(invoice_id: int) -> int:
-        repaired = [line_item_id for line_item_id, parent_id in api_index.items() if parent_id == invoice_id]
-        for line_item_id in repaired:
-            db_line_item_ids.add(line_item_id)
-        return len(repaired)
-
-    monkeypatch.setattr(cmd, "_sync_invoice_line_items_for_invoice", fake_sync)
-
-    report = cmd._repair_missing_invoice_line_items()
-
-    assert report["missing_count_before"] == 2
-    assert report["missing_count_after"] == 1
-    assert report["invoice_repairs"] == 1
-    assert report["rows_upserted"] == 1
-    assert report["skipped_invoice_count"] == 1
-    assert report["skipped_invoice_examples"] == [999]
-    assert report["passes"] == 2
-    assert len(clear_calls) == 2
-
-
 def test_validate_sync_completeness_defers_full_sync_repair_to_reconcile_command(
     command: CommandFixture,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     cmd, _ = command
-    set_line_item_parity_counts(
-        monkeypatch,
-        cmd,
-        expected_total=100,
-        invoice_count=20,
-        estimate_count=100,
-    )
-    monkeypatch.setattr(
-        cmd,
-        "_evaluate_invoice_line_item_sample_parity",
-        lambda *_args, **_kwargs: {
-            "sample_size": 4,
-            "mismatch_count": 0,
-            "mismatches": [],
-        },
-    )
-    check_events: list[tuple[str, Mapping[str, object]]] = []
-    monkeypatch.setattr(
-        cmd,
-        "_log_sync_check",
-        lambda event, payload: check_events.append((event, payload)),
-    )
+    check_events = configure_deferred_line_item_repair_check(monkeypatch, cmd)
 
     cmd.validate_sync_completeness(full_sync=True)
     assert any(event == "invoice_line_item_repair_deferred" for event, _ in check_events)
@@ -1117,28 +1052,7 @@ def test_validate_sync_completeness_logs_deferred_repair_warning(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     cmd, _ = command
-    set_line_item_parity_counts(
-        monkeypatch,
-        cmd,
-        expected_total=100,
-        invoice_count=20,
-        estimate_count=100,
-    )
-    monkeypatch.setattr(
-        cmd,
-        "_evaluate_invoice_line_item_sample_parity",
-        lambda *_args, **_kwargs: {
-            "sample_size": 4,
-            "mismatch_count": 0,
-            "mismatches": [],
-        },
-    )
-    check_events: list[tuple[str, Mapping[str, object]]] = []
-    monkeypatch.setattr(
-        cmd,
-        "_log_sync_check",
-        lambda event, payload: check_events.append((event, payload)),
-    )
+    check_events = configure_deferred_line_item_repair_check(monkeypatch, cmd)
 
     caplog.set_level(logging.WARNING)
     cmd.validate_sync_completeness(full_sync=True)
@@ -1265,123 +1179,6 @@ def test_fetch_line_item_total_entries_and_invoice_pagination(
     assert cmd._fetch_line_item_total_entries("estimate_id_not_null") is None
     assert cmd._fetch_invoice_line_item_count(17) == 3
     assert {"invoice_id": 17, "page": 2} in call_log
-
-
-def test_fetch_invoice_line_item_index_and_invoice_sync_pagination(
-    command: CommandFixture,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    cmd, _ = command
-    fetch_calls: list[dict[str, object] | None] = []
-
-    def fake_fetch(
-        _model_name: str,
-        params: dict[str, object] | None = None,
-    ) -> tuple[list[dict[str, object] | list[object]], dict[str, object] | None]:
-        fetch_calls.append(params)
-        if params == {"invoice_id_not_null": "true"}:
-            return [
-                {"id": "1", "invoice_id": "10"},
-                {"id": 2, "invoice_id": 20},
-                {"id": "", "invoice_id": 30},
-            ], {"total_pages": 2}
-        if params == {"invoice_id_not_null": "true", "page": 2}:
-            return [
-                {"id": 3, "invoice_id": 20},
-                {"id": 4, "invoice_id": None},
-                [],
-            ], {"total_pages": 2}
-        if params == {"invoice_id": 77}:
-            return [{"id": 501}, {"id": 502}], {"total_pages": 2}
-        if params == {"invoice_id": 77, "page": 2}:
-            return [{"id": 503}], {"total_pages": 2}
-        raise AssertionError(f"unexpected params: {params}")
-
-    upserted_ids: list[int] = []
-
-    def fake_create_or_update(
-        _django_model: type[models.Model],
-        api_instance: Mapping[str, object],
-        extra_fields: Mapping[str, object] | None = None,
-    ) -> SimpleNamespace | None:
-        _ = extra_fields
-        raw_identifier = api_instance["id"]
-        assert isinstance(raw_identifier, int)
-        identifier = raw_identifier
-        if identifier == 502:
-            return None
-        upserted_ids.append(identifier)
-        return SimpleNamespace(id=identifier)
-
-    heartbeat_calls: list[str] = []
-    monkeypatch.setattr(cmd.client, "fetch_from_api", fake_fetch)
-    monkeypatch.setattr(
-        command_module, "create_or_update_django_instance", fake_create_or_update
-    )
-    monkeypatch.setattr(
-        cmd, "_maybe_write_sync_heartbeat", lambda **_kwargs: heartbeat_calls.append("beat")
-    )
-
-    index = cmd._fetch_invoice_line_item_index()
-    synced_rows = cmd._sync_invoice_line_items_for_invoice(77)
-
-    assert index == {1: 10, 2: 20, 3: 20}
-    assert cmd._status_current_model == "line_item_repair"
-    assert cmd._status_current_page == 2
-    assert cmd._status_records_processed == 3
-    assert synced_rows == 2
-    assert upserted_ids == [501, 503]
-    assert len(heartbeat_calls) == 7
-    assert {"invoice_id": 77, "page": 2} in fetch_calls
-
-
-def test_repair_missing_invoice_line_items_short_circuits_when_clean(
-    command: CommandFixture,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    cmd, _ = command
-
-    class InvoiceLineItemFilterResult:
-        def __init__(self, ids: list[int], existing_ids: set[int]) -> None:
-            self._ids = ids
-            self._existing_ids = existing_ids
-
-        def values_list(self, field_name: str, *, flat: bool = False) -> list[int]:
-            assert field_name == "id"
-            assert flat is True
-            return [line_item_id for line_item_id in self._ids if line_item_id in self._existing_ids]
-
-    class InvoiceLineItemManager:
-        _existing_ids = {100, 200}
-
-        @staticmethod
-        def filter(*, id__in: list[int]) -> InvoiceLineItemFilterResult:
-            return InvoiceLineItemFilterResult(id__in, InvoiceLineItemManager._existing_ids)
-
-    monkeypatch.setattr(
-        command_module,
-        "InvoiceLineItem",
-        SimpleNamespace(objects=InvoiceLineItemManager()),
-    )
-    monkeypatch.setattr(cmd.client, "clear_cache", lambda: None)
-    monkeypatch.setattr(
-        cmd,
-        "_fetch_invoice_line_item_index",
-        lambda: {100: 10, 200: 20},
-    )
-
-    sync_calls: list[int] = []
-    monkeypatch.setattr(
-        cmd,
-        "_sync_invoice_line_items_for_invoice",
-        lambda invoice_id: sync_calls.append(invoice_id) or 0,
-    )
-
-    report = cmd._repair_missing_invoice_line_items()
-    assert report["passes"] == 1
-    assert report["missing_count_before"] == 0
-    assert report["missing_count_after"] == 0
-    assert sync_calls == []
 
 
 def test_evaluate_invoice_line_item_sample_parity_reports_mismatches(
