@@ -50,11 +50,13 @@ docker compose -p <project_name> \
 
 ## Phase 2: Resume Incremental Sync
 
-1. Set `last_updated_at` to current UTC to avoid forced full-cycle reruns.
+1. Keep the existing `last_updated_at` watermark by default.
 2. Start `sync` service.
 
+Only set `last_updated_at` to current UTC if you explicitly want to skip
+changes that may have happened while `sync` was stopped.
+
 ```bash
-# example edit in config: last_updated_at = 2026-02-16T19:00:00Z
 docker compose -p <project_name> \
   -f docker/coolify/repairshopr-sync.yml \
   --env-file .env \

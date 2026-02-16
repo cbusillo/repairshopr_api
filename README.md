@@ -49,6 +49,9 @@ Notes:
 Use the dedicated reconcile command to diagnose invoice line-item drift without
 waiting for a full sync cycle.
 
+`reconcile_invoice_line_items` is forensic-only. The older repair flags
+`--apply` and `--max-repair-invoices` are no longer supported.
+
 See the production runbook in
 `docs/ops/repairshopr-sync-confidence-runbook.md`.
 
