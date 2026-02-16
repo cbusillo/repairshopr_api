@@ -165,35 +165,6 @@ def set_line_item_parity_counts(
     )
 
 
-def configure_deferred_line_item_repair_check(
-    monkeypatch: pytest.MonkeyPatch,
-    cmd: command_module.Command,
-) -> list[tuple[str, Mapping[str, object]]]:
-    set_line_item_parity_counts(
-        monkeypatch,
-        cmd,
-        expected_total=100,
-        invoice_count=20,
-        estimate_count=100,
-    )
-    monkeypatch.setattr(
-        cmd,
-        "_evaluate_invoice_line_item_sample_parity",
-        lambda *_args, **_kwargs: {
-            "sample_size": 4,
-            "mismatch_count": 0,
-            "mismatches": [],
-        },
-    )
-    check_events: list[tuple[str, Mapping[str, object]]] = []
-    monkeypatch.setattr(
-        cmd,
-        "_log_sync_check",
-        lambda event, payload: check_events.append((event, payload)),
-    )
-    return check_events
-
-
 def set_handle_model_imports_for_submodels(
     monkeypatch: pytest.MonkeyPatch,
     cmd: command_module.Command,
@@ -1031,40 +1002,39 @@ def test_handle_model_resets_non_line_item_relations_even_with_skipped_children(
     assert [item.id for item in set_calls[0]] == [11]
 
 
-def test_validate_sync_completeness_defers_full_sync_repair_to_reconcile_command(
+def test_validate_sync_completeness_does_not_emit_repair_deferred_event(
     command: CommandFixture,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     cmd, _ = command
-    check_events = configure_deferred_line_item_repair_check(monkeypatch, cmd)
-
-    cmd.validate_sync_completeness(full_sync=True)
-    assert any(event == "invoice_line_item_repair_deferred" for event, _ in check_events)
-
-    check_events.clear()
-    cmd.validate_sync_completeness(full_sync=False)
-    assert not any(event == "invoice_line_item_repair_deferred" for event, _ in check_events)
-
-
-def test_validate_sync_completeness_logs_deferred_repair_warning(
-    command: CommandFixture,
-    monkeypatch: pytest.MonkeyPatch,
-    caplog: pytest.LogCaptureFixture,
-) -> None:
-    cmd, _ = command
-    check_events = configure_deferred_line_item_repair_check(monkeypatch, cmd)
-
-    caplog.set_level(logging.WARNING)
-    cmd.validate_sync_completeness(full_sync=True)
-
-    assert "deferred to dedicated reconcile command" in caplog.text
-    assert any(event == "invoice_line_item_repair_deferred" for event, _ in check_events)
-    assert any(
-        payload["reason"]
-        == "global_line_item_parity_is_not_a_strict_truth_source"
-        for event, payload in check_events
-        if event == "invoice_line_item_repair_deferred"
+    set_line_item_parity_counts(
+        monkeypatch,
+        cmd,
+        expected_total=100,
+        invoice_count=20,
+        estimate_count=100,
     )
+    monkeypatch.setattr(
+        cmd,
+        "_evaluate_invoice_line_item_sample_parity",
+        lambda *_args, **_kwargs: {
+            "sample_size": 4,
+            "mismatch_count": 2,
+            "mismatches": [{"invoice_id": 7, "api_count": 4, "db_count": 1}],
+        },
+    )
+    check_events: list[tuple[str, Mapping[str, object]]] = []
+    monkeypatch.setattr(
+        cmd,
+        "_log_sync_check",
+        lambda event, payload: check_events.append((event, payload)),
+    )
+
+    cmd.validate_sync_completeness(full_sync=True)
+
+    assert any(event == "line_item_parity" for event, _ in check_events)
+    assert any(event == "invoice_line_item_sample" for event, _ in check_events)
+    assert not any(event == "invoice_line_item_repair_deferred" for event, _ in check_events)
 
 
 def test_sync_ticket_settings_success_and_failure_paths(

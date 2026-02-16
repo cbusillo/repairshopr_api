@@ -634,7 +634,6 @@ class Command(BaseCommand):
         self._status_current_page = 0
         self._status_records_processed = 0
         self._maybe_write_sync_heartbeat(force=True)
-        needs_invoice_line_item_repair = False
         parity_expectations = (
             (
                 "invoice_line_items",
@@ -698,8 +697,6 @@ class Command(BaseCommand):
                     f"{model_name}: expected={expected_total} actual={actual_total} "
                     f"delta={delta} allowed_delta={allowed_delta}"
                 )
-                if model_name == "invoice_line_items" and delta < 0:
-                    needs_invoice_line_item_repair = True
             self._status_records_processed = parity_index
             self._maybe_write_sync_heartbeat()
 
@@ -750,21 +747,6 @@ class Command(BaseCommand):
                     f"allowed={allowed_sample_mismatches}"
                 )
                 logger.warning(mismatch_message)
-                needs_invoice_line_item_repair = True
-
-        if full_sync and needs_invoice_line_item_repair:
-            self._status_current_page += 1
-            self._maybe_write_sync_heartbeat(force=True)
-            logger.warning(
-                "Invoice line-item parity mismatch detected during full sync; deferred to dedicated reconcile command."
-            )
-            self._log_sync_check(
-                "invoice_line_item_repair_deferred",
-                {
-                    "mode": "full",
-                    "reason": "global_line_item_parity_is_not_a_strict_truth_source",
-                },
-            )
 
     @staticmethod
     def dynamic_import(path: str) -> type:

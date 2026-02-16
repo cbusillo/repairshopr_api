@@ -4,26 +4,18 @@ from typing import Any
 from django.core.management.base import BaseCommand
 
 from repairshopr_api.client import Client
-from repairshopr_api.type_defs import QueryParams
 from repairshopr_data.management.commands.import_from_repairshopr import (
     _normalize_identifier,
-    create_or_update_django_instance,
 )
 from repairshopr_data.models import Invoice, InvoiceLineItem
 
 
 class Command(BaseCommand):
     help = (
-        "Forensically scan RepairShopr invoice line-item feed and optionally repair "
-        "line items by invoice_id."
+        "Forensically scan RepairShopr invoice line-item feed and report drift metrics."
     )
 
     def add_arguments(self, parser) -> None:  # type: ignore[no-untyped-def]
-        parser.add_argument(
-            "--apply",
-            action="store_true",
-            help="Apply invoice-scoped repairs for discovered missing line items.",
-        )
         parser.add_argument(
             "--page-start",
             type=int,
@@ -41,12 +33,6 @@ class Command(BaseCommand):
             type=int,
             default=250,
             help="Emit progress JSON every N pages (default: 250).",
-        )
-        parser.add_argument(
-            "--max-repair-invoices",
-            type=int,
-            default=0,
-            help="Optional cap on invoice repairs; 0 means no cap.",
         )
         parser.add_argument(
             "--compute-db-not-in-api",
@@ -67,40 +53,6 @@ class Command(BaseCommand):
     @staticmethod
     def _emit(payload: dict[str, Any]) -> None:
         print(json.dumps(payload, sort_keys=True), flush=True)
-
-    def _sync_invoice_line_items_for_invoice(
-        self, client: Client, invoice_id: int
-    ) -> int:
-        total_rows = 0
-        page = 1
-
-        while True:
-            params: QueryParams = {"invoice_id": invoice_id}
-            if page > 1:
-                params["page"] = page
-
-            response_data, meta_data = client.fetch_from_api("line_item", params=params)
-            for row in response_data:
-                if not isinstance(row, dict):
-                    continue
-                synchronized_line_item = create_or_update_django_instance(
-                    InvoiceLineItem,
-                    row,
-                    extra_fields={"parent_invoice_id": invoice_id},
-                )
-                if synchronized_line_item is None:
-                    continue
-                total_rows += 1
-
-            if not isinstance(meta_data, dict):
-                break
-
-            total_pages = self._normalize_total_entries(meta_data.get("total_pages"))
-            if total_pages is None or page >= total_pages:
-                break
-            page += 1
-
-        return total_rows
 
     def _scan(
         self,
@@ -220,8 +172,6 @@ class Command(BaseCommand):
         page_start = max(1, int(options["page_start"]))
         page_end = max(0, int(options["page_end"]))
         progress_every = max(0, int(options["progress_every"]))
-        apply_repairs = bool(options["apply"])
-        max_repair_invoices = max(0, int(options["max_repair_invoices"]))
         compute_db_not_in_api = bool(options["compute_db_not_in_api"])
 
         client = Client()
@@ -269,41 +219,3 @@ class Command(BaseCommand):
             summary["db_not_in_api_unique"] = len(db_ids - scan["seen_api_ids"])
 
         self._emit(summary)
-
-        if not apply_repairs:
-            return
-
-        repair_invoice_ids = sorted(existing_missing_invoices)
-        if max_repair_invoices > 0:
-            repair_invoice_ids = repair_invoice_ids[:max_repair_invoices]
-
-        rows_upserted = 0
-        for index, invoice_id in enumerate(repair_invoice_ids, start=1):
-            rows_upserted += self._sync_invoice_line_items_for_invoice(client, invoice_id)
-            if index % 100 == 0 or index == len(repair_invoice_ids):
-                self._emit(
-                    {
-                        "event": "repair_progress",
-                        "invoice_progress": index,
-                        "invoice_total": len(repair_invoice_ids),
-                        "rows_upserted": rows_upserted,
-                    }
-                )
-
-        remaining_missing = len(
-            scan["missing_line_item_ids"]
-            - set(
-                InvoiceLineItem.objects.filter(
-                    id__in=scan["missing_line_item_ids"]
-                ).values_list("id", flat=True)
-            )
-        )
-
-        self._emit(
-            {
-                "event": "repair_summary",
-                "invoice_repairs_attempted": len(repair_invoice_ids),
-                "rows_upserted": rows_upserted,
-                "remaining_missing_from_scanned_set": remaining_missing,
-            }
-        )

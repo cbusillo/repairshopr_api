@@ -46,8 +46,8 @@ Notes:
 
 ## Line Item Forensics
 
-Use the dedicated reconcile command to diagnose and optionally repair invoice
-line-item drift without waiting for a full sync cycle.
+Use the dedicated reconcile command to diagnose invoice line-item drift without
+waiting for a full sync cycle.
 
 See the production runbook in
 `docs/ops/repairshopr-sync-confidence-runbook.md`.
@@ -58,17 +58,11 @@ See the production runbook in
   uv run python repairshopr_sync/manage.py reconcile_invoice_line_items
   ```
 
-- Forensic scan + apply invoice-scoped repairs:
-
-  ```bash
-  uv run python repairshopr_sync/manage.py reconcile_invoice_line_items --apply
-  ```
-
-- Optional deep metric (`db_not_in_api_unique`) and bounded repair scope:
+- Optional deep metric (`db_not_in_api_unique`):
 
   ```bash
   uv run python repairshopr_sync/manage.py reconcile_invoice_line_items \
-    --apply --compute-db-not-in-api --max-repair-invoices 500
+    --compute-db-not-in-api
   ```
 
 ## Code Quality Gates
