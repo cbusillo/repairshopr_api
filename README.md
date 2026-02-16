@@ -44,6 +44,30 @@ Notes:
 - The default coverage threshold is enforced at `80%`.
 - A dedicated CI job runs MySQL-backed integration checks for schema/migrations.
 
+## Line Item Forensics
+
+Use the dedicated reconcile command to diagnose and optionally repair invoice
+line-item drift without waiting for a full sync cycle.
+
+- Forensic scan only:
+
+  ```bash
+  uv run python repairshopr_sync/manage.py reconcile_invoice_line_items
+  ```
+
+- Forensic scan + apply invoice-scoped repairs:
+
+  ```bash
+  uv run python repairshopr_sync/manage.py reconcile_invoice_line_items --apply
+  ```
+
+- Optional deep metric (`db_not_in_api_unique`) and bounded repair scope:
+
+  ```bash
+  uv run python repairshopr_sync/manage.py reconcile_invoice_line_items \
+    --apply --compute-db-not-in-api --max-repair-invoices 500
+  ```
+
 ## Code Quality Gates
 
 In addition to tests, run IDE inspections on changed code before opening a PR.

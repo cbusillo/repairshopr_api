@@ -1075,7 +1075,7 @@ def test_repair_missing_invoice_line_items_repairs_existing_invoices_only(
     assert len(clear_calls) == 2
 
 
-def test_validate_sync_completeness_triggers_full_sync_repair(
+def test_validate_sync_completeness_defers_full_sync_repair_to_reconcile_command(
     command: CommandFixture,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -1096,32 +1096,22 @@ def test_validate_sync_completeness_triggers_full_sync_repair(
             "mismatches": [],
         },
     )
-    repair_calls: list[bool] = []
+    check_events: list[tuple[str, Mapping[str, object]]] = []
     monkeypatch.setattr(
         cmd,
-        "_repair_missing_invoice_line_items",
-        lambda: repair_calls.append(True)
-        or {
-            "passes": 1,
-            "line_items_scanned": 100,
-            "missing_count_before": 80,
-            "missing_count_after": 0,
-            "invoice_repairs": 12,
-            "rows_upserted": 80,
-            "skipped_invoice_count": 0,
-            "skipped_invoice_examples": [],
-        },
+        "_log_sync_check",
+        lambda event, payload: check_events.append((event, payload)),
     )
 
     cmd.validate_sync_completeness(full_sync=True)
-    assert repair_calls == [True]
+    assert any(event == "invoice_line_item_repair_deferred" for event, _ in check_events)
 
-    repair_calls.clear()
+    check_events.clear()
     cmd.validate_sync_completeness(full_sync=False)
-    assert repair_calls == []
+    assert not any(event == "invoice_line_item_repair_deferred" for event, _ in check_events)
 
 
-def test_validate_sync_completeness_handles_full_sync_repair_failures(
+def test_validate_sync_completeness_logs_deferred_repair_warning(
     command: CommandFixture,
     monkeypatch: pytest.MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
@@ -1149,59 +1139,18 @@ def test_validate_sync_completeness_handles_full_sync_repair_failures(
         "_log_sync_check",
         lambda event, payload: check_events.append((event, payload)),
     )
-    monkeypatch.setattr(
-        cmd,
-        "_repair_missing_invoice_line_items",
-        lambda: (_ for _ in ()).throw(
-            requests.RequestException("repair endpoint flaky")
-        ),
-    )
 
     caplog.set_level(logging.WARNING)
     cmd.validate_sync_completeness(full_sync=True)
 
-    assert (
-        "Unable to repair invoice line-item mismatches during full sync: "
-        "repair endpoint flaky"
-        in caplog.text
-    )
-    assert any(event == "invoice_line_item_repair_error" for event, _ in check_events)
+    assert "deferred to dedicated reconcile command" in caplog.text
+    assert any(event == "invoice_line_item_repair_deferred" for event, _ in check_events)
     assert any(
-        payload["error"] == "repair endpoint flaky"
+        payload["reason"]
+        == "global_line_item_parity_is_not_a_strict_truth_source"
         for event, payload in check_events
-        if event == "invoice_line_item_repair_error"
+        if event == "invoice_line_item_repair_deferred"
     )
-
-
-def test_validate_sync_completeness_raises_for_unexpected_full_sync_repair_errors(
-    command: CommandFixture,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    cmd, _ = command
-    set_line_item_parity_counts(
-        monkeypatch,
-        cmd,
-        expected_total=100,
-        invoice_count=20,
-        estimate_count=100,
-    )
-    monkeypatch.setattr(
-        cmd,
-        "_evaluate_invoice_line_item_sample_parity",
-        lambda *_args, **_kwargs: {
-            "sample_size": 4,
-            "mismatch_count": 0,
-            "mismatches": [],
-        },
-    )
-    monkeypatch.setattr(
-        cmd,
-        "_repair_missing_invoice_line_items",
-        lambda: (_ for _ in ()).throw(RuntimeError("unexpected repair bug")),
-    )
-
-    with pytest.raises(RuntimeError, match="unexpected repair bug"):
-        cmd.validate_sync_completeness(full_sync=True)
 
 
 def test_sync_ticket_settings_success_and_failure_paths(

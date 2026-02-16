@@ -929,35 +929,16 @@ class Command(BaseCommand):
         if full_sync and needs_invoice_line_item_repair:
             self._status_current_page += 1
             self._maybe_write_sync_heartbeat(force=True)
-            try:
-                repair_report = self._repair_missing_invoice_line_items()
-            except (
-                requests.RequestException,
-                PermissionError,
-                ValueError,
-                TypeError,
-                DatabaseError,
-            ) as exc:
-                logger.warning(
-                    "Unable to repair invoice line-item mismatches during full sync: %s",
-                    exc,
-                )
-                self._log_sync_check(
-                    "invoice_line_item_repair_error",
-                    {
-                        "mode": "full",
-                        "error": str(exc),
-                    },
-                )
-            else:
-                self._log_sync_check(
-                    "invoice_line_item_repair",
-                    {
-                        "mode": "full",
-                        **repair_report,
-                    },
-                )
-                self._maybe_write_sync_heartbeat(force=True)
+            logger.warning(
+                "Invoice line-item parity mismatch detected during full sync; deferred to dedicated reconcile command."
+            )
+            self._log_sync_check(
+                "invoice_line_item_repair_deferred",
+                {
+                    "mode": "full",
+                    "reason": "global_line_item_parity_is_not_a_strict_truth_source",
+                },
+            )
 
     @staticmethod
     def dynamic_import(path: str) -> type:
