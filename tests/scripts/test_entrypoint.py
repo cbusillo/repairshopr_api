@@ -252,6 +252,7 @@ def test_entrypoint_watchdog_detects_stale_sync_and_restarts_cycle(
             "SYNC_WATCHDOG_ENABLED": "1",
             "SYNC_WATCHDOG_POLL_SECONDS": "1",
             "SYNC_WATCHDOG_STARTUP_GRACE_SECONDS": "0",
+            "SYNC_WATCHDOG_MAX_STALE_COUNT": "1",
             "SYNC_STALE_HEARTBEAT_SECONDS": "30",
             "MOCK_IMPORT_DURATION_SECONDS": "5",
             "MOCK_SYNC_STATUS_STALE_AFTER": "2",
@@ -300,6 +301,33 @@ def test_entrypoint_watchdog_status_timeout_does_not_block_import(
 
 
 @pytest.mark.scripts
+def test_entrypoint_watchdog_logs_consecutive_stale_counts_before_termination(
+    stubbed_runtime: dict[str, str],
+) -> None:
+    env = dict(stubbed_runtime)
+    env.update(
+        {
+            "SYNC_WATCHDOG_ENABLED": "1",
+            "SYNC_WATCHDOG_POLL_SECONDS": "1",
+            "SYNC_WATCHDOG_STARTUP_GRACE_SECONDS": "0",
+            "SYNC_WATCHDOG_MAX_STALE_COUNT": "3",
+            "MOCK_SYNC_STATUS_STALE_AFTER": "1",
+            "MOCK_IMPORT_DURATION_SECONDS": "2",
+            "SYNC_INTERVAL_SECONDS": "30",
+            "STOP_ON_SLEEP_ARG": "30",
+            "STOP_EXIT_CODE": "77",
+        }
+    )
+
+    result = _run_entrypoint(env)
+
+    assert result.returncode == 77
+    assert "count=1/3" in result.stderr
+    assert "count=2/3" in result.stderr
+    assert "after 3 consecutive stale checks" in result.stderr
+
+
+@pytest.mark.scripts
 def test_entrypoint_watchdog_escalates_to_sigkill_for_stuck_import(
     stubbed_runtime: dict[str, str],
 ) -> None:
@@ -309,6 +337,7 @@ def test_entrypoint_watchdog_escalates_to_sigkill_for_stuck_import(
             "SYNC_WATCHDOG_ENABLED": "1",
             "SYNC_WATCHDOG_POLL_SECONDS": "1",
             "SYNC_WATCHDOG_STARTUP_GRACE_SECONDS": "0",
+            "SYNC_WATCHDOG_MAX_STALE_COUNT": "1",
             "SYNC_WATCHDOG_TERM_GRACE_SECONDS": "1",
             "MOCK_IMPORT_IGNORE_TERM": "1",
             "MOCK_SYNC_STATUS_STALE_AFTER": "1",

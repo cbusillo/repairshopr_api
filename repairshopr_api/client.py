@@ -85,6 +85,7 @@ class Client(requests.Session):
     MAX_RETRIES = 6
     REQUEST_LIMIT = 150
     REQUEST_TIMEOUT: tuple[float, float] = (10.0, 60.0)
+    PREFETCH_PROGRESS_INTERVAL = 5_000
 
     def __init__(self, token: str = "", url_store_name: str = ""):
         super().__init__()
@@ -255,12 +256,14 @@ class Client(requests.Session):
             if self.updated_at > prefetch_cutoff:
                 return
         logger.info("Prefetching line items...")
-        lines_items = list(
-            self.get_model(models.LineItem, params={"invoice_id_not_null": "true"})
-        )
 
         invoice_line_item_map = defaultdict(list)
-        for line_item in lines_items:
+        processed_line_items = 0
+
+        for line_item in self.get_model(
+            models.LineItem, params={"invoice_id_not_null": "true"}
+        ):
+            processed_line_items += 1
             invoice_id = line_item.invoice_id
             if not isinstance(invoice_id, int):
                 continue
@@ -274,6 +277,27 @@ class Client(requests.Session):
                     for key, value in line_item.__dict__.items()
                     if not key.startswith("_")
                 }
+            )
+
+            if (
+                self._progress_callback is not None
+                and processed_line_items % self.PREFETCH_PROGRESS_INTERVAL == 0
+            ):
+                self._progress_callback(
+                    "line_item_prefetch",
+                    0,
+                    processed_line_items,
+                    self.PREFETCH_PROGRESS_INTERVAL,
+                    {"stage": "normalize"},
+                )
+
+        if self._progress_callback is not None:
+            self._progress_callback(
+                "line_item_prefetch",
+                0,
+                processed_line_items,
+                0,
+                {"stage": "normalize_done"},
             )
 
         for invoice_id, line_items in invoice_line_item_map.items():
@@ -299,6 +323,15 @@ class Client(requests.Session):
                 sorted_params = tuple(sorted(params.items()))
                 cache_key = f"line_item_list_{hash(sorted_params)}"
                 self._cache[cache_key] = cache_data
+
+            if self._progress_callback is not None:
+                self._progress_callback(
+                    "line_item_prefetch",
+                    0,
+                    processed_line_items,
+                    0,
+                    {"stage": "cache"},
+                )
 
         self._has_line_item_in_cache = True
 

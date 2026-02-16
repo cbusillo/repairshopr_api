@@ -186,6 +186,35 @@ def test_prefetch_line_items_aware_vs_naive_regression() -> None:
     assert client._has_line_item_in_cache is True
 
 
+def test_prefetch_line_items_emits_progress_stages() -> None:
+    client = _make_client()
+    client.updated_at = datetime.now(tz=timezone.utc) - timedelta(days=800)
+    line_items = [
+        SimpleNamespace(id=1, invoice_id=100, name="A"),
+        SimpleNamespace(id=2, invoice_id=200, name="B"),
+    ]
+    client.get_model = lambda *_args, **_kwargs: iter(line_items)  # type: ignore[method-assign]
+
+    progress_stages: list[str | None] = []
+
+    def progress_callback(
+        _model_name: str,
+        _page: int,
+        _processed_rows: int,
+        _processed_on_page: int,
+        meta_data: JsonObject | None,
+    ) -> None:
+        progress_stages.append(
+            meta_data.get("stage") if isinstance(meta_data, dict) else None
+        )
+
+    client.set_progress_callback(progress_callback)
+    client.prefetch_line_items()
+
+    assert "normalize_done" in progress_stages
+    assert "cache" in progress_stages
+
+
 def test_clear_cache_resets_memory_cache() -> None:
     client = _make_client()
     client._cache["k"] = {"value": "v"}

@@ -1010,12 +1010,20 @@ def test_repair_missing_invoice_line_items_repairs_existing_invoices_only(
     db_line_item_ids = {1, 2}
     api_index = {1: 10, 2: 10, 3: 20, 4: 999}
 
-    class InvoiceLineItemManager:
-        @staticmethod
-        def values_list(field_name: str, *, flat: bool = False) -> list[int]:
+    class InvoiceLineItemFilterResult:
+        def __init__(self, ids: list[int], existing_ids: set[int]) -> None:
+            self._ids = ids
+            self._existing_ids = existing_ids
+
+        def values_list(self, field_name: str, *, flat: bool = False) -> list[int]:
             assert field_name == "id"
             assert flat is True
-            return sorted(db_line_item_ids)
+            return [line_item_id for line_item_id in self._ids if line_item_id in self._existing_ids]
+
+    class InvoiceLineItemManager:
+        @staticmethod
+        def filter(*, id__in: list[int]) -> InvoiceLineItemFilterResult:
+            return InvoiceLineItemFilterResult(id__in, db_line_item_ids)
 
     class InvoiceFilterResult:
         def __init__(self, ids: list[int], existing_ids: set[int]) -> None:
@@ -1202,6 +1210,12 @@ def test_sync_ticket_settings_success_and_failure_paths(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     cmd, _ = command
+    heartbeat_calls: list[str] = []
+    monkeypatch.setattr(
+        cmd,
+        "_maybe_write_sync_heartbeat",
+        lambda **_kwargs: heartbeat_calls.append("beat"),
+    )
 
     class CaptureManager:
         def __init__(self) -> None:
@@ -1245,6 +1259,7 @@ def test_sync_ticket_settings_success_and_failure_paths(
     assert len(type_manager.calls) == 1
     assert len(field_manager.calls) == 1
     assert len(answer_manager.calls) == 1
+    assert heartbeat_calls
 
     caplog.set_level(logging.WARNING)
     cmd.client.fetch_ticket_settings = lambda: (_ for _ in ()).throw(ValueError("api down"))
@@ -1285,9 +1300,9 @@ def test_fetch_line_item_total_entries_and_invoice_pagination(
         params: dict[str, object] | None = None,
     ) -> tuple[list[dict[str, object]], dict[str, object] | None]:
         call_log.append(params)
-        if params == {"invoice_id_not_null": True}:
+        if params == {"invoice_id_not_null": "true"}:
             return [], {"total_entries": "42"}
-        if params == {"estimate_id_not_null": True}:
+        if params == {"estimate_id_not_null": "true"}:
             return [], None
         if params == {"invoice_id": 17}:
             return [{"id": 1}, {"id": 2}], {"total_pages": 2}
@@ -1315,13 +1330,13 @@ def test_fetch_invoice_line_item_index_and_invoice_sync_pagination(
         params: dict[str, object] | None = None,
     ) -> tuple[list[dict[str, object] | list[object]], dict[str, object] | None]:
         fetch_calls.append(params)
-        if params == {"invoice_id_not_null": True}:
+        if params == {"invoice_id_not_null": "true"}:
             return [
                 {"id": "1", "invoice_id": "10"},
                 {"id": 2, "invoice_id": 20},
                 {"id": "", "invoice_id": 30},
             ], {"total_pages": 2}
-        if params == {"invoice_id_not_null": True, "page": 2}:
+        if params == {"invoice_id_not_null": "true", "page": 2}:
             return [
                 {"id": 3, "invoice_id": 20},
                 {"id": 4, "invoice_id": None},
@@ -1377,12 +1392,22 @@ def test_repair_missing_invoice_line_items_short_circuits_when_clean(
 ) -> None:
     cmd, _ = command
 
-    class InvoiceLineItemManager:
-        @staticmethod
-        def values_list(field_name: str, *, flat: bool = False) -> list[int]:
+    class InvoiceLineItemFilterResult:
+        def __init__(self, ids: list[int], existing_ids: set[int]) -> None:
+            self._ids = ids
+            self._existing_ids = existing_ids
+
+        def values_list(self, field_name: str, *, flat: bool = False) -> list[int]:
             assert field_name == "id"
             assert flat is True
-            return [100, 200]
+            return [line_item_id for line_item_id in self._ids if line_item_id in self._existing_ids]
+
+    class InvoiceLineItemManager:
+        _existing_ids = {100, 200}
+
+        @staticmethod
+        def filter(*, id__in: list[int]) -> InvoiceLineItemFilterResult:
+            return InvoiceLineItemFilterResult(id__in, InvoiceLineItemManager._existing_ids)
 
     monkeypatch.setattr(
         command_module,

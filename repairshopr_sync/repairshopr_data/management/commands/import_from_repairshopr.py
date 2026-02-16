@@ -40,6 +40,7 @@ HEARTBEAT_PAGE_INTERVAL = 10
 HEARTBEAT_RECORD_INTERVAL = 100
 HEARTBEAT_SECONDS_INTERVAL = 30
 LINE_ITEM_REPAIR_MAX_PASSES = 2
+LINE_ITEM_EXISTENCE_BATCH_SIZE = 5_000
 
 
 def _instance_values(api_instance: object) -> Mapping[str, object] | None:
@@ -513,7 +514,7 @@ class Command(BaseCommand):
 
     def _fetch_line_item_total_entries(self, filter_key: str) -> int | None:
         _rows, meta_data = self.client.fetch_from_api(
-            "line_item", params={filter_key: True}
+            "line_item", params={filter_key: "true"}
         )
         if not isinstance(meta_data, dict):
             return None
@@ -526,7 +527,7 @@ class Command(BaseCommand):
         while True:
             self._status_current_page = page
             self._maybe_write_sync_heartbeat()
-            params: QueryParams = {"invoice_id_not_null": True}
+            params: QueryParams = {"invoice_id_not_null": "true"}
             if page > 1:
                 params["page"] = page
 
@@ -555,10 +556,37 @@ class Command(BaseCommand):
 
         return line_item_invoice_index
 
+    def _fetch_existing_invoice_line_item_ids(
+        self, candidate_line_item_ids: set[int]
+    ) -> set[int]:
+        if not candidate_line_item_ids:
+            return set()
+
+        existing_ids: set[int] = set()
+        candidate_ids = list(candidate_line_item_ids)
+        for chunk_index, start in enumerate(
+            range(0, len(candidate_ids), LINE_ITEM_EXISTENCE_BATCH_SIZE),
+            start=1,
+        ):
+            chunk_ids = candidate_ids[start : start + LINE_ITEM_EXISTENCE_BATCH_SIZE]
+            self._status_current_model = "line_item_repair_db_check"
+            self._status_current_page = chunk_index
+            self._maybe_write_sync_heartbeat()
+            chunk_existing_ids = InvoiceLineItem.objects.filter(id__in=chunk_ids).values_list(
+                "id", flat=True
+            )
+            existing_ids.update(chunk_existing_ids)
+            self._status_records_processed = len(existing_ids)
+            self._maybe_write_sync_heartbeat()
+
+        return existing_ids
+
     def _fetch_invoice_line_item_count(self, invoice_id: int) -> int:
         total_rows = 0
         page = 1
         while True:
+            self._status_current_page = page
+            self._maybe_write_sync_heartbeat()
             params: QueryParams = {"invoice_id": invoice_id}
             if page > 1:
                 params["page"] = page
@@ -567,6 +595,8 @@ class Command(BaseCommand):
                 "line_item", params=params
             )
             total_rows += len(response_data)
+            self._status_records_processed += len(response_data)
+            self._maybe_write_sync_heartbeat()
 
             if not isinstance(meta_data, dict):
                 break
@@ -627,13 +657,19 @@ class Command(BaseCommand):
         total_rows_upserted = 0
 
         for repair_pass in range(1, LINE_ITEM_REPAIR_MAX_PASSES + 1):
+            self._status_current_model = "line_item_repair"
+            self._status_current_page = repair_pass
+            self._maybe_write_sync_heartbeat(force=True)
             self.client.clear_cache()
             api_line_items = self._fetch_invoice_line_item_index()
             report["passes"] = repair_pass
             report["line_items_scanned"] = len(api_line_items)
 
-            db_line_item_ids = set(InvoiceLineItem.objects.values_list("id", flat=True))
-            missing_line_item_ids = set(api_line_items) - db_line_item_ids
+            api_line_item_ids = set(api_line_items)
+            existing_db_line_item_ids = self._fetch_existing_invoice_line_item_ids(
+                api_line_item_ids
+            )
+            missing_line_item_ids = api_line_item_ids - existing_db_line_item_ids
             if repair_pass == 1:
                 report["missing_count_before"] = len(missing_line_item_ids)
 
@@ -665,6 +701,7 @@ class Command(BaseCommand):
             rows_upserted = 0
             repaired_invoice_count = 0
             for invoice_id in missing_invoice_ids:
+                self._maybe_write_sync_heartbeat()
                 if invoice_id not in existing_invoice_ids:
                     continue
                 repaired_invoice_count += 1
@@ -674,8 +711,10 @@ class Command(BaseCommand):
             report["invoice_repairs"] = total_invoice_repairs
             report["rows_upserted"] = total_rows_upserted
 
-            db_line_item_ids = set(InvoiceLineItem.objects.values_list("id", flat=True))
-            report["missing_count_after"] = len(set(api_line_items) - db_line_item_ids)
+            remaining_line_item_ids = missing_line_item_ids - self._fetch_existing_invoice_line_item_ids(
+                missing_line_item_ids
+            )
+            report["missing_count_after"] = len(remaining_line_item_ids)
             if report["missing_count_after"] == 0:
                 return report
 
@@ -733,10 +772,16 @@ class Command(BaseCommand):
     def _evaluate_invoice_line_item_sample_parity(
         self, sample_size: int
     ) -> dict[str, object]:
+        self._status_current_model = "line_item_sample"
+        self._status_current_page = 0
+        self._status_records_processed = 0
+        self._maybe_write_sync_heartbeat(force=True)
         sample_invoice_ids = self._build_invoice_sample_ids(sample_size)
         mismatches: list[dict[str, int]] = []
 
-        for invoice_id in sample_invoice_ids:
+        for sample_index, invoice_id in enumerate(sample_invoice_ids, start=1):
+            self._status_current_page = sample_index
+            self._maybe_write_sync_heartbeat()
             api_line_item_count = self._fetch_invoice_line_item_count(invoice_id)
             db_line_item_count = InvoiceLineItem.objects.filter(
                 parent_invoice_id=invoice_id
@@ -749,6 +794,8 @@ class Command(BaseCommand):
                         "db_count": db_line_item_count,
                     }
                 )
+            self._status_records_processed = sample_index
+            self._maybe_write_sync_heartbeat()
 
         return {
             "sample_size": len(sample_invoice_ids),
@@ -757,6 +804,10 @@ class Command(BaseCommand):
         }
 
     def validate_sync_completeness(self, *, full_sync: bool) -> None:
+        self._status_current_model = "sync_validation"
+        self._status_current_page = 0
+        self._status_records_processed = 0
+        self._maybe_write_sync_heartbeat(force=True)
         needs_invoice_line_item_repair = False
         parity_expectations = (
             (
@@ -771,7 +822,11 @@ class Command(BaseCommand):
             ),
         )
 
-        for model_name, filter_key, db_counter in parity_expectations:
+        for parity_index, (model_name, filter_key, db_counter) in enumerate(
+            parity_expectations, start=1
+        ):
+            self._status_current_page = parity_index
+            self._maybe_write_sync_heartbeat()
             try:
                 expected_total = self._fetch_line_item_total_entries(filter_key)
             except (
@@ -819,12 +874,16 @@ class Command(BaseCommand):
                 )
                 if model_name == "invoice_line_items" and delta < 0:
                     needs_invoice_line_item_repair = True
+            self._status_records_processed = parity_index
+            self._maybe_write_sync_heartbeat()
 
         sample_size = (
             FULL_SYNC_INVOICE_SAMPLE_SIZE
             if full_sync
             else INCREMENTAL_INVOICE_SAMPLE_SIZE
         )
+        self._status_current_page += 1
+        self._maybe_write_sync_heartbeat()
         try:
             sample_report = self._evaluate_invoice_line_item_sample_parity(sample_size)
         except (
@@ -868,6 +927,8 @@ class Command(BaseCommand):
                 needs_invoice_line_item_repair = True
 
         if full_sync and needs_invoice_line_item_repair:
+            self._status_current_page += 1
+            self._maybe_write_sync_heartbeat(force=True)
             try:
                 repair_report = self._repair_missing_invoice_line_items()
             except (
@@ -896,6 +957,7 @@ class Command(BaseCommand):
                         **repair_report,
                     },
                 )
+                self._maybe_write_sync_heartbeat(force=True)
 
     @staticmethod
     def dynamic_import(path: str) -> type:
@@ -956,6 +1018,7 @@ class Command(BaseCommand):
             self.client.clear_cache()
 
     def sync_ticket_settings(self) -> None:
+        self._set_model_sync_progress("ticket_settings")
         try:
             payload = self.client.fetch_ticket_settings()
         except (
@@ -973,6 +1036,8 @@ class Command(BaseCommand):
                 id=item.get("id"),
                 defaults={"name": item.get("name")},
             )
+            self._status_records_processed += 1
+            self._maybe_write_sync_heartbeat()
 
         ticket_fields = payload.get("ticket_type_fields", [])
         for item in ticket_fields:
@@ -986,6 +1051,8 @@ class Command(BaseCommand):
                     "required": item.get("required"),
                 },
             )
+            self._status_records_processed += 1
+            self._maybe_write_sync_heartbeat()
 
         ticket_answers = payload.get("ticket_type_field_answers", [])
         for item in ticket_answers:
@@ -996,3 +1063,5 @@ class Command(BaseCommand):
                     "value": item.get("value"),
                 },
             )
+            self._status_records_processed += 1
+            self._maybe_write_sync_heartbeat()
