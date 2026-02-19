@@ -20,7 +20,7 @@ services:
           && [ -n "$(ls -A /target-config 2>/dev/null)" ]; then
           echo "Cleaning legacy config bind path"
           rm -rf /legacy-config/* /legacy-config/.[!.]* \
-            /legacy-config/..?* || true
+            /legacy-config/..?*
         fi
     volumes:
       - /opt/repairshopr-sync/config:/legacy-config
@@ -44,7 +44,7 @@ services:
         if [ "${REPAIRSHOPR_CLEANUP_LEGACY_BINDS}" = "1" ] \
           && [ -n "$(ls -A /target-mysql 2>/dev/null)" ]; then
           echo "Cleaning legacy MySQL bind path"
-          rm -rf /legacy-mysql/* /legacy-mysql/.[!.]* /legacy-mysql/..?* || true
+          rm -rf /legacy-mysql/* /legacy-mysql/.[!.]* /legacy-mysql/..?*
         fi
     volumes:
       - /opt/repairshopr-sync/mysql:/legacy-mysql
