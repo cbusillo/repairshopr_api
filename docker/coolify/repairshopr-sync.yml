@@ -52,9 +52,8 @@ services:
 
   sync:
     build:
+      context: ../..
       dockerfile: docker/Dockerfile.sync
-    env_file:
-      - .env
     environment:
       HOME: /var/lib/repairshopr
       REPAIRSHOPR_TOKEN: ${REPAIRSHOPR_TOKEN}
