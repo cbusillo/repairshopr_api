@@ -1,6 +1,55 @@
+---
 name: repairshopr-sync
 
 services:
+  seed-config-volume:
+    image: alpine:3.20
+    restart: "no"
+    environment:
+      REPAIRSHOPR_CLEANUP_LEGACY_BINDS: ${REPAIRSHOPR_CLEANUP_LEGACY_BINDS:-0}
+    command:
+      - /bin/sh
+      - -ec
+      - |
+        if [ -n "$(ls -A /legacy-config 2>/dev/null)" ] \
+          && [ -z "$(ls -A /target-config 2>/dev/null)" ]; then
+          echo "Seeding named config volume from legacy bind path"
+          cp -a /legacy-config/. /target-config/
+        fi
+        if [ "${REPAIRSHOPR_CLEANUP_LEGACY_BINDS}" = "1" ] \
+          && [ -n "$(ls -A /target-config 2>/dev/null)" ]; then
+          echo "Cleaning legacy config bind path"
+          rm -rf /legacy-config/* /legacy-config/.[!.]* \
+            /legacy-config/..?* || true
+        fi
+    volumes:
+      - /opt/repairshopr-sync/config:/legacy-config
+      - repairshopr_sync_config:/target-config
+
+  seed-db-volume:
+    image: alpine:3.20
+    restart: "no"
+    environment:
+      REPAIRSHOPR_CLEANUP_LEGACY_BINDS: ${REPAIRSHOPR_CLEANUP_LEGACY_BINDS:-0}
+    command:
+      - /bin/sh
+      - -ec
+      - |
+        if [ -n "$(ls -A /legacy-mysql 2>/dev/null)" ] \
+          && [ -z "$(ls -A /target-mysql 2>/dev/null)" ]; then
+          echo "Seeding named MySQL volume from legacy bind path"
+          cp -a /legacy-mysql/. /target-mysql/
+        fi
+        chown -R 999:999 /target-mysql || true
+        if [ "${REPAIRSHOPR_CLEANUP_LEGACY_BINDS}" = "1" ] \
+          && [ -n "$(ls -A /target-mysql 2>/dev/null)" ]; then
+          echo "Cleaning legacy MySQL bind path"
+          rm -rf /legacy-mysql/* /legacy-mysql/.[!.]* /legacy-mysql/..?* || true
+        fi
+    volumes:
+      - /opt/repairshopr-sync/mysql:/legacy-mysql
+      - repairshopr_sync_mysql:/target-mysql
+
   sync:
     build:
       dockerfile: docker/Dockerfile.sync
@@ -18,20 +67,32 @@ services:
       SYNC_DB_PASSWORD: ${SYNC_DB_PASSWORD}
       SYNC_INTERVAL_SECONDS: ${SYNC_INTERVAL_SECONDS:-900}
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+      seed-config-volume:
+        condition: service_completed_successfully
     restart: unless-stopped
     volumes:
-      - /opt/repairshopr-sync/config:/var/lib/repairshopr/.config
+      - repairshopr_sync_config:/var/lib/repairshopr/.config
 
   db:
     image: mariadb:10.11
     restart: unless-stopped
     ports:
       - "3307:3306"
+    depends_on:
+      seed-db-volume:
+        condition: service_completed_successfully
     environment:
       - MARIADB_ROOT_PASSWORD=${SYNC_DB_ROOT_PASSWORD}
       - MARIADB_DATABASE=${SYNC_DB_NAME:-repairshopr}
       - MARIADB_USER=${SYNC_DB_USER:-repairshopr_api}
       - MARIADB_PASSWORD=${SYNC_DB_PASSWORD}
     volumes:
-      - /opt/repairshopr-sync/mysql:/var/lib/mysql
+      - repairshopr_sync_mysql:/var/lib/mysql
+
+volumes:
+  repairshopr_sync_config:
+    name: repairshopr_sync_config
+  repairshopr_sync_mysql:
+    name: repairshopr_sync_mysql
