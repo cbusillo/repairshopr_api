@@ -19,8 +19,7 @@ services:
         if [ "${REPAIRSHOPR_CLEANUP_LEGACY_BINDS}" = "1" ] \
           && [ -n "$(ls -A /target-config 2>/dev/null)" ]; then
           echo "Cleaning legacy config bind path"
-          rm -rf /legacy-config/* /legacy-config/.[!.]* \
-            /legacy-config/..?*
+          find /legacy-config -mindepth 1 -maxdepth 1 -exec rm -rf {} +
         fi
     volumes:
       - /opt/repairshopr-sync/config:/legacy-config
@@ -44,7 +43,7 @@ services:
         if [ "${REPAIRSHOPR_CLEANUP_LEGACY_BINDS}" = "1" ] \
           && [ -n "$(ls -A /target-mysql 2>/dev/null)" ]; then
           echo "Cleaning legacy MySQL bind path"
-          rm -rf /legacy-mysql/* /legacy-mysql/.[!.]* /legacy-mysql/..?*
+          find /legacy-mysql -mindepth 1 -maxdepth 1 -exec rm -rf {} +
         fi
     volumes:
       - /opt/repairshopr-sync/mysql:/legacy-mysql
@@ -67,7 +66,7 @@ services:
       SYNC_INTERVAL_SECONDS: ${SYNC_INTERVAL_SECONDS:-900}
     depends_on:
       db:
-        condition: service_healthy
+        condition: service_started
       seed-config-volume:
         condition: service_completed_successfully
     restart: unless-stopped
