@@ -8,7 +8,7 @@ multi-ecosystem-groups:
     open-pull-requests-limit: 2
 
 updates:
-  - package-ecosystem: pip
+  - package-ecosystem: uv
     directory: "/"
     patterns:
       - "*"
@@ -21,6 +21,17 @@ updates:
 
   - package-ecosystem: docker
     directory: "/docker"
+    patterns:
+      - "*"
+    multi-ecosystem-group: tooling
+    groups:
+      all-security-updates:
+        applies-to: security-updates
+        patterns:
+          - "*"
+
+  - package-ecosystem: docker-compose
+    directory: "/docker/coolify"
     patterns:
       - "*"
     multi-ecosystem-group: tooling
