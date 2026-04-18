@@ -34,12 +34,12 @@ Always stop `sync` first, run reconcile, then restart `sync`.
 
 ```bash
 docker compose -p <project_name> \
-  -f docker/coolify/repairshopr-sync.yml \
+  -f docker/coolify/compose.yml \
   --env-file .env \
   stop sync
 
 docker compose -p <project_name> \
-  -f docker/coolify/repairshopr-sync.yml \
+  -f docker/coolify/compose.yml \
   --env-file .env \
   run --rm sync \
   python /app/repairshopr_sync/manage.py reconcile_invoice_line_items \
@@ -58,7 +58,7 @@ changes that may have happened while `sync` was stopped.
 
 ```bash
 docker compose -p <project_name> \
-  -f docker/coolify/repairshopr-sync.yml \
+  -f docker/coolify/compose.yml \
   --env-file .env \
   up -d sync
 ```
