@@ -24,7 +24,7 @@ services:
       - repairshopr_sync_config:/var/lib/repairshopr/.config
 
   db:
-    image: mariadb:10.11
+    image: mariadb:12.2
     restart: unless-stopped
     ports:
       - "3307:3306"
