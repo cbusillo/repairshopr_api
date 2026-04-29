@@ -1,6 +1,8 @@
 # AGENTS.md
 
 This repo is managed with uv and publishes to PyPI via GitHub Actions.
+Use `.github/github-repo-workflow.json` for non-secret repo workflow facts,
+validation commands, GitHub signal availability, and docs routing.
 
 ## Setup
 
