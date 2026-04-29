@@ -1,13 +1,83 @@
 {
   "defaultBranch": "main",
+  "projectType": "python-package",
+  "docs": {
+    "overview": "README.md",
+    "operations": "docs/ops/repairshopr-sync-confidence-runbook.md",
+    "packageManifest": "pyproject.toml",
+    "lockfile": "uv.lock"
+  },
+  "qualityGate": {
+    "setup": {
+      "default": "uv sync --locked --group dev"
+    },
+    "test": {
+      "default": "uv run pytest -q",
+      "coverage": "uv run pytest --cov --cov-report=term-missing",
+      "mysqlIntegration": "uv sync --locked --group dev --extra sync && uv run python -m django migrate --noinput --settings=tests.django_settings_mysql && uv run pytest -q -m integration --ds=tests.django_settings_mysql --no-cov"
+    },
+    "build": {
+      "package": "uv build"
+    },
+    "lockfile": {
+      "check": "./scripts/check-lockfile.sh",
+      "refresh": "uv lock"
+    },
+    "inspection": {
+      "tool": "jetbrains",
+      "ide": "PyCharm",
+      "scopePreference": ["changed_files", "directory", "whole_project"]
+    },
+    "docsRequiredWhen": [
+      "behavior changes",
+      "api changes",
+      "config changes",
+      "operations changes",
+      "sync behavior changes",
+      "database schema or migration behavior changes",
+      "dependency or packaging metadata changes",
+      "release workflow changes"
+    ]
+  },
   "importantWorkflows": ["Test Suite", "Publish to PyPI"],
   "qaLabels": [],
   "deployLabels": [],
   "healthUrls": [],
   "relatedRepos": [],
   "validatedThrough": [],
+  "githubSignals": {
+    "postMerge": {
+      "waitForActions": true,
+      "checkSecurityAndQuality": true
+    },
+    "capabilities": {
+      "codeScanning": "available",
+      "secretScanning": "not_enabled",
+      "dependabotAlerts": "available",
+      "securityAdvisories": "available"
+    },
+    "refreshWhen": [
+      "repo visibility changes",
+      "GitHub plan changes",
+      "security settings change",
+      "token permissions change"
+    ]
+  },
   "cleanup": {
     "deleteMergedLocalBranches": true,
     "removeMergedCleanWorktrees": true
+  },
+  "metadataFreshness": {
+    "updateWhen": [
+      "docs routing changes",
+      "validation gates change",
+      "primary commands change",
+      "important workflows change",
+      "repo relationship changes",
+      "cleanup policy changes",
+      "release workflow changes",
+      "dependency or packaging metadata changes",
+      "sync operation workflow changes"
+    ]
   }
 }

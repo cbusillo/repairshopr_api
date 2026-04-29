@@ -190,3 +190,4 @@ cython_debug/
 
 # Codex local workspace artifacts
 .code/
+*.override.*
