@@ -6,6 +6,9 @@ name: Publish to PyPI
     tags:
       - "v*"
 
+permissions:
+  contents: read
+
 jobs:
   build-and-publish:
     runs-on: ubuntu-latest
