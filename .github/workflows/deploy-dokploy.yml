@@ -58,12 +58,25 @@ jobs:
           }
 
           dokploy_post() {
-            curl --fail --show-error --silent \
+            response=$(curl --fail --show-error --silent \
               --request POST \
               --header "Content-Type: application/json" \
               --header "x-api-key: ${DOKPLOY_TOKEN}" \
               --data "$2" \
-              "$1"
+              "$1")
+
+            if jq -e '
+              type == "object" and (
+                .success == false or
+                has("error") or
+                has("errors")
+              )
+            ' <<< "$response" >/dev/null; then
+              echo "Dokploy write failed: ${response}" >&2
+              return 1
+            fi
+
+            printf '%s' "$response"
           }
 
           github_request() {
@@ -199,7 +212,9 @@ jobs:
             case "$deployment_status" in
               done|success|succeeded|completed|finished|healthy)
                 trap - EXIT
-                restore_source_branch
+                if ! restore_source_branch; then
+                  echo "::warning::Deploy succeeded; branch restore failed."
+                fi
                 exit 0
                 ;;
               error|failed|failure|cancelled|canceled)
