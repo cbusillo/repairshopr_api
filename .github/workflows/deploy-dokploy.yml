@@ -1,0 +1,54 @@
+---
+name: Deploy to Dokploy
+
+"on":
+  workflow_run:
+    workflows:
+      - Test Suite
+    types:
+      - completed
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dokploy-deploy-main
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy cm-repairshopr-sync
+    runs-on: ubuntu-latest
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push'
+
+    steps:
+      - name: Trigger Dokploy compose deployment
+        env:
+          DOKPLOY_HOST: ${{ secrets.DOKPLOY_HOST }}
+          DOKPLOY_TOKEN: ${{ secrets.DOKPLOY_TOKEN }}
+          DOKPLOY_COMPOSE_ID: ${{ secrets.DOKPLOY_COMPOSE_ID }}
+        run: |
+          set -euo pipefail
+
+          for name in DOKPLOY_HOST DOKPLOY_TOKEN DOKPLOY_COMPOSE_ID; do
+            if [ -z "${!name:-}" ]; then
+              echo "Missing required secret: ${name}" >&2
+              exit 1
+            fi
+          done
+
+          host="${DOKPLOY_HOST%/}"
+          payload=$(jq -n \
+            --arg composeId "$DOKPLOY_COMPOSE_ID" \
+            '{composeId: $composeId}')
+
+          curl --fail --show-error --silent \
+            --request POST \
+            --header "Content-Type: application/json" \
+            --header "x-api-key: ${DOKPLOY_TOKEN}" \
+            --data "$payload" \
+            "${host}/api/compose.deploy"
