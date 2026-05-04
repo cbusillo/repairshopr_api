@@ -26,15 +26,18 @@ jobs:
       github.event.workflow_run.event == 'push'
 
     steps:
-      - name: Trigger Dokploy compose deployment
+      - name: Deploy tested commit to Dokploy
         env:
           DOKPLOY_HOST: ${{ secrets.DOKPLOY_HOST }}
           DOKPLOY_TOKEN: ${{ secrets.DOKPLOY_TOKEN }}
           DOKPLOY_COMPOSE_ID: ${{ secrets.DOKPLOY_COMPOSE_ID }}
+          TESTED_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
           set -euo pipefail
 
-          for name in DOKPLOY_HOST DOKPLOY_TOKEN DOKPLOY_COMPOSE_ID; do
+          required_env="DOKPLOY_HOST DOKPLOY_TOKEN"
+          required_env="$required_env DOKPLOY_COMPOSE_ID TESTED_SHA"
+          for name in $required_env; do
             if [ -z "${!name:-}" ]; then
               echo "Missing required secret: ${name}" >&2
               exit 1
@@ -42,13 +45,114 @@ jobs:
           done
 
           host="${DOKPLOY_HOST%/}"
+
+          dokploy_get() {
+            curl --fail --show-error --silent \
+              --header "x-api-key: ${DOKPLOY_TOKEN}" \
+              "$1"
+          }
+
+          dokploy_post() {
+            curl --fail --show-error --silent \
+              --request POST \
+              --header "Content-Type: application/json" \
+              --header "x-api-key: ${DOKPLOY_TOKEN}" \
+              --data "$2" \
+              "$1"
+          }
+
+          compose_url="${host}/api/compose.one?composeId=${DOKPLOY_COMPOSE_ID}"
+          update_url="${host}/api/compose.update"
+          deploy_url="${host}/api/compose.deploy"
+
+          build_source_payload() {
+            jq -c \
+              --arg customGitBranch "$1" \
+              '{
+                composeId,
+                name,
+                environmentId,
+                sourceType,
+                autoDeploy,
+                composePath,
+                customGitUrl,
+                customGitBranch: $customGitBranch,
+                customGitSSHKeyId,
+                enableSubmodules,
+                triggerType,
+                watchPaths
+              }
+              | with_entries(select(.value != null))'
+          }
+
+          restore_source_branch() {
+            if [ -z "${original_branch:-}" ]; then
+              return
+            fi
+
+            current_target=$(dokploy_get "$compose_url")
+            restore_payload=$(build_source_payload "$original_branch" \
+              <<< "$current_target")
+            dokploy_post "$update_url" "$restore_payload" >/dev/null
+          }
+
+          target_payload=$(dokploy_get "$compose_url")
+          original_branch=$(jq -r \
+            '.customGitBranch // "main"' \
+            <<< "$target_payload")
+          original_branch=${original_branch:-main}
+          trap restore_source_branch EXIT
+
+          pinned_payload=$(build_source_payload "$TESTED_SHA" \
+            <<< "$target_payload")
+          dokploy_post "$update_url" "$pinned_payload" >/dev/null
+
+          latest_before=$(dokploy_get "$compose_url" \
+            | jq -r '[.deployments[]?]
+              | sort_by(.createdAt)
+              | last
+              | (.deploymentId // .id // "")')
+
           payload=$(jq -n \
             --arg composeId "$DOKPLOY_COMPOSE_ID" \
             '{composeId: $composeId}')
 
-          curl --fail --show-error --silent \
-            --request POST \
-            --header "Content-Type: application/json" \
-            --header "x-api-key: ${DOKPLOY_TOKEN}" \
-            --data "$payload" \
-            "${host}/api/compose.deploy"
+          dokploy_post "$deploy_url" "$payload" >/dev/null
+
+          for _ in $(seq 1 120); do
+            latest=$(dokploy_get "$compose_url" \
+              | jq -c '[.deployments[]?]
+                | sort_by(.createdAt)
+                | last
+                | {
+                  id: (.deploymentId // .id // ""),
+                  status: (.status // ""),
+                  title: (.title // ""),
+                  finishedAt: (.finishedAt // null)
+                }')
+            deployment_id=$(jq -r '.id' <<< "$latest")
+            deployment_status=$(jq -r '.status' <<< "$latest")
+
+            if [ -z "$deployment_id" ] || \
+              [ "$deployment_id" = "$latest_before" ]; then
+              sleep 5
+              continue
+            fi
+
+            case "$deployment_status" in
+              done|success|succeeded|completed|finished|healthy)
+                trap - EXIT
+                restore_source_branch
+                exit 0
+                ;;
+              error|failed|failure|cancelled|canceled)
+                echo "Dokploy deployment failed: ${latest}" >&2
+                exit 1
+                ;;
+            esac
+
+            sleep 5
+          done
+
+          echo "Timed out waiting for Dokploy deployment to finish." >&2
+          exit 1

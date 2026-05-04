@@ -39,7 +39,7 @@
       "release workflow changes"
     ]
   },
-  "importantWorkflows": ["Test Suite", "Publish to PyPI"],
+  "importantWorkflows": ["Test Suite", "Deploy to Dokploy", "Publish to PyPI"],
   "qaLabels": [],
   "deployLabels": [],
   "healthUrls": [],
