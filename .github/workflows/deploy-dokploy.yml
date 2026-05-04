@@ -11,7 +11,7 @@ name: Deploy to Dokploy
       - main
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: dokploy-deploy-main
@@ -31,12 +31,16 @@ jobs:
           DOKPLOY_HOST: ${{ secrets.DOKPLOY_HOST }}
           DOKPLOY_TOKEN: ${{ secrets.DOKPLOY_TOKEN }}
           DOKPLOY_COMPOSE_ID: ${{ secrets.DOKPLOY_COMPOSE_ID }}
+          GITHUB_TOKEN: ${{ github.token }}
+          DEPLOY_BRANCH: dokploy-deploy
+          GITHUB_REPOSITORY: ${{ github.repository }}
           TESTED_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
           set -euo pipefail
 
-          required_env="DOKPLOY_HOST DOKPLOY_TOKEN"
-          required_env="$required_env DOKPLOY_COMPOSE_ID TESTED_SHA"
+          required_env="DOKPLOY_HOST DOKPLOY_TOKEN DOKPLOY_COMPOSE_ID"
+          required_env="$required_env GITHUB_TOKEN GITHUB_REPOSITORY"
+          required_env="$required_env DEPLOY_BRANCH TESTED_SHA"
           for name in $required_env; do
             if [ -z "${!name:-}" ]; then
               echo "Missing required secret: ${name}" >&2
@@ -45,6 +49,7 @@ jobs:
           done
 
           host="${DOKPLOY_HOST%/}"
+          repo_api_url="https://api.github.com/repos/${GITHUB_REPOSITORY}"
 
           dokploy_get() {
             curl --fail --show-error --silent \
@@ -59,6 +64,56 @@ jobs:
               --header "x-api-key: ${DOKPLOY_TOKEN}" \
               --data "$2" \
               "$1"
+          }
+
+          github_request() {
+            curl --show-error --silent \
+              --request "$1" \
+              --header "Authorization: Bearer ${GITHUB_TOKEN}" \
+              --header "Accept: application/vnd.github+json" \
+              --header "X-GitHub-Api-Version: 2022-11-28" \
+              --data "$3" \
+              --write-out "\n%{http_code}" \
+              "$2"
+          }
+
+          update_deploy_branch() {
+            update_payload=$(jq -n \
+              --arg sha "$TESTED_SHA" \
+              '{sha: $sha, force: true}')
+
+            response=$(github_request PATCH \
+              "${repo_api_url}/git/refs/heads/${DEPLOY_BRANCH}" \
+              "$update_payload")
+            http_status=$(tail -n 1 <<< "$response")
+            response_body=$(sed '$d' <<< "$response")
+
+            case "$http_status" in
+              200|201|204)
+                return
+                ;;
+              404)
+                create_payload=$(jq -n \
+                  --arg ref "refs/heads/${DEPLOY_BRANCH}" \
+                  --arg sha "$TESTED_SHA" \
+                  '{ref: $ref, sha: $sha}')
+                response=$(github_request POST \
+                  "${repo_api_url}/git/refs" \
+                  "$create_payload")
+                http_status=$(tail -n 1 <<< "$response")
+                response_body=$(sed '$d' <<< "$response")
+                ;;
+            esac
+
+            case "$http_status" in
+              200|201|204)
+                return
+                ;;
+              *)
+                echo "Could not update ${DEPLOY_BRANCH}: ${response_body}" >&2
+                exit 1
+                ;;
+            esac
           }
 
           compose_url="${host}/api/compose.one?composeId=${DOKPLOY_COMPOSE_ID}"
@@ -85,6 +140,8 @@ jobs:
               | with_entries(select(.value != null))'
           }
 
+          update_deploy_branch
+
           restore_source_branch() {
             if [ -z "${original_branch:-}" ]; then
               return
@@ -103,7 +160,7 @@ jobs:
           original_branch=${original_branch:-main}
           trap restore_source_branch EXIT
 
-          pinned_payload=$(build_source_payload "$TESTED_SHA" \
+          pinned_payload=$(build_source_payload "$DEPLOY_BRANCH" \
             <<< "$target_payload")
           dokploy_post "$update_url" "$pinned_payload" >/dev/null
 
