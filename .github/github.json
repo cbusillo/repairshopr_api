@@ -26,7 +26,11 @@
     "inspection": {
       "tool": "jetbrains",
       "ide": "PyCharm",
-      "scopePreference": ["changed_files", "directory", "whole_project"]
+      "scopePreference": [
+        "changed_files",
+        "directory",
+        "whole_project"
+      ]
     },
     "docsRequiredWhen": [
       "behavior changes",
@@ -39,26 +43,15 @@
       "release workflow changes"
     ]
   },
-  "importantWorkflows": ["Test Suite", "Deploy to Dokploy", "Publish to PyPI"],
+  "importantWorkflows": [
+    "Test Suite",
+    "Deploy to Dokploy",
+    "Publish to PyPI"
+  ],
   "qaLabels": [],
   "deployLabels": [],
   "healthUrls": [],
   "relatedRepos": [],
-  "validatedThrough": [
-    {
-      "date": "2026-05-10",
-      "source": "cbusillo/repairshopr_api#20",
-      "checks": [
-        "jq empty .github/github.json",
-        "rg github-repo-workflow\\.json",
-        "codex-skills github-repo-snapshot.sh --json",
-        "GitHub Actions test and mysql-integration"
-      ],
-      "caveats": [
-        "Metadata contents were not otherwise changed during the config-path migration."
-      ]
-    }
-  ],
   "githubSignals": {
     "postMerge": {
       "waitForActions": true,
