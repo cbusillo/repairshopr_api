@@ -9,7 +9,7 @@ authors = [
 ]
 dependencies = [
     "toml>=0.10.2",
-    "requests>=2.33.1",
+    "requests>=2.34.2",
     "pytz>=2026.2",
     "tenacity>=8.2.3",
     "mysqlclient>=2.2.8",
@@ -32,13 +32,13 @@ import = "repairshopr_api.run_django:import_from_repairshopr"
 dev = [
     "black>=26.3.1",
     "django>=6.0.5",
-    "django-stubs[compatible-mypy]>=6.0.3",
+    "django-stubs[compatible-mypy]>=6.0.4",
     "freezegun>=1.5.1",
     "pytest>=9.0.3",
     "pytest-cov>=7.1.0",
     "pytest-django>=4.12.0",
     "pytest-mock>=3.14.0",
-    "types-requests>=2.33.0.20260508",
+    "types-requests>=2.33.0.20260513",
     "types-toml>=0.10.8.20260508",
 ]
 
