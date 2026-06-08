@@ -68,3 +68,4 @@ db.sqlite3-journal
 # Local Code workspace artifacts
 .code/
 *.override.*
+/handoff*.md
