@@ -27,6 +27,16 @@ Always stop `sync` first, run reconcile, then restart `sync`.
 - `sync` and `db` services managed by Compose.
 - `reconcile_invoice_line_items` command available.
 
+## Deployment Boundary
+
+Deploys are requested through Launchplane. This repository publishes the tested
+commit ref to Launchplane and must not store Dokploy host, token, compose id, or
+provider mutation logic in workflow code.
+
+The GitHub workflow uses GitHub OIDC and public-safe Launchplane routing
+variables to call the Launchplane deploy route. Launchplane owns provider target
+resolution, provider mutation, deployment polling, and source-ref restore.
+
 ## Phase 1: Forensic-Only Scan
 
 1. Stop `sync` service.
