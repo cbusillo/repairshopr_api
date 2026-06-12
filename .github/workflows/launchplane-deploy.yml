@@ -125,6 +125,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Request Launchplane deploy
+        id: launchplane_deploy
         uses: cbusillo/launchplane/.github/actions/launchplane-request@main
         with:
           launchplane-url: ${{ vars.LAUNCHPLANE_PUBLIC_URL }}
@@ -138,7 +139,7 @@ jobs:
             restored_source_ref=result.restored_source_ref
 
       - name: Remove transient Launchplane deploy ref
-        if: success()
+        if: always() && steps.launchplane_payload.outcome == 'success'
         env:
           GITHUB_TOKEN: ${{ github.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}

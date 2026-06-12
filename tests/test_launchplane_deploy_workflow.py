@@ -19,6 +19,7 @@ def test_launchplane_deploy_workflow_uses_launchplane_source_ref_route() -> None
         "generic-web-source-ref-deploy",
         "provider_source_ref: $providerSourceRef",
         "name: Remove transient Launchplane deploy ref",
+        "if: always() && steps.launchplane_payload.outcome == 'success'",
         "--request DELETE",
     )
     for fragment in required_fragments:
