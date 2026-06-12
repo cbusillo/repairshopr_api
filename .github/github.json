@@ -45,7 +45,7 @@
   },
   "importantWorkflows": [
     "Test Suite",
-    "Deploy to Dokploy",
+    "Launchplane Deploy",
     "Publish to PyPI"
   ],
   "qaLabels": [],

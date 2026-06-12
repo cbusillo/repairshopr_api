@@ -1,0 +1,160 @@
+---
+name: Launchplane Deploy
+
+"on":
+  workflow_run:
+    workflows:
+      - Test Suite
+    types:
+      - completed
+    branches:
+      - main
+
+permissions:
+  contents: write
+  id-token: write
+
+concurrency:
+  group: launchplane-deploy-main
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy tested sync service
+    runs-on: ubuntu-latest
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push'
+
+    steps:
+      - name: Prepare Launchplane source-ref payload
+        id: launchplane_payload
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          TESTED_SHA: ${{ github.event.workflow_run.head_sha }}
+          LAUNCHPLANE_PUBLIC_URL: ${{ vars.LAUNCHPLANE_PUBLIC_URL }}
+          LAUNCHPLANE_PRODUCT: ${{ vars.LAUNCHPLANE_PRODUCT }}
+          LAUNCHPLANE_CONTEXT: ${{ vars.LAUNCHPLANE_CONTEXT }}
+          LAUNCHPLANE_INSTANCE: ${{ vars.LAUNCHPLANE_INSTANCE }}
+        run: |
+          set -euo pipefail
+
+          required_env="GITHUB_TOKEN GITHUB_REPOSITORY TESTED_SHA"
+          required_env="$required_env LAUNCHPLANE_PUBLIC_URL LAUNCHPLANE_PRODUCT"
+          required_env="$required_env LAUNCHPLANE_CONTEXT LAUNCHPLANE_INSTANCE"
+          for name in $required_env; do
+            if [ -z "${!name:-}" ]; then
+              echo "Missing required environment value: ${name}" >&2
+              exit 1
+            fi
+          done
+
+          provider_branch="launchplane-deploy/${TESTED_SHA}"
+          provider_ref="refs/heads/${provider_branch}"
+          repo_api_url="https://api.github.com/repos/${GITHUB_REPOSITORY}"
+
+          github_request() {
+            curl --show-error --silent \
+              --request "$1" \
+              --header "Authorization: Bearer ${GITHUB_TOKEN}" \
+              --header "Accept: application/vnd.github+json" \
+              --header "X-GitHub-Api-Version: 2022-11-28" \
+              --data "$3" \
+              --write-out "\n%{http_code}" \
+              "$2"
+          }
+
+          create_payload=$(jq -n \
+            --arg ref "$provider_ref" \
+            --arg sha "$TESTED_SHA" \
+            '{ref: $ref, sha: $sha}')
+          response=$(github_request POST "${repo_api_url}/git/refs" "$create_payload")
+          http_status=$(tail -n 1 <<< "$response")
+          response_body=$(sed '$d' <<< "$response")
+
+          case "$http_status" in
+            200|201|204)
+              ;;
+            422)
+              update_payload=$(jq -n \
+                --arg sha "$TESTED_SHA" \
+                '{sha: $sha, force: false}')
+              response=$(github_request PATCH \
+                "${repo_api_url}/git/refs/heads/${provider_branch}" \
+                "$update_payload")
+              http_status=$(tail -n 1 <<< "$response")
+              response_body=$(sed '$d' <<< "$response")
+              case "$http_status" in
+                200|201|204)
+                  ;;
+                *)
+                  echo "Could not verify ${provider_ref}: ${response_body}" >&2
+                  exit 1
+                  ;;
+              esac
+              ;;
+            *)
+              echo "Could not create ${provider_ref}: ${response_body}" >&2
+              exit 1
+              ;;
+          esac
+
+          payload_path="${RUNNER_TEMP}/launchplane-source-ref-deploy.json"
+          jq -n \
+            --arg product "$LAUNCHPLANE_PRODUCT" \
+            --arg context "$LAUNCHPLANE_CONTEXT" \
+            --arg instance "$LAUNCHPLANE_INSTANCE" \
+            --arg sourceGitRef "$TESTED_SHA" \
+            --arg providerSourceRef "$provider_branch" \
+            '{
+              schema_version: 1,
+              product: $product,
+              deploy: {
+                schema_version: 1,
+                context: $context,
+                instance: $instance,
+                source_git_ref: $sourceGitRef,
+                provider_source_ref: $providerSourceRef
+              }
+            }' > "$payload_path"
+
+          {
+            echo "payload_path=${payload_path}"
+            echo "provider_source_ref=${provider_branch}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Request Launchplane deploy
+        id: launchplane_deploy
+        uses: cbusillo/launchplane/.github/actions/launchplane-request@main
+        with:
+          launchplane-url: ${{ vars.LAUNCHPLANE_PUBLIC_URL }}
+          route-path: /v1/drivers/generic-web/source-ref-deploy
+          payload-file: ${{ steps.launchplane_payload.outputs.payload_path }}
+          idempotency-key: >-
+            generic-web-source-ref-deploy:${{ vars.LAUNCHPLANE_PRODUCT }}:${{ vars.LAUNCHPLANE_CONTEXT }}:${{ vars.LAUNCHPLANE_INSTANCE }}:${{ github.event.workflow_run.head_sha }}:${{ steps.launchplane_payload.outputs.provider_source_ref }}
+          timeout-ms: "720000"
+          output-paths: >-
+            deploy_status=result.deploy_status,
+            restored_source_ref=result.restored_source_ref
+
+      - name: Remove transient Launchplane deploy ref
+        if: always() && steps.launchplane_payload.outcome == 'success'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          PROVIDER_SOURCE_REF: ${{ steps.launchplane_payload.outputs.provider_source_ref }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${PROVIDER_SOURCE_REF:-}" ]; then
+            echo "Missing provider source ref." >&2
+            exit 1
+          fi
+
+          curl --fail --show-error --silent \
+            --request DELETE \
+            --header "Authorization: Bearer ${GITHUB_TOKEN}" \
+            --header "Accept: application/vnd.github+json" \
+            --header "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/git/refs/heads/${PROVIDER_SOURCE_REF}"
