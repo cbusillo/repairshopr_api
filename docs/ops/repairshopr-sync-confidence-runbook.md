@@ -40,16 +40,20 @@ resolution, provider mutation, deployment polling, and source-ref restore.
 ## Launchplane Health Readiness
 
 The `sync` container serves JSON readiness while the background sync loop is
-running:
+running. `docker/coolify/compose.yml` remains the provider entrypoint and loads
+the product-owned add-on contract from `addons/repairshopr-sync/compose.yml`.
 
 - Path: `/readyz` or `/health`
 - Default bind: `0.0.0.0:8000`
+- Compose exposure: `SYNC_HEALTH_HOST_PORT` publishes to `SYNC_HEALTH_PORT`,
+  both defaulting to `8000`
 - Freshness threshold: `SYNC_HEALTH_STALE_THRESHOLD_SECONDS`, falling back to
   `SYNC_STALE_HEARTBEAT_SECONDS`, then 900 seconds
 
 Launchplane should route generic-web health checks to the readiness path for the
-product lane. The repo exposes the port and endpoint shape only; Launchplane
-operator records own live product URLs, provider IDs, and lane-specific routing.
+product lane after deploy. The repo exposes the port and endpoint shape only;
+Launchplane operator records own live product URLs, provider IDs, and
+lane-specific routing.
 
 The payload includes package version, source/image hints when the runtime
 provides them, parsed `LAUNCHPLANE_RUNTIME_IDENTITY_JSON` under
@@ -63,6 +67,11 @@ Readiness returns HTTP 200 only when the sync state is acceptable. Missing sync
 status, a failed last cycle, stale heartbeat, unavailable sync database status,
 or malformed `LAUNCHPLANE_RUNTIME_IDENTITY_JSON` returns HTTP 503 with
 `status: "not_ready"` and `not_ready_reasons`.
+
+After deploy, Launchplane can verify the provider route from its host network by
+requesting the lane health URL and confirming the response contains
+`service: "repairshopr-sync"`, `version`, top-level `status`, `sync`, and
+`runtime_identity` when Launchplane injects it.
 
 ## Phase 1: Forensic-Only Scan
 

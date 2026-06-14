@@ -1,0 +1,60 @@
+---
+name: repairshopr-sync
+
+services:
+  sync:
+    build:
+      context: ../..
+      dockerfile: docker/Dockerfile.sync
+    environment:
+      HOME: /var/lib/repairshopr
+      REPAIRSHOPR_TOKEN: ${REPAIRSHOPR_TOKEN}
+      REPAIRSHOPR_URL_STORE_NAME: ${REPAIRSHOPR_URL_STORE_NAME}
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY}
+      REPAIRSHOPR_DEBUG: ${REPAIRSHOPR_DEBUG:-false}
+      SYNC_DB_HOST: db
+      SYNC_DB_NAME: ${SYNC_DB_NAME:-repairshopr}
+      SYNC_DB_USER: ${SYNC_DB_USER:-repairshopr_api}
+      SYNC_DB_PASSWORD: ${SYNC_DB_PASSWORD}
+      SYNC_INTERVAL_SECONDS: ${SYNC_INTERVAL_SECONDS:-900}
+      SYNC_HEALTH_BIND_ADDRESS: ${SYNC_HEALTH_BIND_ADDRESS:-0.0.0.0}
+      SYNC_HEALTH_PORT: ${SYNC_HEALTH_PORT:-8000}
+    ports:
+      - "${SYNC_HEALTH_HOST_PORT:-8000}:${SYNC_HEALTH_PORT:-8000}"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - >-
+          import urllib.request;
+          urllib.request.urlopen('http://127.0.0.1:${SYNC_HEALTH_PORT:-8000}/health', timeout=5).read()
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    depends_on:
+      - db
+    restart: unless-stopped
+    volumes:
+      - repairshopr_sync_config:/var/lib/repairshopr/.config
+
+  db:
+    image: mariadb:12.3
+    restart: unless-stopped
+    ports:
+      - "3307:3306"
+    environment:
+      - MARIADB_AUTO_UPGRADE=1
+      - MARIADB_ROOT_PASSWORD=${SYNC_DB_ROOT_PASSWORD}
+      - MARIADB_DATABASE=${SYNC_DB_NAME:-repairshopr}
+      - MARIADB_USER=${SYNC_DB_USER:-repairshopr_api}
+      - MARIADB_PASSWORD=${SYNC_DB_PASSWORD}
+    volumes:
+      - repairshopr_sync_mysql:/var/lib/mysql
+
+volumes:
+  repairshopr_sync_config:
+    name: repairshopr_sync_config
+  repairshopr_sync_mysql:
+    name: repairshopr_sync_mysql
