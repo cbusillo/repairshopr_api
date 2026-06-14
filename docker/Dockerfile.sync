@@ -21,6 +21,7 @@ COPY repairshopr_api /app/repairshopr_api
 COPY repairshopr_sync /app/repairshopr_sync
 COPY run_django.py /app/run_django.py
 COPY scripts/repairshopr-sync-entrypoint.sh /app/scripts/repairshopr-sync-entrypoint.sh
+COPY scripts/repairshopr_sync_with_health.py /app/scripts/repairshopr_sync_with_health.py
 
 RUN uv sync --frozen --no-dev --extra sync
 RUN chmod +x /app/scripts/repairshopr-sync-entrypoint.sh
@@ -29,4 +30,6 @@ ENV PATH="/app/.venv/bin:${PATH}"
 
 ENV DJANGO_SETTINGS_MODULE=repairshopr_sync.settings
 
-CMD ["/app/scripts/repairshopr-sync-entrypoint.sh"]
+EXPOSE 8000
+
+CMD ["python", "/app/scripts/repairshopr_sync_with_health.py"]
