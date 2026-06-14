@@ -37,6 +37,33 @@ The GitHub workflow uses GitHub OIDC and public-safe Launchplane routing
 variables to call the Launchplane deploy route. Launchplane owns provider target
 resolution, provider mutation, deployment polling, and source-ref restore.
 
+## Launchplane Health Readiness
+
+The `sync` container serves JSON readiness while the background sync loop is
+running:
+
+- Path: `/readyz` or `/health`
+- Default bind: `0.0.0.0:8000`
+- Freshness threshold: `SYNC_HEALTH_STALE_THRESHOLD_SECONDS`, falling back to
+  `SYNC_STALE_HEARTBEAT_SECONDS`, then 900 seconds
+
+Launchplane should route generic-web health checks to the readiness path for the
+product lane. The repo exposes the port and endpoint shape only; Launchplane
+operator records own live product URLs, provider IDs, and lane-specific routing.
+
+The payload includes package version, source/image hints when the runtime
+provides them, parsed `LAUNCHPLANE_RUNTIME_IDENTITY_JSON` under
+`runtime_identity`, and the same `SyncStatus` freshness data used by the
+`sync_status` watchdog command. Fallback runtime fields come from
+`LAUNCHPLANE_DEPLOYMENT_RECORD_ID`, `LAUNCHPLANE_ARTIFACT_ID`, and
+`LAUNCHPLANE_SOURCE_GIT_REF` when the structured runtime identity env var is not
+present.
+
+Readiness returns HTTP 200 only when the sync state is acceptable. Missing sync
+status, a failed last cycle, stale heartbeat, unavailable sync database status,
+or malformed `LAUNCHPLANE_RUNTIME_IDENTITY_JSON` returns HTTP 503 with
+`status: "not_ready"` and `not_ready_reasons`.
+
 ## Phase 1: Forensic-Only Scan
 
 1. Stop `sync` service.
