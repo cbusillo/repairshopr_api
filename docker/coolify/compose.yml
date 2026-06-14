@@ -1,3 +1,5 @@
 ---
+name: repairshopr-sync
+
 include:
   - ../../addons/repairshopr-sync/compose.yml

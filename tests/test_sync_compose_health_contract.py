@@ -11,6 +11,7 @@ ADDON_COMPOSE_PATH = ROOT / "addons" / "repairshopr-sync" / "compose.yml"
 def test_coolify_compose_entrypoint_loads_product_addon_contract() -> None:
     compose_text = COMPOSE_PATH.read_text(encoding="utf-8")
 
+    assert "name: repairshopr-sync" in compose_text
     assert "../../addons/repairshopr-sync/compose.yml" in compose_text
 
 
