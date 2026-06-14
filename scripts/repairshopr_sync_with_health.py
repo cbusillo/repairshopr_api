@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import signal
+import socket
 import subprocess
 import sys
 import time
@@ -11,13 +12,45 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 MANAGE_PY = PROJECT_ROOT / "repairshopr_sync" / "manage.py"
 SYNC_ENTRYPOINT = PROJECT_ROOT / "scripts" / "repairshopr-sync-entrypoint.sh"
+DEFAULT_STALE_THRESHOLD_SECONDS = 900
+DEFAULT_HEALTH_PORT = 8000
+
+
+def _stale_threshold_seconds() -> int:
+    for env_name in (
+        "SYNC_HEALTH_STALE_THRESHOLD_SECONDS",
+        "SYNC_STALE_HEARTBEAT_SECONDS",
+    ):
+        value = os.getenv(env_name)
+        if value is None or not value.strip():
+            continue
+        try:
+            return max(0, int(value))
+        except ValueError:
+            continue
+
+    return DEFAULT_STALE_THRESHOLD_SECONDS
+
+
+def _health_port() -> int:
+    value = os.getenv("SYNC_HEALTH_PORT")
+    if value is None or not value.strip():
+        return DEFAULT_HEALTH_PORT
+    try:
+        return int(value)
+    except ValueError:
+        return DEFAULT_HEALTH_PORT
+
+
+def _health_probe_host(bind_address: str) -> str:
+    if bind_address == "0.0.0.0":
+        return "127.0.0.1"
+    if bind_address == "::":
+        return "::1"
+    return bind_address
 
 
 def _health_command() -> list[str]:
-    stale_threshold_seconds = os.getenv("SYNC_HEALTH_STALE_THRESHOLD_SECONDS")
-    if stale_threshold_seconds is None:
-        stale_threshold_seconds = os.getenv("SYNC_STALE_HEARTBEAT_SECONDS", "900")
-
     return [
         sys.executable,
         str(MANAGE_PY),
@@ -25,10 +58,31 @@ def _health_command() -> list[str]:
         "--host",
         os.getenv("SYNC_HEALTH_BIND_ADDRESS", "0.0.0.0"),
         "--port",
-        os.getenv("SYNC_HEALTH_PORT", "8000"),
+        str(_health_port()),
         "--stale-threshold-seconds",
-        stale_threshold_seconds,
+        str(_stale_threshold_seconds()),
     ]
+
+
+def _wait_for_health_server(
+    process: subprocess.Popen[bytes],
+    host: str,
+    port: int,
+    timeout_seconds: float = 10.0,
+) -> bool:
+    deadline = time.monotonic() + timeout_seconds
+    probe_host = _health_probe_host(host)
+
+    while time.monotonic() < deadline:
+        if process.poll() is not None:
+            return False
+        try:
+            with socket.create_connection((probe_host, port), timeout=0.25):
+                return True
+        except OSError:
+            time.sleep(0.1)
+
+    return False
 
 
 def _stop_process(process: subprocess.Popen[bytes]) -> None:
@@ -46,6 +100,10 @@ def main() -> int:
     health_process: subprocess.Popen[bytes] | None = None
     if os.getenv("SYNC_HEALTH_ENABLED", "1") == "1":
         health_process = subprocess.Popen(_health_command())
+        health_host = os.getenv("SYNC_HEALTH_BIND_ADDRESS", "0.0.0.0")
+        if not _wait_for_health_server(health_process, health_host, _health_port()):
+            _stop_process(health_process)
+            return health_process.returncode or 1
 
     sync_process = subprocess.Popen(["bash", str(SYNC_ENTRYPOINT)])
 
