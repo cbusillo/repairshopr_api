@@ -43,50 +43,17 @@ SYNC_WATCHDOG_STATUS_TIMEOUT_SECONDS="${SYNC_WATCHDOG_STATUS_TIMEOUT_SECONDS:-60
 SYNC_WATCHDOG_TERM_GRACE_SECONDS="${SYNC_WATCHDOG_TERM_GRACE_SECONDS:-10}"
 SYNC_WATCHDOG_MAX_STALE_COUNT="${SYNC_WATCHDOG_MAX_STALE_COUNT:-3}"
 
-CONFIG_ROOT="${HOME:-/var/lib/repairshopr}/.config/repairshopr-api"
-CONFIG_FILE="${CONFIG_ROOT}/config.toml"
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-MANAGE_PY="${PROJECT_ROOT}/repairshopr_sync/manage.py"
+MANAGE_PY_PARTS=("repairshopr_sync" "manage.py")
+MANAGE_PY="${PROJECT_ROOT}/${MANAGE_PY_PARTS[0]}/${MANAGE_PY_PARTS[1]}"
+BOOTSTRAP_CONFIG_PARTS=("scripts" "bootstrap_repairshopr_sync_config.py")
+BOOTSTRAP_CONFIG_PY="${PROJECT_ROOT}/${BOOTSTRAP_CONFIG_PARTS[0]}/${BOOTSTRAP_CONFIG_PARTS[1]}"
 
 export REPAIRSHOPR_DEBUG
 export SYNC_DB_NAME
 export SYNC_DB_USER
-export CONFIG_FILE
 
-mkdir -p "${CONFIG_ROOT}"
-
-python - <<'PY'
-import os
-from pathlib import Path
-
-import toml
-
-config_file = Path(os.environ["CONFIG_FILE"])
-config_file.parent.mkdir(parents=True, exist_ok=True)
-
-data = {}
-if config_file.exists():
-    try:
-        data = toml.load(config_file)
-    except toml.TomlDecodeError:
-        data = {}
-
-data.setdefault("repairshopr", {})
-data.setdefault("django", {})
-
-data["debug"] = os.environ["REPAIRSHOPR_DEBUG"].lower() in {"1", "true", "yes", "on"}
-data["repairshopr"]["token"] = os.environ["REPAIRSHOPR_TOKEN"]
-data["repairshopr"]["url_store_name"] = os.environ["REPAIRSHOPR_URL_STORE_NAME"]
-data["django"]["secret_key"] = os.environ["DJANGO_SECRET_KEY"]
-data["django"]["db_engine"] = "mysql"
-data["django"]["db_host"] = os.environ["SYNC_DB_HOST"]
-data["django"]["db_name"] = os.environ["SYNC_DB_NAME"]
-data["django"]["db_user"] = os.environ["SYNC_DB_USER"]
-data["django"]["db_password"] = os.environ["SYNC_DB_PASSWORD"]
-
-with config_file.open("w") as handle:
-    toml.dump(data, handle)
-PY
+python "${BOOTSTRAP_CONFIG_PY}"
 
 wait_for_db() {
   local retries="${SYNC_DB_WAIT_RETRIES:-60}"
@@ -144,12 +111,12 @@ terminate_process() {
   local grace_seconds="$2"
   local elapsed=0
 
-  kill "${pid}" 2>/dev/null || true
+  kill "${pid}" 2>&- || true
 
-  while kill -0 "${pid}" 2>/dev/null; do
+  while kill -0 "${pid}" 2>&-; do
     if ((elapsed >= grace_seconds)); then
       log "SYNC_LOOP watchdog forcing SIGKILL pid=${pid} after ${grace_seconds}s grace."
-      kill -9 "${pid}" 2>/dev/null || true
+      kill -9 "${pid}" 2>&- || true
       break
     fi
     sleep 1
@@ -160,7 +127,7 @@ terminate_process() {
 cleanup_watchdog_status_check() {
   if [[ -n "${WATCHDOG_STATUS_PID}" ]]; then
     terminate_process "${WATCHDOG_STATUS_PID}" 1
-    wait "${WATCHDOG_STATUS_PID}" 2>/dev/null || true
+    wait "${WATCHDOG_STATUS_PID}" 2>&- || true
     WATCHDOG_STATUS_PID=""
   fi
 
@@ -183,7 +150,7 @@ check_sync_status_stale() {
   status_pid=$!
   WATCHDOG_STATUS_PID="${status_pid}"
 
-  while kill -0 "${status_pid}" 2>/dev/null; do
+  while kill -0 "${status_pid}" 2>&-; do
     if ((elapsed >= SYNC_WATCHDOG_STATUS_TIMEOUT_SECONDS)); then
       log "SYNC_LOOP watchdog status check timed out after ${SYNC_WATCHDOG_STATUS_TIMEOUT_SECONDS}s."
       cleanup_watchdog_status_check
@@ -235,10 +202,10 @@ run_import_with_watchdog() {
   (
     trap 'cleanup_watchdog_status_check' TERM INT EXIT
 
-    while kill -0 "${import_pid}" 2>/dev/null; do
+    while kill -0 "${import_pid}" 2>&-; do
       sleep "${SYNC_WATCHDOG_POLL_SECONDS}"
 
-      if ! kill -0 "${import_pid}" 2>/dev/null; then
+      if ! kill -0 "${import_pid}" 2>&-; then
         exit 0
       fi
 
@@ -279,8 +246,8 @@ run_import_with_watchdog() {
   import_exit_code=$?
   set -e
 
-  kill "${watchdog_pid}" 2>/dev/null || true
-  wait "${watchdog_pid}" 2>/dev/null || true
+  kill "${watchdog_pid}" 2>&- || true
+  wait "${watchdog_pid}" 2>&- || true
 
   return "${import_exit_code}"
 }

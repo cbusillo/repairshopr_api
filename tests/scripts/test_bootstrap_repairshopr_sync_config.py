@@ -35,6 +35,28 @@ def test_bootstrap_config_writes_runtime_env_values(tmp_path, monkeypatch) -> No
     }
 
 
+def test_bootstrap_config_preserves_runtime_secret_whitespace(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    config_file = tmp_path / "config.toml"
+    monkeypatch.setenv("CONFIG_FILE", str(config_file))
+    monkeypatch.setenv("REPAIRSHOPR_TOKEN", " token-with-space ")
+    monkeypatch.setenv("REPAIRSHOPR_URL_STORE_NAME", " store-name ")
+    monkeypatch.setenv("SYNC_DB_HOST", " mysql ")
+    monkeypatch.setenv("SYNC_DB_PASSWORD", " password-with-space ")
+    monkeypatch.setenv("DJANGO_SECRET_KEY", " secret-with-space ")
+
+    bootstrap.bootstrap_config()
+
+    data = toml.load(config_file)
+    assert data["repairshopr"]["token"] == " token-with-space "
+    assert data["repairshopr"]["url_store_name"] == " store-name "
+    assert data["django"]["secret_key"] == " secret-with-space "
+    assert data["django"]["db_host"] == " mysql "
+    assert data["django"]["db_password"] == " password-with-space "
+
+
 def test_bootstrap_config_fails_closed_when_required_env_missing(
     tmp_path,
     monkeypatch,
