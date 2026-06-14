@@ -20,6 +20,7 @@ COPY pyproject.toml uv.lock README.md /app/
 COPY repairshopr_api /app/repairshopr_api
 COPY repairshopr_sync /app/repairshopr_sync
 COPY run_django.py /app/run_django.py
+COPY scripts/bootstrap_repairshopr_sync_config.py /app/scripts/bootstrap_repairshopr_sync_config.py
 COPY scripts/repairshopr-sync-entrypoint.sh /app/scripts/repairshopr-sync-entrypoint.sh
 COPY scripts/repairshopr_sync_with_health.py /app/scripts/repairshopr_sync_with_health.py
 

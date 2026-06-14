@@ -31,6 +31,9 @@ def test_wrapper_can_disable_health_process(
 ) -> None:
     processes: list[list[str]] = []
 
+    class BootstrapResult:
+        returncode = 0
+
     class FinishedProcess:
         returncode = 0
 
@@ -51,6 +54,11 @@ def test_wrapper_can_disable_health_process(
             return None
 
     monkeypatch.setenv("SYNC_HEALTH_ENABLED", "0")
+    monkeypatch.setattr(
+        wrapper.subprocess,
+        "run",
+        lambda _command, *, check: BootstrapResult(),
+    )
     monkeypatch.setattr(wrapper.subprocess, "Popen", FinishedProcess)
 
     assert wrapper.main() == 0
@@ -63,6 +71,7 @@ def test_wrapper_waits_for_health_before_launching_sync(
     health_processes: list[list[str]] = []
     sync_processes: list[list[str]] = []
     popen_calls: list[list[str]] = []
+    run_calls: list[list[str]] = []
 
     class HealthReadyProcess:
         returncode = 0
@@ -125,13 +134,24 @@ def test_wrapper_waits_for_health_before_launching_sync(
             return HealthReadyProcess(command)
         return SyncProcess(command)
 
+    class BootstrapResult:
+        returncode = 0
+
+    def fake_run(command: list[str], *, check: bool) -> BootstrapResult:
+        assert check is False
+        assert not popen_calls
+        run_calls.append(command)
+        return BootstrapResult()
+
     monkeypatch.setenv("SYNC_HEALTH_BIND_ADDRESS", "127.0.0.1")
     monkeypatch.setenv("SYNC_HEALTH_PORT", "9080")
     monkeypatch.setattr(wrapper.socket, "create_connection", fake_create_connection)
+    monkeypatch.setattr(wrapper.subprocess, "run", fake_run)
     monkeypatch.setattr(wrapper.subprocess, "Popen", fake_popen)
     monkeypatch.setattr(wrapper.time, "sleep", lambda _seconds: None)
 
     assert wrapper.main() == 0
+    assert run_calls == [wrapper._bootstrap_config_command()]
     assert health_processes == [
         [
             str(wrapper.sys.executable),
@@ -154,6 +174,9 @@ def test_wrapper_fails_before_sync_if_health_exits_early(
 ) -> None:
     processes: list[list[str]] = []
 
+    class BootstrapResult:
+        returncode = 0
+
     class DeadHealthProcess:
         returncode = 2
 
@@ -173,6 +196,11 @@ def test_wrapper_fails_before_sync_if_health_exits_early(
         def kill(self) -> None:
             return None
 
+    monkeypatch.setattr(
+        wrapper.subprocess,
+        "run",
+        lambda _command, *, check: BootstrapResult(),
+    )
     monkeypatch.setattr(wrapper.subprocess, "Popen", DeadHealthProcess)
     monkeypatch.setattr(
         wrapper.socket,
@@ -182,6 +210,29 @@ def test_wrapper_fails_before_sync_if_health_exits_early(
 
     assert wrapper.main() == 2
     assert processes == [wrapper._health_command()]
+
+
+def test_wrapper_fails_before_children_when_bootstrap_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class BootstrapResult:
+        returncode = 4
+
+    popen_calls: list[list[str]] = []
+
+    monkeypatch.setattr(
+        wrapper.subprocess,
+        "run",
+        lambda _command, *, check: BootstrapResult(),
+    )
+    monkeypatch.setattr(
+        wrapper.subprocess,
+        "Popen",
+        lambda command: popen_calls.append(command),
+    )
+
+    assert wrapper.main() == 4
+    assert popen_calls == []
 
 
 @pytest.mark.parametrize(

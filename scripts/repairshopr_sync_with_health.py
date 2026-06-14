@@ -12,6 +12,7 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 MANAGE_PY = PROJECT_ROOT / "repairshopr_sync" / "manage.py"
 SYNC_ENTRYPOINT = PROJECT_ROOT / "scripts" / "repairshopr-sync-entrypoint.sh"
+BOOTSTRAP_CONFIG_PY = PROJECT_ROOT / "scripts" / "bootstrap_repairshopr_sync_config.py"
 DEFAULT_STALE_THRESHOLD_SECONDS = 900
 DEFAULT_HEALTH_PORT = 8000
 
@@ -64,6 +65,10 @@ def _health_command() -> list[str]:
     ]
 
 
+def _bootstrap_config_command() -> list[str]:
+    return [sys.executable, str(BOOTSTRAP_CONFIG_PY)]
+
+
 def _wait_for_health_server(
     process: subprocess.Popen[bytes],
     host: str,
@@ -97,6 +102,10 @@ def _stop_process(process: subprocess.Popen[bytes]) -> None:
 
 
 def main() -> int:
+    bootstrap_result = subprocess.run(_bootstrap_config_command(), check=False)
+    if bootstrap_result.returncode != 0:
+        return bootstrap_result.returncode
+
     health_process: subprocess.Popen[bytes] | None = None
     if os.getenv("SYNC_HEALTH_ENABLED", "1") == "1":
         health_process = subprocess.Popen(_health_command())
