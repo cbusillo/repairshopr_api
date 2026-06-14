@@ -16,8 +16,8 @@ REQUIRED_ENV_VARS = (
 
 
 def require_env(name: str) -> str:
-    value = os.getenv(name, "").strip()
-    if not value:
+    value = os.getenv(name, "")
+    if not value.strip():
         raise SystemExit(f"Missing {name}")
     return value
 
@@ -70,8 +70,7 @@ def bootstrap_config() -> Path:
 
 
 def main() -> int:
-    config_file = bootstrap_config()
-    print(config_file)
+    bootstrap_config()
     return 0
 
 
