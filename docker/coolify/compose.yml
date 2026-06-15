@@ -17,8 +17,12 @@ services:
       SYNC_DB_USER: ${SYNC_DB_USER:-repairshopr_api}
       SYNC_DB_PASSWORD: ${SYNC_DB_PASSWORD}
       SYNC_INTERVAL_SECONDS: ${SYNC_INTERVAL_SECONDS:-900}
+      SYNC_HEALTH_BIND_ADDRESS: ${SYNC_HEALTH_BIND_ADDRESS:-0.0.0.0}
+      SYNC_HEALTH_PORT: ${SYNC_HEALTH_PORT:-8000}
     depends_on:
       - db
+    expose:
+      - "${SYNC_HEALTH_PORT:-8000}"
     restart: unless-stopped
     volumes:
       - repairshopr_sync_config:/var/lib/repairshopr/.config
