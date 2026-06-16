@@ -25,12 +25,18 @@ validation commands, GitHub signal availability, and docs routing.
 The `Publish to PyPI` workflow is tag-driven and runs only on tags matching
 `v*`.
 
-1. Bump the version in `pyproject.toml`.
-2. Refresh lockfile: `uv lock`.
-3. Verify lockfile: `./scripts/check-lockfile.sh`.
-4. Commit the changes on `main`.
-5. Tag the release (example): `git tag -a vX.Y.Z -m "vX.Y.Z"`.
-6. Push commit and tag: `git push origin main --follow-tags`.
+1. Create a focused release branch from `main`.
+2. Bump the version in `pyproject.toml`.
+3. Refresh lockfile: `uv lock`.
+4. Verify lockfile: `./scripts/check-lockfile.sh`.
+5. Open a PR and merge the release branch through GitHub after checks pass.
+6. After explicit release approval, update local `main` to the merged commit.
+7. Tag the release on `main` (example): `git tag -a vX.Y.Z -m "vX.Y.Z"`.
+8. Push the tag only: `git push origin vX.Y.Z`.
+
+Do not commit or push release changes directly to `main`. Agent-authored release
+commits and pushes should follow the shared GitHub skill's bot-owned helper
+workflow when available.
 
 ## Tests
 

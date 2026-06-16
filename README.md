@@ -89,11 +89,15 @@ gates above.
 Releases are tag-driven. The GitHub Actions workflow publishes to PyPI only
 when a tag matching `v*` is pushed.
 
-1. Bump the version in `pyproject.toml`.
-2. Refresh lockfile: `uv lock`.
-3. Confirm lockfile is clean: `./scripts/check-lockfile.sh`.
-4. Commit the changes on `main`.
-5. Create a tag `vX.Y.Z` at that commit.
-6. Push the commit and tag: `git push origin main --follow-tags`.
+1. Create a focused release branch from `main`.
+2. Bump the version in `pyproject.toml`.
+3. Refresh lockfile: `uv lock`.
+4. Confirm lockfile is clean: `./scripts/check-lockfile.sh`.
+5. Open a PR and merge the release branch through GitHub after checks pass.
+6. After explicit release approval, update local `main` to the merged commit.
+7. Create a tag `vX.Y.Z` at that commit.
+8. Push the tag only: `git push origin vX.Y.Z`.
+
+Do not commit or push release changes directly to `main`.
 
 Pushing to `main` without a tag does not publish.
