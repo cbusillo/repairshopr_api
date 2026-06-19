@@ -16,13 +16,13 @@ jobs:
 
     steps:
       - name: Check out the repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           path: product-repo
           fetch-depth: 0
 
       - name: Check out Launchplane
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           repository: cbusillo/launchplane
           ref: 65d5695e48db61d3e491762e957a9f8101c3bf81
@@ -52,7 +52,7 @@ jobs:
 
     steps:
       - name: Check out the repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -92,7 +92,7 @@ jobs:
 
     steps:
       - name: Check out the repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Set up Python
         uses: actions/setup-python@v6
