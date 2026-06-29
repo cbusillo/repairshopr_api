@@ -29,19 +29,23 @@ Always stop `sync` first, run reconcile, then restart `sync`.
 
 ## Deployment Boundary
 
-Deploys are requested through Launchplane. This repository publishes the tested
-commit ref to Launchplane and must not store Dokploy host, token, compose id, or
-provider mutation logic in workflow code.
+Deploys are requested through Launchplane. This repository publishes an
+immutable sync image for the tested commit and submits the image digest to
+Launchplane; it must not store Dokploy host, token, compose id, or provider
+mutation logic in workflow code.
 
 The GitHub workflow uses GitHub OIDC and public-safe Launchplane routing
 variables to call the Launchplane deploy route. Launchplane owns provider target
-resolution, provider mutation, deployment polling, and source-ref restore.
+resolution, provider mutation, deployment polling, and deployment evidence.
 
 ## Launchplane Health Readiness
 
 The `sync` container serves JSON readiness while the background sync loop is
 running. `docker/coolify/compose.yml` remains the provider entrypoint and loads
 the product-owned add-on contract from `addons/repairshopr-sync/compose.yml`.
+The `sync` service image comes from Launchplane/provider env key
+`DOCKER_IMAGE_REFERENCE`, which is set to the immutable digest selected for the
+deploy.
 
 - Path: `/readyz` or `/health`
 - Default bind: `0.0.0.0:8000`
