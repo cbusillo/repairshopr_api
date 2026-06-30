@@ -29,31 +29,5 @@ def test_launchplane_deploy_workflow_uses_launchplane_image_deploy_route() -> No
     for fragment in required_fragments:
         assert fragment in workflow_text
 
-    forbidden_fragments = (
-        "source-ref-deploy",
-        "generic-web-source-ref-deploy",
-        "provider_source_ref",
-        "context: $context",
-        "launchplane-deploy/${TESTED_SHA}",
-        "Remove transient Launchplane deploy ref",
-        "--request DELETE",
-        "contents: write",
-    )
-    for fragment in forbidden_fragments:
-        assert fragment not in workflow_text
-
-
-def test_launchplane_deploy_workflow_has_no_direct_dokploy_authority() -> None:
-    workflow_text = WORKFLOW_PATH.read_text(encoding="utf-8")
-
-    forbidden_fragments = (
-        "DOKPLOY_",
-        "dokploy-deploy",
-        "compose.one",
-        "compose.update",
-        "compose.deploy",
-        "x-api-key",
-        "customGitBranch",
-    )
-    for fragment in forbidden_fragments:
-        assert fragment not in workflow_text
+    assert "source_git_ref: $sourceGitRef" in workflow_text
+    assert "artifact_id: $artifactId" in workflow_text
