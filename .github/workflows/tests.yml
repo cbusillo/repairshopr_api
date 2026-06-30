@@ -25,7 +25,7 @@ jobs:
         uses: actions/checkout@v6
         with:
           repository: cbusillo/launchplane
-          ref: 65d5695e48db61d3e491762e957a9f8101c3bf81
+          ref: c8d83d85eb1030eac74546f63684d2620321c0db
           path: launchplane
 
       - name: Set up Python

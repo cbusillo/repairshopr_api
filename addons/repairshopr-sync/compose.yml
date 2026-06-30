@@ -3,9 +3,7 @@ name: repairshopr-sync
 
 services:
   sync:
-    build:
-      context: ../..
-      dockerfile: docker/Dockerfile.sync
+    image: ${DOCKER_IMAGE_REFERENCE:?DOCKER_IMAGE_REFERENCE is required}
     environment:
       HOME: /var/lib/repairshopr
       REPAIRSHOPR_TOKEN: ${REPAIRSHOPR_TOKEN}

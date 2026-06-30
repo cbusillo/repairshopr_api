@@ -28,6 +28,14 @@ def test_sync_compose_exposes_health_port_for_launchplane() -> None:
         assert fragment in compose_text
 
 
+def test_sync_compose_consumes_launchplane_image_reference() -> None:
+    compose_text = ADDON_COMPOSE_PATH.read_text(encoding="utf-8")
+
+    assert "image: ${DOCKER_IMAGE_REFERENCE:?DOCKER_IMAGE_REFERENCE is required}" in compose_text
+    assert "build:" not in compose_text
+    assert "dockerfile: docker/Dockerfile.sync" not in compose_text
+
+
 def test_sync_compose_keeps_live_runtime_authority_out_of_repo() -> None:
     compose_text = ADDON_COMPOSE_PATH.read_text(encoding="utf-8")
 
