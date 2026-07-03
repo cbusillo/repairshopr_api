@@ -20,12 +20,15 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  deploy:
-    name: Deploy tested sync service
+  build-image:
+    name: Build tested sync image
     runs-on: ubuntu-latest
     if: >-
       github.event.workflow_run.conclusion == 'success' &&
       github.event.workflow_run.event == 'push'
+    outputs:
+      artifact_id: ${{ steps.launchplane_artifact.outputs.artifact_id }}
+      source_git_ref: ${{ github.event.workflow_run.head_sha }}
 
     steps:
       - name: Check out tested commit
@@ -73,23 +76,15 @@ jobs:
           push: true
           tags: ${{ steps.image_metadata.outputs.image_reference }}
 
-      - name: Prepare Launchplane image deploy payload
-        id: launchplane_payload
+      - name: Resolve Launchplane artifact identity
+        id: launchplane_artifact
         env:
           IMAGE_REPOSITORY: ${{ steps.image_metadata.outputs.image_repository }}
           IMAGE_DIGEST: ${{ steps.build_image.outputs.digest }}
-          TESTED_SHA: ${{ github.event.workflow_run.head_sha }}
-          LAUNCHPLANE_PUBLIC_URL: ${{ vars.LAUNCHPLANE_PUBLIC_URL }}
-          LAUNCHPLANE_PRODUCT: ${{ vars.LAUNCHPLANE_PRODUCT }}
-          LAUNCHPLANE_CONTEXT: ${{ vars.LAUNCHPLANE_CONTEXT }}
-          LAUNCHPLANE_INSTANCE: ${{ vars.LAUNCHPLANE_INSTANCE }}
         run: |
           set -euo pipefail
 
-          required_env="IMAGE_REPOSITORY IMAGE_DIGEST TESTED_SHA"
-          required_env="$required_env LAUNCHPLANE_PUBLIC_URL LAUNCHPLANE_PRODUCT"
-          required_env="$required_env LAUNCHPLANE_CONTEXT LAUNCHPLANE_INSTANCE"
-          for name in $required_env; do
+          for name in IMAGE_REPOSITORY IMAGE_DIGEST; do
             if [ -z "${!name:-}" ]; then
               echo "Missing required environment value: ${name}" >&2
               exit 1
@@ -97,40 +92,17 @@ jobs:
           done
 
           artifact_id="${IMAGE_REPOSITORY}@${IMAGE_DIGEST}"
-          payload_path="${RUNNER_TEMP}/launchplane-image-deploy.json"
-          jq -n \
-            --arg product "$LAUNCHPLANE_PRODUCT" \
-            --arg instance "$LAUNCHPLANE_INSTANCE" \
-            --arg artifactId "$artifact_id" \
-            --arg sourceGitRef "$TESTED_SHA" \
-            '{
-              schema_version: 1,
-              product: $product,
-              deploy: {
-                schema_version: 1,
-                product: $product,
-                instance: $instance,
-                artifact_id: $artifactId,
-                source_git_ref: $sourceGitRef
-              }
-            }' > "$payload_path"
+          echo "artifact_id=${artifact_id}" >> "$GITHUB_OUTPUT"
 
-          {
-            echo "payload_path=${payload_path}"
-            echo "artifact_id=${artifact_id}"
-          } >> "$GITHUB_OUTPUT"
-
-      - name: Request Launchplane deploy
-        id: launchplane_deploy
-        uses: cbusillo/launchplane/.github/actions/launchplane-request@main
-        with:
-          launchplane-url: ${{ vars.LAUNCHPLANE_PUBLIC_URL }}
-          route-path: /v1/drivers/generic-web/deploy
-          payload-file: ${{ steps.launchplane_payload.outputs.payload_path }}
-          idempotency-key: >-
-            generic-web-deploy:${{ vars.LAUNCHPLANE_PRODUCT }}:${{ vars.LAUNCHPLANE_CONTEXT }}:${{ vars.LAUNCHPLANE_INSTANCE }}:${{ github.event.workflow_run.head_sha }}:${{ steps.launchplane_payload.outputs.artifact_id }}
-          timeout-ms: "720000"
-          output-paths: >-
-            deployment_record_id=result.deployment_record_id,
-            deploy_status=result.deploy_status,
-            post_deploy_status=result.post_deploy_status
+  deploy:
+    name: Request Launchplane deploy
+    needs: build-image
+    if: ${{ needs.build-image.result == 'success' }}
+    uses: cbusillo/launchplane/.github/workflows/reusable-generic-web-stable-deploy.yml@main
+    with:
+      launchplane_url: ${{ vars.LAUNCHPLANE_PUBLIC_URL }}
+      product: ${{ vars.LAUNCHPLANE_PRODUCT }}
+      instance: ${{ vars.LAUNCHPLANE_INSTANCE }}
+      artifact_id: ${{ needs.build-image.outputs.artifact_id }}
+      source_git_ref: ${{ needs.build-image.outputs.source_git_ref }}
+      timeout-ms: "720000"

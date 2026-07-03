@@ -34,9 +34,11 @@ immutable sync image for the tested commit and submits the image digest to
 Launchplane; it must not store Dokploy host, token, compose id, or provider
 mutation logic in workflow code.
 
-The GitHub workflow uses GitHub OIDC and public-safe Launchplane routing
-variables to call the Launchplane deploy route. Launchplane owns provider target
-resolution, provider mutation, deployment polling, and deployment evidence.
+The GitHub workflow builds and publishes the tested image, then calls
+Launchplane's reusable generic-web stable deploy workflow with only the product
+key, lane instance, immutable image digest, and tested source SHA. Launchplane
+owns the route payload, idempotency key policy, provider target resolution,
+provider mutation, deployment polling, and deployment evidence.
 
 ## Launchplane Health Readiness
 
