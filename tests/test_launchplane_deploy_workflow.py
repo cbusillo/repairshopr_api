@@ -5,6 +5,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW_PATH = ROOT / ".github" / "workflows" / "launchplane-deploy.yml"
+TESTS_WORKFLOW_PATH = ROOT / ".github" / "workflows" / "tests.yml"
 
 
 def test_launchplane_deploy_workflow_uses_reusable_generic_web_deploy() -> None:
@@ -35,6 +36,25 @@ def test_launchplane_deploy_workflow_uses_reusable_generic_web_deploy() -> None:
         "payload-file:",
         "idempotency-key:",
         "deployment_record_id=result.deployment_record_id",
+    )
+    for fragment in repo_local_launchplane_fragments:
+        assert fragment not in workflow_text
+
+
+def test_test_suite_uses_reusable_launchplane_config_authority_gate() -> None:
+    workflow_text = TESTS_WORKFLOW_PATH.read_text(encoding="utf-8")
+
+    assert (
+        "uses: cbusillo/launchplane/.github/workflows/"
+        "reusable-product-repo-config-authority.yml@main"
+    ) in workflow_text
+
+    repo_local_launchplane_fragments = (
+        "repository: cbusillo/launchplane",
+        "launchplaneRef",
+        "audit-config-authority",
+        "--control-plane-root",
+        "--gate-profile product-repo",
     )
     for fragment in repo_local_launchplane_fragments:
         assert fragment not in workflow_text
