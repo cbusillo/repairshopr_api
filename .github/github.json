@@ -24,7 +24,7 @@
       "refresh": "uv lock"
     },
     "configAuthority": {
-      "launchplaneRef": "0219e5b68f6840a233ab17c03d758467f2ca7c18",
+      "launchplaneRef": "d636cae92120014be35579b7c6c40fef24d85103",
       "productCheckoutPath": "product-repo",
       "launchplaneCheckoutPath": "launchplane",
       "ciCommand": "cd launchplane && uv run launchplane service audit-config-authority --control-plane-root ../product-repo --mode changed-files-gate --fail-on-findings --gate-profile product-repo"
