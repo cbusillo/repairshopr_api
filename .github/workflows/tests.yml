@@ -12,40 +12,7 @@ permissions:
 
 jobs:
   launchplane-config-authority:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Check out the repo
-        uses: actions/checkout@v6
-        with:
-          path: product-repo
-          fetch-depth: 0
-
-      - name: Check out Launchplane
-        uses: actions/checkout@v6
-        with:
-          repository: cbusillo/launchplane
-          ref: d636cae92120014be35579b7c6c40fef24d85103
-          path: launchplane
-
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.13"
-
-      - name: Set up uv
-        uses: astral-sh/setup-uv@v7
-        with:
-          enable-cache: true
-
-      - name: Run Launchplane config authority gate
-        working-directory: launchplane
-        run: |
-          uv run launchplane service audit-config-authority \
-            --control-plane-root ../product-repo \
-            --mode changed-files-gate \
-            --fail-on-findings \
-            --gate-profile product-repo
+    uses: cbusillo/launchplane/.github/workflows/reusable-product-repo-config-authority.yml@main
 
   test:
     runs-on: ubuntu-latest
