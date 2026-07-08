@@ -16,6 +16,9 @@
       "coverage": "uv run pytest --cov --cov-report=term-missing",
       "mysqlIntegration": "uv sync --locked --group dev --extra sync && uv run python -m django migrate --noinput --settings=tests.django_settings_mysql && uv run pytest -q -m integration --ds=tests.django_settings_mysql --no-cov"
     },
+    "format": {
+      "default": "uv run black --check ."
+    },
     "build": {
       "package": "uv build"
     },
@@ -46,7 +49,16 @@
   "importantWorkflows": [
     "Test Suite",
     "Launchplane Deploy",
-    "Publish to PyPI"
+    "Publish to PyPI",
+    "CodeQL",
+    "Dependency Graph",
+    "Dependabot Updates"
+  ],
+  "requiredStatusChecks": [
+    "test",
+    "mysql-integration",
+    "Analyze (actions)",
+    "Analyze (python)"
   ],
   "qaLabels": [],
   "deployLabels": [],
