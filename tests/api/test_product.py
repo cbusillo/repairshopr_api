@@ -9,9 +9,9 @@ def test_from_dict_defaults_omitted_list_fields_to_empty_lists() -> None:
     assert product.photos == []
 
 
-def test_from_dict_list_defaults_are_not_shared_between_products() -> None:
-    first = Product.from_dict({"id": 1})
-    second = Product.from_dict({"id": 2})
+def test_list_defaults_are_independent_for_each_product() -> None:
+    first = Product(id=1)
+    second = Product(id=2)
 
     first.vendor_ids.append(10)
     first.location_quantities.append({"location_id": 20})
