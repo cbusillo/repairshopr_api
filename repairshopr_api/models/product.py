@@ -31,7 +31,7 @@ class Product(BaseModel):
     tax_rate_id: str | None = None
     physical_location: str | None = None
     serialized: bool | None = None
-    vendor_ids: list[int] = field(default=list)
+    vendor_ids: list[int] = field(default_factory=list)
     long_description: str | None = None
-    location_quantities: list[dict] = field(default=list)
-    photos: list[dict] = field(default=list)
+    location_quantities: list[dict] = field(default_factory=list)
+    photos: list[dict] = field(default_factory=list)
