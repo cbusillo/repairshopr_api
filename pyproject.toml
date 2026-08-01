@@ -10,7 +10,7 @@ authors = [
 dependencies = [
     "toml>=0.10.2",
     "requests>=2.34.2",
-    "pytz>=2026.2",
+    "pytz>=2026.3.post1",
     "tenacity>=8.2.3",
     "mysqlclient>=2.2.8",
 ]
