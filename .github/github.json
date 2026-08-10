@@ -26,6 +26,9 @@
       "check": "./scripts/check-lockfile.sh",
       "refresh": "uv lock"
     },
+    "configAuthority": {
+      "workflow": "cbusillo/launchplane/.github/workflows/reusable-product-repo-config-authority.yml@fddedd31063c42903f33df9a62120fbb38dd923a"
+    },
     "inspection": {
       "tool": "jetbrains",
       "ide": "PyCharm",
