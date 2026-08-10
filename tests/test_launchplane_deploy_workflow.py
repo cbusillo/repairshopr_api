@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import json
+import re
 from pathlib import Path
-
 
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW_PATH = ROOT / ".github" / "workflows" / "launchplane-deploy.yml"
 TESTS_WORKFLOW_PATH = ROOT / ".github" / "workflows" / "tests.yml"
+GITHUB_CONFIG_PATH = ROOT / ".github" / "github.json"
 
 
 def test_launchplane_deploy_workflow_uses_reusable_generic_web_deploy() -> None:
@@ -43,11 +45,24 @@ def test_launchplane_deploy_workflow_uses_reusable_generic_web_deploy() -> None:
 
 def test_test_suite_uses_reusable_launchplane_config_authority_gate() -> None:
     workflow_text = TESTS_WORKFLOW_PATH.read_text(encoding="utf-8")
+    github_config = json.loads(GITHUB_CONFIG_PATH.read_text(encoding="utf-8"))
+    expected_workflow = github_config["qualityGate"]["configAuthority"]["workflow"]
+    expected_revision = expected_workflow.rsplit("@", maxsplit=1)[1]
+    revision_match = re.search(
+        r"^\s+launchplane-revision:\s+(?P<revision>[0-9a-f]{40})$",
+        workflow_text,
+        re.MULTILINE,
+    )
 
-    assert (
-        "uses: cbusillo/launchplane/.github/workflows/"
-        "reusable-product-repo-config-authority.yml@main"
-    ) in workflow_text
+    assert re.fullmatch(
+        r"cbusillo/launchplane/\.github/workflows/"
+        r"reusable-product-repo-config-authority\.yml@[0-9a-f]{40}",
+        expected_workflow,
+    )
+    assert f"uses: {expected_workflow}" in workflow_text
+    assert revision_match is not None
+    assert revision_match.group("revision") == expected_revision
+    assert "reusable-product-repo-config-authority.yml@main" not in workflow_text
 
     repo_local_launchplane_fragments = (
         "repository: cbusillo/launchplane",
