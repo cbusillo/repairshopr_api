@@ -20,8 +20,12 @@ name: Launchplane Deploy Recovery Dry Run
         description: Exact original source commit.
         required: true
         type: string
-      idempotency_key:
-        description: Exact original deploy Idempotency-Key.
+      original_run_id:
+        description: GitHub Actions run ID from the exact original deploy.
+        required: true
+        type: string
+      original_run_attempt:
+        description: GitHub Actions run attempt from the exact original deploy.
         required: true
         type: string
       reason:
@@ -49,58 +53,44 @@ jobs:
           INSTANCE: ${{ inputs.instance }}
           ARTIFACT_ID: ${{ inputs.artifact_id }}
           SOURCE_GIT_REF: ${{ inputs.source_git_ref }}
+          ORIGINAL_RUN_ID: ${{ inputs.original_run_id }}
+          ORIGINAL_RUN_ATTEMPT: ${{ inputs.original_run_attempt }}
           REASON: ${{ inputs.reason }}
         run: |
           set -euo pipefail
 
-          payload="$(jq -cn \
+          request="$(jq -cn \
             --arg product "$PRODUCT" \
             --arg instance "$INSTANCE" \
             --arg artifact_id "$ARTIFACT_ID" \
             --arg source_git_ref "$SOURCE_GIT_REF" \
+            --arg original_run_id "$ORIGINAL_RUN_ID" \
+            --arg original_run_attempt "$ORIGINAL_RUN_ATTEMPT" \
             --arg reason "$REASON" \
             '{
               schema_version: 1,
               product: $product,
               instance: $instance,
-              original_deploy: {
-                schema_version: 1,
-                product: $product,
-                deploy: {
-                  schema_version: 1,
-                  product: $product,
-                  instance: $instance,
-                  artifact_id: $artifact_id,
-                  source_git_ref: $source_git_ref
-                }
-              },
+              artifact_id: $artifact_id,
+              source_git_ref: $source_git_ref,
+              original_run_id: $original_run_id,
+              original_run_attempt: $original_run_attempt,
               reason: $reason
             }')"
 
           {
-            echo "payload<<EOF"
-            echo "$payload"
+            echo "request<<EOF"
+            echo "$request"
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
 
       - name: Request Launchplane recovery dry run
         id: recovery
-        uses: cbusillo/launchplane/.github/actions/launchplane-request@09d73fd7c8ffd26ec886ac61881dbed25f386509
+        uses: cbusillo/launchplane/.github/actions/generic-web-deploy-recovery-dry-run@05e86a9b54a07642d869ace7d26dc71b5083442a
         with:
           launchplane-url: ${{ vars.LAUNCHPLANE_PUBLIC_URL }}
-          route-path: /v1/admin/generic-web/deploy-recovery/dry-run
-          payload: ${{ steps.payload.outputs.payload }}
-          idempotency-key: ${{ inputs.idempotency_key }}
+          request-json: ${{ steps.payload.outputs.request }}
           timeout-ms: "120000"
-          log-response-body: "false"
-          output-paths: >-
-            recovery_digest=recovery_digest,
-            proposed_action=proposed_action,
-            reservation_state=reservation_state,
-            provider_outcome=provider_outcome,
-            provider_status=provider_status,
-            retry_safe=retry_safe,
-            observed_at=observed_at
 
       - name: Report bounded recovery evidence
         env:

@@ -42,12 +42,14 @@ provider mutation, deployment polling, and deployment evidence.
 
 When an existing deploy reservation requires inspection, use the manual
 `Launchplane Deploy Recovery Dry Run` workflow. It accepts the exact original
-product, instance, immutable artifact, source commit, idempotency key, and an
-operator reason, then calls only Launchplane's read-only existing-reservation
-recovery route through GitHub Actions OIDC. Review the bounded recovery digest,
-proposed action, reservation state, and provider classification in the workflow
-summary. The workflow has no apply mode; production recovery apply remains a
-separate reviewed operator action outside this repository.
+product, instance, immutable artifact, source commit, GitHub Actions run ID and
+attempt, and an operator reason. It reconstructs the exact legacy deploy
+idempotency key through Launchplane's bounded recovery action, then calls only
+the read-only existing-reservation recovery route through GitHub Actions OIDC.
+Review the bounded recovery digest, proposed action, reservation state, and
+provider classification in the workflow summary. The workflow has no apply
+mode; production recovery apply remains a separate reviewed operator action
+outside this repository.
 
 The MariaDB integration gate resolves its database image from
 `addons/repairshopr-sync/compose.yml` and starts an isolated container from that
