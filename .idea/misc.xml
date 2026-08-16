@@ -2,9 +2,8 @@
 <project version="4">
   <component name="Black">
     <option name="cmdArguments" value="--line-length 133" />
-    <option name="enabledOnReformat" value="true" />
     <option name="enabledOnSave" value="true" />
-    <option name="sdkName" value="Python 3.12 (repairshopr_api)" />
+    <option name="sdkName" value="uv (repairshopr_api)" />
   </component>
   <component name="ProjectRootManager" version="2" project-jdk-name="uv (repairshopr_api)" project-jdk-type="Python SDK" />
   <component name="PythonCompatibilityInspectionAdvertiser">
