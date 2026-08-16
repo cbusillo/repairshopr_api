@@ -29,12 +29,19 @@ The repository uses `pytest` with coverage gates.
 - Install test dependencies: `uv sync --group dev`
 - Run the full suite: `uv run pytest -q`
 - Run with explicit coverage output: `uv run pytest --cov --cov-report=term-missing`
-- Run MySQL integration tests:
+- Run MariaDB integration tests against a local database initialized with the
+  CI defaults:
 
   ```bash
   uv sync --group dev --extra sync
-  uv run python -m django migrate --noinput --settings=tests.django_settings_mysql
-  uv run pytest -q -m integration --ds=tests.django_settings_mysql --no-cov
+  export RUN_MARIADB_INTEGRATION=1
+  export MARIADB_DATABASE=repairshopr_test
+  export MARIADB_USER=repairshopr_api
+  export MARIADB_PASSWORD=root
+  uv run python -m django migrate --noinput \
+    --settings=tests.django_settings_mariadb
+  uv run pytest -q -m integration \
+    --ds=tests.django_settings_mariadb --no-cov
   ```
 
 Notes:
@@ -42,7 +49,11 @@ Notes:
 - Tests do not call the live RepairShopr API.
 - Shell tests for `scripts/repairshopr-sync-entrypoint.sh` run with command stubs.
 - The default coverage threshold is enforced at `80%`.
-- A dedicated CI job runs MySQL-backed integration checks for schema/migrations.
+- A dedicated CI job runs MariaDB-backed integration checks for
+  schema/migrations using the database image declared by the production Compose
+  contract.
+- Dependabot opens Django-stack updates separately from other Python dependency
+  updates and monitors the production Compose database image directly.
 
 ## Line Item Forensics
 
