@@ -46,6 +46,10 @@ workflow when available.
 ## Code Quality
 
 - Run PyCharm inspections on changed files before merge.
+- Shared IDE configuration targets PyCharm 2026.2 or newer and the
+  `pyproject.toml`-linked module name `repairshopr-api`.
+- Keep `.idea/pyLspTools.xml` and `.idea/db-forest-config.xml` local and
+  untracked; they contain plugin-specific project state.
 - Treat inspections as a hard gate: zero `error`, `warning`, and
   `weak_warning` findings on touched files.
 - Do not add suppression comments (`# noinspection`, `# noqa`,
