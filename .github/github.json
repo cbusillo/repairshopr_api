@@ -14,7 +14,7 @@
     "test": {
       "default": "uv run pytest -q",
       "coverage": "uv run pytest --cov --cov-report=term-missing",
-      "mysqlIntegration": "uv sync --locked --group dev --extra sync && uv run python -m django migrate --noinput --settings=tests.django_settings_mysql && uv run pytest -q -m integration --ds=tests.django_settings_mysql --no-cov"
+      "mariadbIntegration": "uv sync --locked --group dev --extra sync && export RUN_MARIADB_INTEGRATION=1 MARIADB_HOST=127.0.0.1 MARIADB_PORT=3306 MARIADB_DATABASE=repairshopr_test MARIADB_USER=repairshopr_api MARIADB_PASSWORD=root && uv run python -m django migrate --noinput --settings=tests.django_settings_mariadb && uv run pytest -q -m integration --ds=tests.django_settings_mariadb --no-cov"
     },
     "format": {
       "default": "uv run black --check ."

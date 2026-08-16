@@ -10,28 +10,38 @@ multi-ecosystem-groups:
 updates:
   - package-ecosystem: uv
     directory: "/"
-    patterns:
-      - "*"
-    multi-ecosystem-group: tooling
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
     groups:
-      all-security-updates:
-        applies-to: security-updates
+      django-stack:
+        applies-to: version-updates
+        patterns:
+          - django
+          - django-stubs*
+          - pytest-django
+      python-dependencies:
+        applies-to: version-updates
         patterns:
           - "*"
-
-  - package-ecosystem: docker
-    directory: "/docker"
-    patterns:
-      - "*"
-    multi-ecosystem-group: tooling
-    groups:
+        exclude-patterns:
+          - django
+          - django-stubs*
+          - pytest-django
       all-security-updates:
         applies-to: security-updates
         patterns:
           - "*"
 
   - package-ecosystem: docker-compose
-    directory: "/docker/coolify"
+    directories:
+      - "/addons/repairshopr-sync"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 2
+
+  - package-ecosystem: docker
+    directory: "/docker"
     patterns:
       - "*"
     multi-ecosystem-group: tooling

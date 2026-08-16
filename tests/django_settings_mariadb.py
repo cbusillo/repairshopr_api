@@ -10,7 +10,7 @@ SYNC_ROOT = ROOT / "repairshopr_sync"
 if str(SYNC_ROOT) not in sys.path:
     sys.path.insert(0, str(SYNC_ROOT))
 
-SECRET_KEY = "mysql-test-secret"
+SECRET_KEY = "mariadb-test-secret"
 DEBUG = False
 USE_TZ = True
 TIME_ZONE = "UTC"
@@ -28,11 +28,11 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.mysql",
-        "HOST": os.environ.get("MYSQL_HOST", "127.0.0.1"),
-        "PORT": int(os.environ.get("MYSQL_PORT", "3306")),
-        "NAME": os.environ.get("MYSQL_DATABASE", "repairshopr_test"),
-        "USER": os.environ.get("MYSQL_USER", "root"),
-        "PASSWORD": os.environ.get("MYSQL_PASSWORD", "root"),
+        "HOST": os.environ.get("MARIADB_HOST", "127.0.0.1"),
+        "PORT": int(os.environ.get("MARIADB_PORT", "3306")),
+        "NAME": os.environ.get("MARIADB_DATABASE", "repairshopr_test"),
+        "USER": os.environ.get("MARIADB_USER", "repairshopr_api"),
+        "PASSWORD": os.environ.get("MARIADB_PASSWORD", "root"),
         "OPTIONS": {"charset": "utf8mb4"},
     }
 }

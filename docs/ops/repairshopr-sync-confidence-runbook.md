@@ -40,6 +40,11 @@ key, lane instance, immutable image digest, and tested source SHA. Launchplane
 owns the route payload, idempotency key policy, provider target resolution,
 provider mutation, deployment polling, and deployment evidence.
 
+The MariaDB integration gate resolves its database image from
+`addons/repairshopr-sync/compose.yml` and starts an isolated container from that
+image. Database image updates therefore exercise migrations and schema checks in
+CI before the same Compose contract is deployed.
+
 ## Launchplane Health Readiness
 
 The `sync` container serves JSON readiness while the background sync loop is

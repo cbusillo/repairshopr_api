@@ -9,7 +9,8 @@ pytestmark = [pytest.mark.integration]
 
 
 @pytest.mark.skipif(
-    os.environ.get("RUN_MYSQL_INTEGRATION") != "1", reason="MySQL integration job only"
+    os.environ.get("RUN_MARIADB_INTEGRATION") != "1",
+    reason="MariaDB integration job only",
 )
 def test_ticket_comment_body_collation_matches_table_default(django_db_blocker) -> None:
     table_name = "repairshopr_data_ticketcomment"

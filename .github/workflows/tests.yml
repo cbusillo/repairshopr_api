@@ -44,24 +44,40 @@ jobs:
 
   mysql-integration:
     runs-on: ubuntu-latest
-
-    services:
-      mysql:
-        image: mysql:8.0
-        env:
-          MYSQL_ROOT_PASSWORD: root
-          MYSQL_DATABASE: repairshopr_test
-        ports:
-          - 3306:3306
-        options: >-
-          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=10
+    env:
+      DOCKER_IMAGE_REFERENCE: ci-unused
+      MARIADB_CONTAINER: mariadb-${{ github.run_id }}-${{ github.run_attempt }}
+      MARIADB_HOST: 127.0.0.1
+      MARIADB_PORT: "3306"
+      MARIADB_DATABASE: repairshopr_test
+      MARIADB_USER: repairshopr_api
+      MARIADB_PASSWORD: root
+      MARIADB_ROOT_PASSWORD: root
 
     steps:
       - name: Check out the repo
         uses: actions/checkout@v7
+
+      - name: Start MariaDB from production compose
+        run: |
+          image="$(
+            docker compose -f addons/repairshopr-sync/compose.yml \
+              config --format json | jq -er '.services.db.image'
+          )"
+          case "$image" in
+            mariadb:* | mariadb@* | */mariadb:* | */mariadb@*) ;;
+            *)
+              echo "Unexpected database image: $image" >&2
+              exit 1
+              ;;
+          esac
+          docker run --detach --name "$MARIADB_CONTAINER" \
+            --env MARIADB_ROOT_PASSWORD \
+            --env MARIADB_DATABASE \
+            --env MARIADB_USER \
+            --env MARIADB_PASSWORD \
+            --publish "$MARIADB_PORT:3306" \
+            "$image"
 
       - name: Set up Python
         uses: actions/setup-python@v7
@@ -84,39 +100,47 @@ jobs:
       - name: Install dependencies (sync extras)
         run: uv sync --locked --group dev --extra sync
 
-      - name: Wait for MySQL
+      - name: Wait for MariaDB
         run: |
-          uv run python - <<'PY'
+          if ! uv run python - <<'PY'
+          import os
           import time
           import MySQLdb
 
           for attempt in range(60):
               try:
                   MySQLdb.connect(
-                      host="127.0.0.1",
-                      port=3306,
-                      user="root",
-                      passwd="root",
-                      db="repairshopr_test",
+                      host=os.environ["MARIADB_HOST"],
+                      port=int(os.environ["MARIADB_PORT"]),
+                      user=os.environ["MARIADB_USER"],
+                      passwd=os.environ["MARIADB_PASSWORD"],
+                      db=os.environ["MARIADB_DATABASE"],
                   ).close()
                   break
               except Exception:
                   time.sleep(2)
           else:
-              raise SystemExit("MySQL service did not become ready")
+              raise SystemExit("MariaDB service did not become ready")
           PY
+          then
+            docker logs "$MARIADB_CONTAINER"
+            exit 1
+          fi
 
-      - name: Run MySQL integration tests
+      - name: Run MariaDB integration tests
         env:
-          RUN_MYSQL_INTEGRATION: "1"
-          MYSQL_HOST: "127.0.0.1"
-          MYSQL_PORT: "3306"
-          MYSQL_DATABASE: "repairshopr_test"
-          MYSQL_USER: "root"
-          MYSQL_PASSWORD: "root"
+          RUN_MARIADB_INTEGRATION: "1"
         run: |
           uv run python -m django migrate --noinput \
-            --settings=tests.django_settings_mysql
+            --settings=tests.django_settings_mariadb
           uv run pytest -q -m integration \
-            --ds=tests.django_settings_mysql \
+            --ds=tests.django_settings_mariadb \
             --no-cov
+
+      - name: Show MariaDB logs on failure
+        if: failure()
+        run: docker logs "$MARIADB_CONTAINER"
+
+      - name: Stop MariaDB
+        if: always()
+        run: docker rm --force "$MARIADB_CONTAINER" || true
