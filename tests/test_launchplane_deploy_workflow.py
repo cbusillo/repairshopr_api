@@ -8,6 +8,9 @@ ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW_PATH = ROOT / ".github" / "workflows" / "launchplane-deploy.yml"
 TESTS_WORKFLOW_PATH = ROOT / ".github" / "workflows" / "tests.yml"
 GITHUB_CONFIG_PATH = ROOT / ".github" / "github.json"
+RETIRED_RECOVERY_WORKFLOW_PATH = (
+    ROOT / ".github" / "workflows" / "launchplane-deploy-recovery-dry-run.yml"
+)
 
 
 def test_launchplane_deploy_workflow_uses_reusable_generic_web_deploy() -> None:
@@ -41,6 +44,29 @@ def test_launchplane_deploy_workflow_uses_reusable_generic_web_deploy() -> None:
     )
     for fragment in repo_local_launchplane_fragments:
         assert fragment not in workflow_text
+
+
+def test_launchplane_deploy_manual_dispatch_is_recovery_dry_run_only() -> None:
+    workflow_text = WORKFLOW_PATH.read_text(encoding="utf-8")
+
+    required_fragments = (
+        "workflow_dispatch:",
+        "github.event_name == 'workflow_run'",
+        "github.event_name == 'workflow_dispatch'",
+        "name: Inspect existing deploy reservation",
+        "uses: cbusillo/launchplane/.github/actions/"
+        "generic-web-deploy-recovery-dry-run@05e86a9b54a07642d869ace7d26dc71b5083442a",
+        "request-json: ${{ steps.payload.outputs.request }}",
+        "Recovery digest:",
+        "Proposed action:",
+        "Reservation state:",
+    )
+    for fragment in required_fragments:
+        assert fragment in workflow_text
+
+    assert "generic-web/deploy-recovery/apply" not in workflow_text
+    assert "expected_recovery_digest" not in workflow_text
+    assert not RETIRED_RECOVERY_WORKFLOW_PATH.exists()
 
 
 def test_test_suite_uses_reusable_launchplane_config_authority_gate() -> None:
