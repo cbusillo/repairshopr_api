@@ -1,0 +1,99 @@
+---
+name: Launchplane Recovery Request
+
+"on":
+  workflow_dispatch:
+    inputs:
+      product:
+        description: Launchplane product identifier for recovery inspection.
+        required: true
+        type: string
+      instance:
+        description: Launchplane product instance for recovery inspection.
+        required: true
+        type: string
+      artifact_id:
+        description: Exact original immutable artifact identifier.
+        required: true
+        type: string
+      source_git_ref:
+        description: Exact original source commit.
+        required: true
+        type: string
+      original_run_id:
+        description: GitHub Actions run ID from the exact original deploy.
+        required: true
+        type: string
+      original_run_attempt:
+        description: GitHub Actions run attempt from the exact original deploy.
+        required: true
+        type: string
+      reason:
+        description: Operator reason for the read-only recovery inspection.
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  stage-request:
+    name: Stage bounded recovery request
+    runs-on: ubuntu-latest
+    steps:
+      - name: Build exact original deploy payload
+        env:
+          ARTIFACT_ID: ${{ inputs.artifact_id }}
+          INSTANCE: ${{ inputs.instance }}
+          LAUNCHPLANE_URL: ${{ vars.LAUNCHPLANE_PUBLIC_URL }}
+          ORIGINAL_RUN_ATTEMPT: ${{ inputs.original_run_attempt }}
+          ORIGINAL_RUN_ID: ${{ inputs.original_run_id }}
+          PRODUCT: ${{ inputs.product }}
+          REASON: ${{ inputs.reason }}
+          SOURCE_GIT_REF: ${{ inputs.source_git_ref }}
+        run: |
+          set -euo pipefail
+
+          for required in \
+            LAUNCHPLANE_URL \
+            PRODUCT \
+            INSTANCE \
+            ARTIFACT_ID \
+            SOURCE_GIT_REF \
+            ORIGINAL_RUN_ID \
+            ORIGINAL_RUN_ATTEMPT \
+            REASON; do
+            if [ -z "${!required}" ]; then
+              echo "${required} is required for recovery dry-run." >&2
+              exit 1
+            fi
+          done
+
+          jq -cn \
+            --arg launchplane_url "$LAUNCHPLANE_URL" \
+            --arg product "$PRODUCT" \
+            --arg instance "$INSTANCE" \
+            --arg artifact_id "$ARTIFACT_ID" \
+            --arg source_git_ref "$SOURCE_GIT_REF" \
+            --arg original_run_id "$ORIGINAL_RUN_ID" \
+            --arg original_run_attempt "$ORIGINAL_RUN_ATTEMPT" \
+            --arg reason "$REASON" \
+            '{
+              schema_version: 1,
+              launchplane_url: $launchplane_url,
+              product: $product,
+              instance: $instance,
+              artifact_id: $artifact_id,
+              source_git_ref: $source_git_ref,
+              original_run_id: $original_run_id,
+              original_run_attempt: $original_run_attempt,
+              reason: $reason
+            }' > launchplane-recovery-request.json
+
+      - name: Stage recovery request for authorized workflow
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: launchplane-recovery-request-${{ github.run_id }}
+          path: launchplane-recovery-request.json
+          if-no-files-found: error
+          retention-days: 1
