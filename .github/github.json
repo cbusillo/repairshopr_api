@@ -52,6 +52,7 @@
   "importantWorkflows": [
     "Test Suite",
     "Launchplane Deploy",
+    "Launchplane Deploy Recovery Dry Run",
     "Publish to PyPI",
     "CodeQL",
     "Dependency Graph",
