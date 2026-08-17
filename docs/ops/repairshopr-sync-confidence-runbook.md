@@ -46,14 +46,17 @@ original product, instance, immutable artifact, source commit, GitHub Actions
 run ID and attempt, and an operator reason. It reconstructs the exact legacy
 deploy idempotency key through Launchplane's bounded recovery action, then calls
 only the read-only existing-reservation recovery route through GitHub Actions
-OIDC under the same authorized reusable workflow identity as stable deploy.
-Manual dispatch cannot build, publish, or deploy an image; those jobs run only
-after a successful `Test Suite` `workflow_run`. The reusable workflow recognizes
-the inherited manual-dispatch recovery inputs, constructs the private request
-envelope inside the authorized job, and skips stable deploy. Review the bounded
-recovery digest, proposed action, reservation state, and provider classification
-in the workflow summary. The manual path has no apply mode; production recovery
-apply remains a separate reviewed operator action outside this repository.
+OIDC under the same authorized `workflow_run` and reusable workflow identities as
+stable deploy. Operators dispatch `Launchplane Recovery Request`, which only
+stages a one-day request artifact. `Launchplane Deploy` accepts that artifact
+only from a successful manual run on `main` and invokes the reusable
+recovery-only job. The reusable Launchplane workflow validates the exact source
+workflow and consumes the triggering run's bounded artifact centrally. The
+bridge cannot build, publish, or deploy an image, and it exposes no recovery
+apply mode. Review the bounded recovery digest, proposed action, reservation
+state, and provider classification in the `Launchplane Deploy` workflow summary.
+Production recovery apply remains a separate reviewed operator action outside
+this repository.
 
 The MariaDB integration gate resolves its database image from
 `addons/repairshopr-sync/compose.yml` and starts an isolated container from that
