@@ -54,18 +54,22 @@ def test_launchplane_deploy_manual_dispatch_is_recovery_dry_run_only() -> None:
         "github.event_name == 'workflow_run'",
         "github.event_name == 'workflow_dispatch'",
         "name: Inspect existing deploy reservation",
-        "uses: cbusillo/launchplane/.github/actions/"
-        "generic-web-deploy-recovery-dry-run@05e86a9b54a07642d869ace7d26dc71b5083442a",
-        "request-json: ${{ steps.payload.outputs.request }}",
-        "Recovery digest:",
-        "Proposed action:",
-        "Reservation state:",
+        "uses: cbusillo/launchplane/.github/workflows/"
+        "reusable-generic-web-stable-deploy.yml@main",
+        "launchplane_url: ${{ vars.LAUNCHPLANE_PUBLIC_URL }}",
+        "product: ${{ inputs.product }}",
+        "instance: ${{ inputs.instance }}",
+        "artifact_id: ${{ inputs.artifact_id }}",
+        "source_git_ref: ${{ inputs.source_git_ref }}",
     )
     for fragment in required_fragments:
         assert fragment in workflow_text
 
     assert "generic-web/deploy-recovery/apply" not in workflow_text
     assert "expected_recovery_digest" not in workflow_text
+    assert "generic-web-deploy-recovery-dry-run@" not in workflow_text
+    assert "recovery_request_json:" not in workflow_text
+    assert "prepare-recovery-dry-run:" not in workflow_text
     assert not RETIRED_RECOVERY_WORKFLOW_PATH.exists()
 
 
