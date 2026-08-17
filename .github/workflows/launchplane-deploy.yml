@@ -5,15 +5,16 @@ name: Launchplane Deploy
   workflow_run:
     workflows:
       - Test Suite
+      - Launchplane Recovery Request
     types:
       - completed
     branches:
       - main
 
 permissions:
+  actions: read
   contents: read
   id-token: write
-  packages: write
 
 concurrency:
   group: launchplane-deploy-main
@@ -23,7 +24,12 @@ jobs:
   build-image:
     name: Build tested sync image
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     if: >-
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.name == 'Test Suite' &&
       github.event.workflow_run.conclusion == 'success' &&
       github.event.workflow_run.event == 'push'
     outputs:
@@ -97,7 +103,9 @@ jobs:
   deploy:
     name: Request Launchplane deploy
     needs: build-image
-    if: ${{ needs.build-image.result == 'success' }}
+    if: >-
+      github.event_name == 'workflow_run' &&
+      needs.build-image.result == 'success'
     uses: cbusillo/launchplane/.github/workflows/reusable-generic-web-stable-deploy.yml@main
     with:
       launchplane_url: ${{ vars.LAUNCHPLANE_PUBLIC_URL }}
@@ -106,3 +114,18 @@ jobs:
       artifact_id: ${{ needs.build-image.outputs.artifact_id }}
       source_git_ref: ${{ needs.build-image.outputs.source_git_ref }}
       timeout-ms: "720000"
+
+  recovery-dry-run:
+    name: Inspect existing deploy reservation
+    if: >-
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.name == 'Launchplane Recovery Request' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'workflow_dispatch' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    uses: cbusillo/launchplane/.github/workflows/reusable-generic-web-stable-deploy.yml@main
+    with:
+      artifact_id: staged-recovery-request
+      source_git_ref: ${{ github.event.workflow_run.head_sha }}
+      timeout-ms: "120000"

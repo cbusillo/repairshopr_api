@@ -40,6 +40,24 @@ key, lane instance, immutable image digest, and tested source SHA. Launchplane
 owns the route payload, idempotency key policy, provider target resolution,
 provider mutation, deployment polling, and deployment evidence.
 
+When an existing deploy reservation requires inspection, use the manual
+`Launchplane Deploy` workflow's manual dispatch path. It accepts the exact
+original product, instance, immutable artifact, source commit, GitHub Actions
+run ID and attempt, and an operator reason. It reconstructs the exact legacy
+deploy idempotency key through Launchplane's bounded recovery action, then calls
+only the read-only existing-reservation recovery route through GitHub Actions
+OIDC under the same authorized `workflow_run` and reusable workflow identities as
+stable deploy. Operators dispatch `Launchplane Recovery Request`, which only
+stages a one-day request artifact. `Launchplane Deploy` accepts that artifact
+only from a successful manual run on `main` and invokes the reusable
+recovery-only job. The reusable Launchplane workflow validates the exact source
+workflow and consumes the triggering run's bounded artifact centrally. The
+bridge cannot build, publish, or deploy an image, and it exposes no recovery
+apply mode. Review the bounded recovery digest, proposed action, reservation
+state, and provider classification in the `Launchplane Deploy` workflow summary.
+Production recovery apply remains a separate reviewed operator action outside
+this repository.
+
 The MariaDB integration gate resolves its database image from
 `addons/repairshopr-sync/compose.yml` and starts an isolated container from that
 image. Database image updates therefore exercise migrations and schema checks in

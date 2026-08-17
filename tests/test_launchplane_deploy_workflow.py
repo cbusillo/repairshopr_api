@@ -6,8 +6,14 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW_PATH = ROOT / ".github" / "workflows" / "launchplane-deploy.yml"
+RECOVERY_REQUEST_WORKFLOW_PATH = (
+    ROOT / ".github" / "workflows" / "launchplane-recovery-request.yml"
+)
 TESTS_WORKFLOW_PATH = ROOT / ".github" / "workflows" / "tests.yml"
 GITHUB_CONFIG_PATH = ROOT / ".github" / "github.json"
+RETIRED_RECOVERY_WORKFLOW_PATH = (
+    ROOT / ".github" / "workflows" / "launchplane-deploy-recovery-dry-run.yml"
+)
 
 
 def test_launchplane_deploy_workflow_uses_reusable_generic_web_deploy() -> None:
@@ -41,6 +47,47 @@ def test_launchplane_deploy_workflow_uses_reusable_generic_web_deploy() -> None:
     )
     for fragment in repo_local_launchplane_fragments:
         assert fragment not in workflow_text
+
+
+def test_launchplane_recovery_request_uses_authorized_workflow_run_bridge() -> None:
+    deploy_workflow_text = WORKFLOW_PATH.read_text(encoding="utf-8")
+    request_workflow_text = RECOVERY_REQUEST_WORKFLOW_PATH.read_text(encoding="utf-8")
+
+    request_fragments = (
+        "name: Launchplane Recovery Request",
+        "workflow_dispatch:",
+        "name: Stage bounded recovery request",
+        "launchplane-recovery-request-${{ github.run_id }}",
+        "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+        "retention-days: 1",
+    )
+    for fragment in request_fragments:
+        assert fragment in request_workflow_text
+
+    deploy_fragments = (
+        "github.event_name == 'workflow_run'",
+        "github.event.workflow_run.name == 'Launchplane Recovery Request'",
+        "github.event.workflow_run.event == 'workflow_dispatch'",
+        "github.event.workflow_run.head_branch == 'main'",
+        "github.event.workflow_run.head_repository.full_name == github.repository",
+        "name: Inspect existing deploy reservation",
+        "uses: cbusillo/launchplane/.github/workflows/"
+        "reusable-generic-web-stable-deploy.yml@main",
+        "artifact_id: staged-recovery-request",
+        "source_git_ref: ${{ github.event.workflow_run.head_sha }}",
+    )
+    for fragment in deploy_fragments:
+        assert fragment in deploy_workflow_text
+
+    combined_workflow_text = request_workflow_text + deploy_workflow_text
+    assert "generic-web/deploy-recovery/apply" not in combined_workflow_text
+    assert "expected_recovery_digest" not in combined_workflow_text
+    assert "generic-web-deploy-recovery-dry-run@" not in combined_workflow_text
+    assert "actions/download-artifact@" not in deploy_workflow_text
+    assert "recovery_request_json:" not in deploy_workflow_text
+    assert "id-token: write" not in request_workflow_text
+    assert "  workflow_dispatch:" not in deploy_workflow_text
+    assert not RETIRED_RECOVERY_WORKFLOW_PATH.exists()
 
 
 def test_test_suite_uses_reusable_launchplane_config_authority_gate() -> None:
