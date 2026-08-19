@@ -6,6 +6,7 @@ name: Launchplane Deploy
     workflows:
       - Test Suite
       - Launchplane Recovery Request
+      - Launchplane Recovery Apply Request
     types:
       - completed
     branches:
@@ -129,3 +130,27 @@ jobs:
       artifact_id: staged-recovery-request
       source_git_ref: ${{ github.event.workflow_run.head_sha }}
       timeout-ms: "120000"
+
+  recovery-apply:
+    name: Apply approved deploy recovery
+    if: >-
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.name == 'Launchplane Recovery Apply Request' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'workflow_dispatch' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+    steps:
+      - name: Apply digest-bound recovery adoption
+        uses: cbusillo/launchplane/.github/actions/generic-web-deploy-recovery-dry-run@011988411ff063be8b1069b4588a4825fb4749a7
+        with:
+          launchplane-url: ${{ vars.LAUNCHPLANE_PUBLIC_URL }}
+          expected-product: ${{ vars.LAUNCHPLANE_PRODUCT }}
+          expected-instance: ${{ vars.LAUNCHPLANE_INSTANCE }}
+          workflow-run-id: ${{ github.event.workflow_run.id }}
+          timeout-ms: "120000"
