@@ -80,7 +80,10 @@ def test_launchplane_recovery_request_uses_authorized_workflow_run_bridge() -> N
     for fragment in deploy_fragments:
         assert fragment in deploy_workflow_text
 
-    combined_workflow_text = request_workflow_text + deploy_workflow_text
+    dry_run_deploy_workflow_text = deploy_workflow_text.split(
+        "  recovery-apply:", maxsplit=1
+    )[0]
+    combined_workflow_text = request_workflow_text + dry_run_deploy_workflow_text
     assert "generic-web/deploy-recovery/apply" not in request_workflow_text
     assert "expected_recovery_digest" not in request_workflow_text
     assert "generic-web-deploy-recovery-dry-run@" not in combined_workflow_text
@@ -114,28 +117,44 @@ def test_launchplane_recovery_apply_uses_digest_bound_workflow_run_bridge() -> N
         "github.event.workflow_run.head_branch == 'main'",
         "github.event.workflow_run.head_repository.full_name == github.repository",
         "name: Apply approved deploy recovery",
-        "actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c",
-        "launchplane-recovery-apply-request-${{ github.event.workflow_run.id }}",
-        "route-path: /v1/admin/generic-web/deploy-recovery/apply",
-        "expected_recovery_digest: $expected_recovery_digest",
-        "idempotency-key: ${{ steps.request.outputs.idempotency_key }}",
-        'expected-status: "202"',
-        'log-response-body: "false"',
-        '.recovery_action == "adopt_observed"',
-        '.reservation_state == "completed"',
-        ".retry_safe == false",
+        "launchplane-url: ${{ vars.LAUNCHPLANE_PUBLIC_URL }}",
+        "expected-product: ${{ vars.LAUNCHPLANE_PRODUCT }}",
+        "expected-instance: ${{ vars.LAUNCHPLANE_INSTANCE }}",
+        "workflow-run-id: ${{ github.event.workflow_run.id }}",
+        'timeout-ms: "120000"',
     )
     for fragment in deploy_fragments:
         assert fragment in deploy_workflow_text
 
     action_match = re.search(
-        r"cbusillo/launchplane/\.github/actions/launchplane-request@(?P<sha>[0-9a-f]{40})",
+        r"cbusillo/launchplane/\.github/actions/"
+        r"generic-web-deploy-recovery-dry-run@(?P<sha>[0-9a-f]{40})",
         deploy_workflow_text,
     )
     assert action_match is not None
-    assert action_match.group("sha") == "90489f6d017f6183a586144f5327cd5ec671d7a4"
+    assert action_match.group("sha") == "011988411ff063be8b1069b4588a4825fb4749a7"
     assert "id-token: write" not in request_workflow_text
     assert "launchplane-url" not in request_workflow_text
+    recovery_apply_workflow_text = deploy_workflow_text.split(
+        "  recovery-apply:", maxsplit=1
+    )[1]
+    for forbidden_fragment in (
+        "actions/download-artifact@",
+        "github-token:",
+        "request-json:",
+        "request<<EOF",
+        "jq ",
+        "route-path:",
+        "payload-file:",
+        "idempotency-key:",
+        "expected-status:",
+        "output-paths:",
+        "response-output-file:",
+        "retry-attempts:",
+        "Verify adoption-only recovery result",
+    ):
+        assert forbidden_fragment not in recovery_apply_workflow_text
+    assert recovery_apply_workflow_text.count("      - name:") == 1
     assert "  workflow_dispatch:" not in deploy_workflow_text
 
 
