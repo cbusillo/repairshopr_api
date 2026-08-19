@@ -95,8 +95,9 @@ product lane after deploy. The repo exposes the port and endpoint shape only;
 Launchplane operator records own live product URLs, provider IDs, and
 lane-specific routing.
 
-The payload includes package version, source/image hints when the runtime
-provides them, parsed `LAUNCHPLANE_RUNTIME_IDENTITY_JSON` under
+The compose contract forwards Launchplane's runtime identity variables into the
+sync container. The payload includes package version, the deployed
+`DOCKER_IMAGE_REFERENCE`, parsed `LAUNCHPLANE_RUNTIME_IDENTITY_JSON` under
 `runtime_identity`, and the same `SyncStatus` freshness data used by the
 `sync_status` watchdog command. Fallback runtime fields come from
 `LAUNCHPLANE_DEPLOYMENT_RECORD_ID`, `LAUNCHPLANE_ARTIFACT_ID`, and
