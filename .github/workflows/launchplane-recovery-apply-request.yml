@@ -1,0 +1,128 @@
+---
+name: Launchplane Recovery Apply Request
+
+"on":
+  workflow_dispatch:
+    inputs:
+      product:
+        description: Launchplane product identifier for the approved recovery.
+        required: true
+        type: string
+      instance:
+        description: Launchplane product instance for the approved recovery.
+        required: true
+        type: string
+      artifact_id:
+        description: Exact original immutable artifact identifier.
+        required: true
+        type: string
+      source_git_ref:
+        description: Exact original source commit.
+        required: true
+        type: string
+      original_run_id:
+        description: GitHub Actions run ID from the exact original deploy.
+        required: true
+        type: string
+      original_run_attempt:
+        description: GitHub Actions run attempt from the exact original deploy.
+        required: true
+        type: string
+      expected_recovery_digest:
+        description: Exact reviewed digest from the fresh recovery dry-run.
+        required: true
+        type: string
+      reason:
+        description: Operator reason for the approved recovery apply.
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  stage-request:
+    name: Stage approved recovery apply request
+    runs-on: ubuntu-latest
+    steps:
+      - name: Build exact approved recovery payload
+        env:
+          ARTIFACT_ID: ${{ inputs.artifact_id }}
+          EXPECTED_RECOVERY_DIGEST: ${{ inputs.expected_recovery_digest }}
+          INSTANCE: ${{ inputs.instance }}
+          ORIGINAL_RUN_ATTEMPT: ${{ inputs.original_run_attempt }}
+          ORIGINAL_RUN_ID: ${{ inputs.original_run_id }}
+          PRODUCT: ${{ inputs.product }}
+          REASON: ${{ inputs.reason }}
+          SOURCE_GIT_REF: ${{ inputs.source_git_ref }}
+        run: |
+          set -euo pipefail
+
+          for required in \
+            PRODUCT \
+            INSTANCE \
+            ARTIFACT_ID \
+            SOURCE_GIT_REF \
+            ORIGINAL_RUN_ID \
+            ORIGINAL_RUN_ATTEMPT \
+            EXPECTED_RECOVERY_DIGEST \
+            REASON; do
+            if [ -z "${!required}" ]; then
+              echo "${required} is required for recovery apply." >&2
+              exit 1
+            fi
+          done
+
+          if [[ ! "$ARTIFACT_ID" =~ ^ghcr\.io/cbusillo/repairshopr_api@sha256:[0-9a-f]{64}$ ]]; then
+            echo "ARTIFACT_ID must be the exact immutable RepairShopr image digest." >&2
+            exit 1
+          fi
+          if [[ ! "$SOURCE_GIT_REF" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "SOURCE_GIT_REF must be a full lowercase commit SHA." >&2
+            exit 1
+          fi
+          if [[ ! "$ORIGINAL_RUN_ID" =~ ^[1-9][0-9]*$ ]]; then
+            echo "ORIGINAL_RUN_ID must be a positive integer." >&2
+            exit 1
+          fi
+          if [[ ! "$ORIGINAL_RUN_ATTEMPT" =~ ^[1-9][0-9]*$ ]]; then
+            echo "ORIGINAL_RUN_ATTEMPT must be a positive integer." >&2
+            exit 1
+          fi
+          if [[ ! "$EXPECTED_RECOVERY_DIGEST" =~ ^[0-9a-f]{64}$ ]]; then
+            echo "EXPECTED_RECOVERY_DIGEST must be a lowercase SHA-256 digest." >&2
+            exit 1
+          fi
+          if [ "${#REASON}" -gt 1000 ]; then
+            echo "REASON exceeds the Launchplane recovery limit." >&2
+            exit 1
+          fi
+
+          jq -cn \
+            --arg product "$PRODUCT" \
+            --arg instance "$INSTANCE" \
+            --arg artifact_id "$ARTIFACT_ID" \
+            --arg source_git_ref "$SOURCE_GIT_REF" \
+            --arg original_run_id "$ORIGINAL_RUN_ID" \
+            --arg original_run_attempt "$ORIGINAL_RUN_ATTEMPT" \
+            --arg expected_recovery_digest "$EXPECTED_RECOVERY_DIGEST" \
+            --arg reason "$REASON" \
+            '{
+              schema_version: 1,
+              product: $product,
+              instance: $instance,
+              artifact_id: $artifact_id,
+              source_git_ref: $source_git_ref,
+              original_run_id: $original_run_id,
+              original_run_attempt: $original_run_attempt,
+              expected_recovery_digest: $expected_recovery_digest,
+              reason: $reason
+            }' > launchplane-recovery-apply-request.json
+
+      - name: Stage recovery apply for authorized workflow
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: launchplane-recovery-apply-request-${{ github.run_id }}
+          path: launchplane-recovery-apply-request.json
+          if-no-files-found: error
+          retention-days: 1

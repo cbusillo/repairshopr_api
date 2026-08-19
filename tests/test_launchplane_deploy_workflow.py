@@ -9,6 +9,9 @@ WORKFLOW_PATH = ROOT / ".github" / "workflows" / "launchplane-deploy.yml"
 RECOVERY_REQUEST_WORKFLOW_PATH = (
     ROOT / ".github" / "workflows" / "launchplane-recovery-request.yml"
 )
+RECOVERY_APPLY_REQUEST_WORKFLOW_PATH = (
+    ROOT / ".github" / "workflows" / "launchplane-recovery-apply-request.yml"
+)
 TESTS_WORKFLOW_PATH = ROOT / ".github" / "workflows" / "tests.yml"
 GITHUB_CONFIG_PATH = ROOT / ".github" / "github.json"
 RETIRED_RECOVERY_WORKFLOW_PATH = (
@@ -41,8 +44,6 @@ def test_launchplane_deploy_workflow_uses_reusable_generic_web_deploy() -> None:
     repo_local_launchplane_fragments = (
         "cbusillo/launchplane/.github/actions/launchplane-request@main",
         "route-path: /v1/drivers/generic-web/deploy",
-        "payload-file:",
-        "idempotency-key:",
         "deployment_record_id=result.deployment_record_id",
     )
     for fragment in repo_local_launchplane_fragments:
@@ -80,14 +81,62 @@ def test_launchplane_recovery_request_uses_authorized_workflow_run_bridge() -> N
         assert fragment in deploy_workflow_text
 
     combined_workflow_text = request_workflow_text + deploy_workflow_text
-    assert "generic-web/deploy-recovery/apply" not in combined_workflow_text
-    assert "expected_recovery_digest" not in combined_workflow_text
+    assert "generic-web/deploy-recovery/apply" not in request_workflow_text
+    assert "expected_recovery_digest" not in request_workflow_text
     assert "generic-web-deploy-recovery-dry-run@" not in combined_workflow_text
-    assert "actions/download-artifact@" not in deploy_workflow_text
     assert "recovery_request_json:" not in deploy_workflow_text
     assert "id-token: write" not in request_workflow_text
     assert "  workflow_dispatch:" not in deploy_workflow_text
     assert not RETIRED_RECOVERY_WORKFLOW_PATH.exists()
+
+
+def test_launchplane_recovery_apply_uses_digest_bound_workflow_run_bridge() -> None:
+    deploy_workflow_text = WORKFLOW_PATH.read_text(encoding="utf-8")
+    request_workflow_text = RECOVERY_APPLY_REQUEST_WORKFLOW_PATH.read_text(
+        encoding="utf-8"
+    )
+
+    request_fragments = (
+        "name: Launchplane Recovery Apply Request",
+        "workflow_dispatch:",
+        "expected_recovery_digest:",
+        "name: Stage approved recovery apply request",
+        "launchplane-recovery-apply-request-${{ github.run_id }}",
+        "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+        "retention-days: 1",
+    )
+    for fragment in request_fragments:
+        assert fragment in request_workflow_text
+
+    deploy_fragments = (
+        "github.event.workflow_run.name == 'Launchplane Recovery Apply Request'",
+        "github.event.workflow_run.event == 'workflow_dispatch'",
+        "github.event.workflow_run.head_branch == 'main'",
+        "github.event.workflow_run.head_repository.full_name == github.repository",
+        "name: Apply approved deploy recovery",
+        "actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c",
+        "launchplane-recovery-apply-request-${{ github.event.workflow_run.id }}",
+        "route-path: /v1/admin/generic-web/deploy-recovery/apply",
+        "expected_recovery_digest: $expected_recovery_digest",
+        "idempotency-key: ${{ steps.request.outputs.idempotency_key }}",
+        'expected-status: "202"',
+        'log-response-body: "false"',
+        '.recovery_action == "adopt_observed"',
+        '.reservation_state == "completed"',
+        ".retry_safe == false",
+    )
+    for fragment in deploy_fragments:
+        assert fragment in deploy_workflow_text
+
+    action_match = re.search(
+        r"cbusillo/launchplane/\.github/actions/launchplane-request@(?P<sha>[0-9a-f]{40})",
+        deploy_workflow_text,
+    )
+    assert action_match is not None
+    assert action_match.group("sha") == "90489f6d017f6183a586144f5327cd5ec671d7a4"
+    assert "id-token: write" not in request_workflow_text
+    assert "launchplane-url" not in request_workflow_text
+    assert "  workflow_dispatch:" not in deploy_workflow_text
 
 
 def test_test_suite_uses_reusable_launchplane_config_authority_gate() -> None:

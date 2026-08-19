@@ -55,8 +55,19 @@ workflow and consumes the triggering run's bounded artifact centrally. The
 bridge cannot build, publish, or deploy an image, and it exposes no recovery
 apply mode. Review the bounded recovery digest, proposed action, reservation
 state, and provider classification in the `Launchplane Deploy` workflow summary.
-Production recovery apply remains a separate reviewed operator action outside
-this repository.
+
+After separate explicit approval, dispatch `Launchplane Recovery Apply Request`
+with the identical original deploy coordinates and the exact reviewed recovery
+digest. The staging workflow has no OIDC permission and only uploads a one-day
+bounded artifact. `Launchplane Deploy` accepts that artifact only from a
+successful manual run on `main`, verifies its single-file schema, size, target,
+immutable image, source commit, original run identity, reason, and digest, then
+calls the digest-gated recovery apply route under the existing authorized
+`workflow_run` identity. The Launchplane service performs a fresh inspection
+and rejects stale evidence before writing. The workflow suppresses the raw
+response and succeeds only when the result proves `adopt_observed`, completed
+reservation state, present/done provider evidence, the exact reviewed digest,
+and `retry_safe=false`. It never exposes or enables provider retry.
 
 The MariaDB integration gate resolves its database image from
 `addons/repairshopr-sync/compose.yml` and starts an isolated container from that
