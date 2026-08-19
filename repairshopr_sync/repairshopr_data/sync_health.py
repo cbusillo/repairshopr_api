@@ -11,7 +11,6 @@ from django.utils.timezone import now
 
 from repairshopr_data.models import SyncStatus
 
-
 SERVICE_NAME = "repairshopr-sync"
 PACKAGE_NAME = "repairshopr-api"
 DEFAULT_STALE_THRESHOLD_SECONDS = 900
@@ -145,7 +144,11 @@ def source_git_ref(runtime_identity: dict[str, Any]) -> str | None:
 
 
 def image_reference() -> str | None:
-    for env_name in ("LAUNCHPLANE_IMAGE_REFERENCE", "IMAGE_REFERENCE"):
+    for env_name in (
+        "LAUNCHPLANE_IMAGE_REFERENCE",
+        "DOCKER_IMAGE_REFERENCE",
+        "IMAGE_REFERENCE",
+    ):
         value = os.getenv(env_name)
         if value:
             return value
@@ -186,7 +189,7 @@ def build_health_payload(stale_threshold_seconds: int) -> tuple[dict[str, Any], 
 
     ready = not not_ready_reasons
     status = "ok" if ready else "not_ready"
-    payload = {
+    payload: dict[str, Any] = {
         "schema_version": 1,
         "service": SERVICE_NAME,
         "status": status,

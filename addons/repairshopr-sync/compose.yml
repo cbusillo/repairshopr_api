@@ -1,15 +1,22 @@
 ---
 name: repairshopr-sync
 
+x-launchplane-image: &launchplane-image "${DOCKER_IMAGE_REFERENCE:?DOCKER_IMAGE_REFERENCE is required}"
+
 services:
   sync:
-    image: ${DOCKER_IMAGE_REFERENCE:?DOCKER_IMAGE_REFERENCE is required}
+    image: *launchplane-image
     environment:
       HOME: /var/lib/repairshopr
       REPAIRSHOPR_TOKEN: ${REPAIRSHOPR_TOKEN}
       REPAIRSHOPR_URL_STORE_NAME: ${REPAIRSHOPR_URL_STORE_NAME}
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY}
       REPAIRSHOPR_DEBUG: ${REPAIRSHOPR_DEBUG:-false}
+      DOCKER_IMAGE_REFERENCE: ${DOCKER_IMAGE_REFERENCE}
+      LAUNCHPLANE_ARTIFACT_ID: ${LAUNCHPLANE_ARTIFACT_ID:-}
+      LAUNCHPLANE_DEPLOYMENT_RECORD_ID: ${LAUNCHPLANE_DEPLOYMENT_RECORD_ID:-}
+      LAUNCHPLANE_RUNTIME_IDENTITY_JSON: ${LAUNCHPLANE_RUNTIME_IDENTITY_JSON:-}
+      LAUNCHPLANE_SOURCE_GIT_REF: ${LAUNCHPLANE_SOURCE_GIT_REF:-}
       SYNC_DB_HOST: db
       SYNC_DB_NAME: ${SYNC_DB_NAME:-repairshopr}
       SYNC_DB_USER: ${SYNC_DB_USER:-repairshopr_api}
@@ -20,13 +27,7 @@ services:
     ports:
       - "${SYNC_HEALTH_HOST_PORT:-8000}:${SYNC_HEALTH_PORT:-8000}"
     healthcheck:
-      test:
-        - CMD
-        - python
-        - -c
-        - >-
-          import urllib.request;
-          urllib.request.urlopen('http://127.0.0.1:${SYNC_HEALTH_PORT:-8000}/health', timeout=5).read()
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:${SYNC_HEALTH_PORT:-8000}/health', timeout=5).read()"]
       interval: 30s
       timeout: 10s
       retries: 3
