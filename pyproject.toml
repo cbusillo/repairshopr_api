@@ -38,6 +38,7 @@ dev = [
     "pytest-cov>=7.1.0",
     "pytest-django>=4.14.0",
     "pytest-mock>=3.14.0",
+    "PyYAML>=6.0.3",
     "types-requests>=2.33.0.20260712",
     "types-toml>=0.10.8.20260518",
 ]
