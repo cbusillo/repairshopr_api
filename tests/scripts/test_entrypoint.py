@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import signal
 import stat
 import subprocess
 import sys
@@ -25,6 +26,12 @@ def stubbed_runtime(tmp_path: Path) -> dict[str, str]:
     log_file = tmp_path / "events.log"
     db_attempt_file = tmp_path / "db-attempts.txt"
     sync_status_check_file = tmp_path / "sync-status-checks.txt"
+    import_ready_fifo = tmp_path / "import-ready.fifo"
+    import_release_fifo = tmp_path / "import-release.fifo"
+    status_ready_fifo = tmp_path / "status-ready.fifo"
+    os.mkfifo(import_ready_fifo)
+    os.mkfifo(import_release_fifo)
+    os.mkfifo(status_ready_fifo)
 
     python_stub = """#!/usr/bin/env bash
 set -euo pipefail
@@ -35,10 +42,14 @@ DB_ATTEMPT_FILE="${DB_ATTEMPT_FILE:-/tmp/db-attempts.log}"
 SYNC_STATUS_CHECK_FILE="${SYNC_STATUS_CHECK_FILE:-/tmp/sync-status-checks.log}"
 DB_READY_AFTER="${DB_READY_AFTER:-1}"
 IMPORT_FAIL="${MOCK_IMPORT_FAIL:-0}"
-IMPORT_DURATION_SECONDS="${MOCK_IMPORT_DURATION_SECONDS:-0}"
+IMPORT_BLOCK="${MOCK_IMPORT_BLOCK:-0}"
 IMPORT_IGNORE_TERM="${MOCK_IMPORT_IGNORE_TERM:-0}"
+IMPORT_WAIT_FOR_STATUS="${MOCK_IMPORT_WAIT_FOR_STATUS:-0}"
+IMPORT_READY_FIFO="${MOCK_IMPORT_READY_FIFO:-}"
+IMPORT_RELEASE_FIFO="${MOCK_IMPORT_RELEASE_FIFO:-}"
 SYNC_STATUS_STALE_AFTER="${MOCK_SYNC_STATUS_STALE_AFTER:-0}"
-SYNC_STATUS_DURATION_SECONDS="${MOCK_SYNC_STATUS_DURATION_SECONDS:-0}"
+SYNC_STATUS_BLOCK="${MOCK_SYNC_STATUS_BLOCK:-0}"
+SYNC_STATUS_READY_FIFO="${MOCK_SYNC_STATUS_READY_FIFO:-}"
 
 if [[ "${1:-}" == *"repairshopr_sync/manage.py" ]]; then
   cmd="${2:-}"
@@ -51,12 +62,17 @@ if [[ "${1:-}" == *"repairshopr_sync/manage.py" ]]; then
     check_count="$((check_count + 1))"
     echo "${check_count}" > "${SYNC_STATUS_CHECK_FILE}"
 
-    if [[ "${SYNC_STATUS_DURATION_SECONDS}" != "0" ]]; then
-      "${REAL_PYTHON}" - "${SYNC_STATUS_DURATION_SECONDS}" <<'PY'
+    if [[ "${SYNC_STATUS_BLOCK}" == "1" ]]; then
+      : "${SYNC_STATUS_READY_FIFO:?MOCK_SYNC_STATUS_READY_FIFO is required}"
+      : "${IMPORT_RELEASE_FIFO:?MOCK_IMPORT_RELEASE_FIFO is required}"
+      exec "${REAL_PYTHON}" - "${SYNC_STATUS_READY_FIFO}" "${IMPORT_RELEASE_FIFO}" <<'PY'
+import signal
 import sys
-import time
 
-time.sleep(float(sys.argv[1]))
+with open(sys.argv[2], "wb", buffering=0):
+    with open(sys.argv[1], "wb", buffering=0) as ready_fifo:
+        ready_fifo.write(b"1")
+    signal.pause()
 PY
     fi
 
@@ -72,19 +88,28 @@ PY
     exit 0
   fi
 
-  if [[ "${cmd}" == "import_from_repairshopr" && "${IMPORT_IGNORE_TERM}" == "1" ]]; then
-    trap '' TERM
-    while true; do
-      sleep 1
-    done
+  if [[ "${cmd}" == "import_from_repairshopr" && "${IMPORT_BLOCK}" == "1" ]]; then
+    : "${IMPORT_READY_FIFO:?MOCK_IMPORT_READY_FIFO is required}"
+    exec "${REAL_PYTHON}" - "${IMPORT_READY_FIFO}" "${IMPORT_IGNORE_TERM}" <<'PY'
+import signal
+import sys
+
+if sys.argv[2] == "1":
+    signal.signal(signal.SIGTERM, signal.SIG_IGN)
+
+with open(sys.argv[1], "wb", buffering=0) as ready_fifo:
+    ready_fifo.write(b"1")
+signal.pause()
+PY
   fi
 
-  if [[ "${cmd}" == "import_from_repairshopr" && "${IMPORT_DURATION_SECONDS}" != "0" ]]; then
-    "${REAL_PYTHON}" - "${IMPORT_DURATION_SECONDS}" <<'PY'
+  if [[ "${cmd}" == "import_from_repairshopr" && "${IMPORT_WAIT_FOR_STATUS}" == "1" ]]; then
+    : "${IMPORT_RELEASE_FIFO:?MOCK_IMPORT_RELEASE_FIFO is required}"
+    exec "${REAL_PYTHON}" - "${IMPORT_RELEASE_FIFO}" <<'PY'
 import sys
-import time
 
-time.sleep(float(sys.argv[1]))
+with open(sys.argv[1], "rb", buffering=0) as release_fifo:
+    release_fifo.read()
 PY
   fi
 
@@ -126,6 +151,13 @@ if [[ "${STOP_ON_SLEEP_ARG:-}" == "${arg}" ]]; then
   exit "${STOP_EXIT_CODE:-77}"
 fi
 
+if [[ "${MOCK_SLEEP_WAIT_ARG:-}" == "${arg}" && ! -e "${MOCK_SLEEP_WAIT_CONSUMED_FILE:-}" ]]; then
+  : "${MOCK_SLEEP_WAIT_FIFO:?MOCK_SLEEP_WAIT_FIFO is required}"
+  : "${MOCK_SLEEP_WAIT_CONSUMED_FILE:?MOCK_SLEEP_WAIT_CONSUMED_FILE is required}"
+  IFS= read -r -n 1 ready < "${MOCK_SLEEP_WAIT_FIFO}"
+  : > "${MOCK_SLEEP_WAIT_CONSUMED_FILE}"
+fi
+
 exit 0
 """
 
@@ -139,6 +171,10 @@ exit 0
         "MOCK_LOG_FILE": str(log_file),
         "DB_ATTEMPT_FILE": str(db_attempt_file),
         "SYNC_STATUS_CHECK_FILE": str(sync_status_check_file),
+        "MOCK_IMPORT_READY_FIFO": str(import_ready_fifo),
+        "MOCK_IMPORT_RELEASE_FIFO": str(import_release_fifo),
+        "MOCK_SYNC_STATUS_READY_FIFO": str(status_ready_fifo),
+        "MOCK_SLEEP_WAIT_CONSUMED_FILE": str(tmp_path / "sleep-wait-consumed"),
         "REPAIRSHOPR_TOKEN": "token",
         "REPAIRSHOPR_URL_STORE_NAME": "store",
         "SYNC_DB_HOST": "db",
@@ -149,13 +185,34 @@ exit 0
 
 
 def _run_entrypoint(env: dict[str, str]) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
+    process = subprocess.Popen(
         ["bash", str(SCRIPT_PATH)],
         cwd=ROOT,
         env=env,
-        capture_output=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
         text=True,
-        timeout=10,
+        start_new_session=True,
+    )
+    try:
+        stdout, stderr = process.communicate(timeout=10)
+    except subprocess.TimeoutExpired as error:
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+        stdout, stderr = process.communicate()
+        raise subprocess.TimeoutExpired(
+            process.args,
+            error.timeout,
+            output=stdout,
+            stderr=stderr,
+        ) from error
+    return subprocess.CompletedProcess(
+        process.args,
+        process.returncode,
+        stdout,
+        stderr,
     )
 
 
@@ -250,11 +307,13 @@ def test_entrypoint_watchdog_detects_stale_sync_and_restarts_cycle(
     env.update(
         {
             "SYNC_WATCHDOG_ENABLED": "1",
-            "SYNC_WATCHDOG_POLL_SECONDS": "1",
+            "SYNC_WATCHDOG_POLL_SECONDS": "0",
             "SYNC_WATCHDOG_STARTUP_GRACE_SECONDS": "0",
             "SYNC_WATCHDOG_MAX_STALE_COUNT": "1",
             "SYNC_STALE_HEARTBEAT_SECONDS": "30",
-            "MOCK_IMPORT_DURATION_SECONDS": "5",
+            "MOCK_IMPORT_BLOCK": "1",
+            "MOCK_SLEEP_WAIT_ARG": "0",
+            "MOCK_SLEEP_WAIT_FIFO": stubbed_runtime["MOCK_IMPORT_READY_FIFO"],
             "MOCK_SYNC_STATUS_STALE_AFTER": "2",
             "SYNC_FAILURE_SLEEP_SECONDS": "7",
             "STOP_ON_SLEEP_ARG": "7",
@@ -282,11 +341,13 @@ def test_entrypoint_watchdog_status_timeout_does_not_block_import(
     env.update(
         {
             "SYNC_WATCHDOG_ENABLED": "1",
-            "SYNC_WATCHDOG_POLL_SECONDS": "1",
+            "SYNC_WATCHDOG_POLL_SECONDS": "0",
             "SYNC_WATCHDOG_STARTUP_GRACE_SECONDS": "0",
             "SYNC_WATCHDOG_STATUS_TIMEOUT_SECONDS": "1",
-            "MOCK_SYNC_STATUS_DURATION_SECONDS": "5",
-            "MOCK_IMPORT_DURATION_SECONDS": "2",
+            "MOCK_IMPORT_WAIT_FOR_STATUS": "1",
+            "MOCK_SYNC_STATUS_BLOCK": "1",
+            "MOCK_SLEEP_WAIT_ARG": "1",
+            "MOCK_SLEEP_WAIT_FIFO": stubbed_runtime["MOCK_SYNC_STATUS_READY_FIFO"],
             "SYNC_INTERVAL_SECONDS": "30",
             "STOP_ON_SLEEP_ARG": "30",
             "STOP_EXIT_CODE": "77",
@@ -308,11 +369,13 @@ def test_entrypoint_watchdog_logs_consecutive_stale_counts_before_termination(
     env.update(
         {
             "SYNC_WATCHDOG_ENABLED": "1",
-            "SYNC_WATCHDOG_POLL_SECONDS": "1",
+            "SYNC_WATCHDOG_POLL_SECONDS": "0",
             "SYNC_WATCHDOG_STARTUP_GRACE_SECONDS": "0",
             "SYNC_WATCHDOG_MAX_STALE_COUNT": "3",
             "MOCK_SYNC_STATUS_STALE_AFTER": "1",
-            "MOCK_IMPORT_DURATION_SECONDS": "2",
+            "MOCK_IMPORT_BLOCK": "1",
+            "MOCK_SLEEP_WAIT_ARG": "0",
+            "MOCK_SLEEP_WAIT_FIFO": stubbed_runtime["MOCK_IMPORT_READY_FIFO"],
             "SYNC_INTERVAL_SECONDS": "30",
             "STOP_ON_SLEEP_ARG": "30",
             "STOP_EXIT_CODE": "77",
@@ -335,11 +398,14 @@ def test_entrypoint_watchdog_escalates_to_sigkill_for_stuck_import(
     env.update(
         {
             "SYNC_WATCHDOG_ENABLED": "1",
-            "SYNC_WATCHDOG_POLL_SECONDS": "1",
+            "SYNC_WATCHDOG_POLL_SECONDS": "0",
             "SYNC_WATCHDOG_STARTUP_GRACE_SECONDS": "0",
             "SYNC_WATCHDOG_MAX_STALE_COUNT": "1",
             "SYNC_WATCHDOG_TERM_GRACE_SECONDS": "1",
+            "MOCK_IMPORT_BLOCK": "1",
             "MOCK_IMPORT_IGNORE_TERM": "1",
+            "MOCK_SLEEP_WAIT_ARG": "0",
+            "MOCK_SLEEP_WAIT_FIFO": stubbed_runtime["MOCK_IMPORT_READY_FIFO"],
             "MOCK_SYNC_STATUS_STALE_AFTER": "1",
             "SYNC_FAILURE_SLEEP_SECONDS": "7",
             "STOP_ON_SLEEP_ARG": "7",
