@@ -12,14 +12,14 @@ dependencies = [
     "requests>=2.34.2",
     "pytz>=2026.3.post1",
     "tenacity>=8.2.3",
-    "mysqlclient>=2.2.8",
+    "mysqlclient>=2.3.0",
 ]
 
 [project.optional-dependencies]
-mysql = ["mysqlclient>=2.2.8"]
+mysql = ["mysqlclient>=2.3.0"]
 sync = [
     "django>=6.1.1",
-    "mysqlclient>=2.2.8",
+    "mysqlclient>=2.3.0",
 ]
 
 [project.scripts]
