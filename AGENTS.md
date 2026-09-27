@@ -42,6 +42,16 @@ workflow when available.
 
 - Install test dependencies: `uv sync --group dev`
 - Run test suite: `uv run pytest -q`
+- A test must fail when the product is broken and pass when someone makes an
+  intended change. Do not assert a literal defined elsewhere (versions, build
+  numbers, toolchain, pinned SHAs, hashes); check agreement with one source of
+  truth or leave it out.
+- Do not assert workflow, compose, dependabot, or IDE config text. Enforce
+  those rules where they execute (the workflow itself, a helper script with its
+  own unit test, or `actionlint`).
+- Verification and loading code must not depend on working-tree state (for
+  example `git ls-files` or local IDE files); check live state only on the
+  path that acts on it.
 
 ## Code Quality
 
