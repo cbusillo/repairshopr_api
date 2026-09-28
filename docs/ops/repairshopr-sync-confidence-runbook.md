@@ -108,9 +108,12 @@ sync container. The payload includes package version, the deployed
 present.
 
 Readiness returns HTTP 200 only when the sync state is acceptable. Missing sync
-status, a failed last cycle, stale heartbeat, unavailable sync database status,
-or malformed `LAUNCHPLANE_RUNTIME_IDENTITY_JSON` returns HTTP 503 with
-`status: "not_ready"` and `not_ready_reasons`.
+status, a failed last cycle, stale heartbeat, an overdue next cycle, unavailable
+sync database status, or malformed `LAUNCHPLANE_RUNTIME_IDENTITY_JSON` returns
+HTTP 503 with `status: "not_ready"` and `not_ready_reasons`. The next cycle is
+overdue (`sync_overdue`) when the last cycle succeeded but finished more than
+`SYNC_INTERVAL_SECONDS` plus the freshness threshold ago, so a loop that stops
+starting new cycles is reported even though its last cycle was clean.
 
 After deploy, Launchplane can verify the provider route from its host network by
 requesting the lane health URL and confirming the response contains
