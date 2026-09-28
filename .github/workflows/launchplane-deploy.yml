@@ -146,8 +146,8 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - name: Apply digest-bound recovery adoption
-        uses: cbusillo/launchplane/.github/actions/generic-web-deploy-recovery-dry-run@011988411ff063be8b1069b4588a4825fb4749a7
+      - name: Apply digest-bound recovery
+        uses: cbusillo/launchplane/.github/actions/generic-web-deploy-recovery-dry-run@f416291eec1038090afbbc00c4c61e628f39a33c
         with:
           launchplane-url: ${{ vars.LAUNCHPLANE_PUBLIC_URL }}
           expected-product: ${{ vars.LAUNCHPLANE_PRODUCT }}

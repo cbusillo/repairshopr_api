@@ -65,9 +65,12 @@ immutable image, source commit, original run identity, reason, and digest, then
 calls the digest-gated recovery apply route under the existing authorized
 `workflow_run` identity. The Launchplane service performs a fresh inspection
 and rejects stale evidence before writing. The workflow suppresses the raw
-response and succeeds only when the result proves `adopt_observed`, completed
-reservation state, present/done provider evidence, the exact reviewed digest,
-and `retry_safe=false`. It never exposes or enables provider retry.
+response and succeeds only when the result settles the reservation without
+retry: `adopt_observed` with present/done provider evidence, or
+`close_out_observed` (the service proved the target is configured for, and
+running, exactly the original immutable image) with unknown provider evidence.
+Both require completed reservation state, the exact reviewed digest, and
+`retry_safe=false`. It never exposes or enables provider retry.
 
 The MariaDB integration gate resolves its database image from
 `addons/repairshopr-sync/compose.yml` and starts an isolated container from that
