@@ -14,6 +14,7 @@ from repairshopr_data.models import SyncStatus
 SERVICE_NAME = "repairshopr-sync"
 PACKAGE_NAME = "repairshopr-api"
 DEFAULT_STALE_THRESHOLD_SECONDS = 900
+DEFAULT_SYNC_INTERVAL_SECONDS = 900
 
 
 def isoformat_or_none(value: datetime | None) -> str | None:
@@ -27,6 +28,7 @@ def build_sync_status_payload(
     *,
     status_model: Any = SyncStatus,
     current_time: datetime | None = None,
+    sync_interval_seconds: int | None = None,
 ) -> dict[str, Any]:
     status_row = status_model.objects.filter(id=1).first()
     current_time = current_time or now()
@@ -47,6 +49,7 @@ def build_sync_status_payload(
             "cycle_age_seconds": None,
             "heartbeat_age_seconds": None,
             "is_stale": False,
+            "next_cycle_overdue": False,
             "freshness_status": "unknown",
             "stale_threshold_seconds": threshold,
             "updated_at": None,
@@ -75,7 +78,21 @@ def build_sync_status_payload(
         and 0 < threshold < heartbeat_age_seconds
     )
 
+    # A finished cycle is followed by one sync interval of sleep before the
+    # next cycle marks itself running. If that never happens, the loop is stuck
+    # even though the last cycle succeeded.
+    next_cycle_overdue = bool(
+        sync_interval_seconds is not None
+        and status_row.status == "success"
+        and status_row.cycle_finished_at is not None
+        and threshold > 0
+        and (current_time - status_row.cycle_finished_at).total_seconds()
+        > max(0, int(sync_interval_seconds)) + threshold
+    )
+
     freshness_status = "stale" if is_stale else "fresh"
+    if next_cycle_overdue:
+        freshness_status = "overdue"
     if status_row.status == "failed":
         freshness_status = "failed"
 
@@ -93,6 +110,7 @@ def build_sync_status_payload(
         "cycle_age_seconds": cycle_age_seconds,
         "heartbeat_age_seconds": heartbeat_age_seconds,
         "is_stale": is_stale,
+        "next_cycle_overdue": next_cycle_overdue,
         "freshness_status": freshness_status,
         "stale_threshold_seconds": threshold,
         "updated_at": isoformat_or_none(status_row.updated_at),
@@ -155,12 +173,25 @@ def image_reference() -> str | None:
     return None
 
 
+def sync_interval_seconds() -> int:
+    value = os.getenv("SYNC_INTERVAL_SECONDS")
+    if value is None or not value.strip():
+        return DEFAULT_SYNC_INTERVAL_SECONDS
+    try:
+        return max(0, int(value))
+    except ValueError:
+        return DEFAULT_SYNC_INTERVAL_SECONDS
+
+
 def build_health_payload(stale_threshold_seconds: int) -> tuple[dict[str, Any], int]:
     runtime_identity, runtime_identity_error = runtime_identity_from_environment()
     db_error: str | None = None
 
     try:
-        sync_payload = build_sync_status_payload(stale_threshold_seconds)
+        sync_payload = build_sync_status_payload(
+            stale_threshold_seconds,
+            sync_interval_seconds=sync_interval_seconds(),
+        )
     except DatabaseError:
         sync_payload = {
             "status": "unavailable",
@@ -171,6 +202,7 @@ def build_health_payload(stale_threshold_seconds: int) -> tuple[dict[str, Any], 
             "heartbeat_age_seconds": None,
             "cycle_age_seconds": None,
             "is_stale": True,
+            "next_cycle_overdue": False,
             "freshness_status": "unavailable",
             "stale_threshold_seconds": max(0, int(stale_threshold_seconds)),
             "last_error": "sync_status_unavailable",
@@ -182,6 +214,8 @@ def build_health_payload(stale_threshold_seconds: int) -> tuple[dict[str, Any], 
         not_ready_reasons.append(f"sync_{sync_payload['status']}")
     if sync_payload.get("is_stale"):
         not_ready_reasons.append("sync_stale")
+    if sync_payload.get("next_cycle_overdue"):
+        not_ready_reasons.append("sync_overdue")
     if runtime_identity_error is not None:
         not_ready_reasons.append(runtime_identity_error)
     if db_error is not None:
