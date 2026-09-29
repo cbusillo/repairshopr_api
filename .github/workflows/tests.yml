@@ -6,6 +6,7 @@ name: Test Suite
   push:
     branches:
       - main
+      - "launchplane/train/**"
 
 permissions:
   contents: read
