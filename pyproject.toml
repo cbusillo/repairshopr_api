@@ -10,7 +10,7 @@ authors = [
 dependencies = [
     "toml>=0.10.2",
     "requests>=2.34.2",
-    "pytz>=2026.3.post1",
+    "pytz>=2026.4",
     "tenacity>=8.2.3",
     "mysqlclient>=2.3.0",
 ]
@@ -37,7 +37,7 @@ dev = [
     "pytest>=9.1.1",
     "pytest-cov>=7.1.0",
     "pytest-django>=4.14.0",
-    "pytest-mock>=3.14.0",
+    "pytest-mock>=3.16.0",
     "types-requests>=2.33.0.20260906",
     "types-toml>=0.10.8.20260518",
 ]
