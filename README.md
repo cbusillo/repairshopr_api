@@ -40,6 +40,8 @@ The repository uses `pytest` with coverage gates.
   export MARIADB_PASSWORD=root
   uv run python -m django migrate --noinput \
     --settings=tests.django_settings_mariadb
+  uv run python -m django makemigrations --check --dry-run \
+    --settings=tests.django_settings_mariadb
   uv run pytest -q -m integration \
     --ds=tests.django_settings_mariadb --no-cov
   ```

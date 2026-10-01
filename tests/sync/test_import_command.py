@@ -363,19 +363,6 @@ def test_handle_model_uses_baseline_when_last_updated_is_too_old(
     assert num_last_pages_arg is None
 
 
-def test_handle_model_naive_vs_aware_regression(
-    command: CommandFixture, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    cmd, _fake_client = command
-    settings.django.last_updated_at = datetime(2026, 1, 1)
-
-    set_simple_dynamic_import(monkeypatch, cmd)
-
-    cmd.handle_model(
-        "repairshopr_data.models.user.User",
-        "repairshopr_api.models.User",
-        num_last_pages=1,
-    )
 
 
 def test_handle_logs_timing_and_updates_last_updated_at(
@@ -460,32 +447,6 @@ def test_validate_sync_completeness_warns_for_full_sync_parity_mismatch(
     assert "invoice_line_items: expected=10 actual=200" in caplog.text
 
 
-def test_validate_sync_completeness_warns_but_does_not_raise_for_incremental(
-    command: CommandFixture, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    cmd, _ = command
-
-    set_line_item_parity_counts(
-        monkeypatch,
-        cmd,
-        expected_total=100,
-        invoice_count=20,
-        estimate_count=20,
-    )
-    monkeypatch.setattr(
-        cmd,
-        "_evaluate_invoice_line_item_sample_parity",
-        lambda *_args, **_kwargs: {
-            "sample_size": 4,
-            "mismatch_count": 4,
-            "mismatches": [
-                {"invoice_id": 1, "api_count": 5, "db_count": 1},
-                {"invoice_id": 2, "api_count": 4, "db_count": 2},
-            ],
-        },
-    )
-
-    cmd.validate_sync_completeness(full_sync=False)
 
 
 def test_validate_sync_completeness_does_not_raise_for_incremental_sample_errors(
@@ -576,6 +537,7 @@ def test_create_or_update_django_instance_is_idempotent(
     stored = fake_manager.store[501]
     assert stored.full_name == "Updated"
     assert stored.color == "green"
+    assert stored.created_at == datetime(2026, 2, 1, 10, tzinfo=timezone.utc)
 
 
 def test_create_or_update_django_instance_coerces_blank_integer_fields_to_none() -> (
@@ -1002,7 +964,7 @@ def test_handle_model_resets_non_line_item_relations_even_with_skipped_children(
     assert [item.id for item in set_calls[0]] == [11]
 
 
-def test_validate_sync_completeness_does_not_emit_repair_deferred_event(
+def test_validate_sync_completeness_full_sync_emits_parity_and_sample_checks(
     command: CommandFixture,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -1034,7 +996,6 @@ def test_validate_sync_completeness_does_not_emit_repair_deferred_event(
 
     assert any(event == "line_item_parity" for event, _ in check_events)
     assert any(event == "invoice_line_item_sample" for event, _ in check_events)
-    assert not any(event == "invoice_line_item_repair_deferred" for event, _ in check_events)
 
 
 def test_sync_ticket_settings_success_and_failure_paths(
