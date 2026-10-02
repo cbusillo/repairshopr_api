@@ -4,8 +4,8 @@ name: Launchplane Promote
 # Production changes only here. Launchplane promotes the artifact the testing
 # lane runs: it requires the accepted release, captures and verifies a
 # production backup, deploys, checks health, and records the promotion. When
-# production deploys but fails its health check, this workflow rolls it back to
-# the deployment it ran before.
+# production deploys but the promotion does not pass, this workflow rolls it
+# back to the deployment it ran before.
 "on":
   workflow_dispatch:
     inputs:
@@ -69,7 +69,7 @@ jobs:
     name: Request Launchplane promotion
     needs: rollback-target
     if: >-
-      always() &&
+      !cancelled() &&
       github.ref == 'refs/heads/main' &&
       (inputs.dry_run || needs.rollback-target.result == 'success')
     # No release_tag: this repository's v* tags publish the PyPI package, so
@@ -85,7 +85,9 @@ jobs:
       dry_run: ${{ inputs.dry_run }}
 
   rollback:
-    name: Roll production back after a failed health check
+    # A deployment record means Launchplane started changing production; a
+    # failed health check reports deployment_status fail, so key on the record.
+    name: Roll production back after a failed promotion deploy
     needs:
       - rollback-target
       - promote
@@ -93,8 +95,8 @@ jobs:
       always() &&
       !inputs.dry_run &&
       needs.rollback-target.result == 'success' &&
-      needs.promote.outputs.deployment_status == 'pass' &&
-      needs.promote.outputs.destination_health_status != 'pass'
+      needs.promote.outputs.deployment_record_id != '' &&
+      needs.promote.outputs.promotion_status != 'pass'
     uses: cbusillo/launchplane/.github/workflows/reusable-generic-web-prod-rollback.yml@main
     with:
       launchplane_url: ${{ vars.LAUNCHPLANE_PUBLIC_URL }}

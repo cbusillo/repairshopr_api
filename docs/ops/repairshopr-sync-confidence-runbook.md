@@ -45,7 +45,9 @@ deploys nothing. Launchplane owns the route payload, idempotency key policy,
 provider target resolution, provider mutation, deployment polling, and
 deployment evidence.
 
-Production changes only through `Launchplane Promote`, dispatched on `main`.
+The artifact production runs changes only through `Launchplane Promote`,
+dispatched on `main`. The recovery workflows below only settle an existing
+deploy reservation for the image production already runs.
 It is a dry run unless `dry_run` is turned off. A live promotion:
 
 1. Reads the deployment production runs now, as the rollback target, and stops
@@ -56,8 +58,9 @@ It is a dry run unless `dry_run` is turned off. A live promotion:
    health on both lanes, and writes the promotion record, which is the release
    record. It creates no GitHub release, because this repository's `v*` tags
    publish the PyPI package.
-3. Rolls production back to the deployment from step 1 when the deploy passed
-   but production failed its health check.
+3. Rolls production back to the deployment from step 1 when Launchplane
+   started a production deploy and the promotion did not pass, including a
+   failed post-deploy health check.
 
 A release needs acceptance as the product record shows it: the product's
 Client accepts it in Launchplane, or, when the Client is the Director, the
