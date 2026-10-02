@@ -101,17 +101,21 @@ jobs:
           artifact_id="${IMAGE_REPOSITORY}@${IMAGE_DIGEST}"
           echo "artifact_id=${artifact_id}" >> "$GITHUB_OUTPUT"
 
+  # A merge never deploys production: production changes only through the
+  # Launchplane Promote workflow. Until Launchplane records a testing lane for
+  # the product, the tested image is published and not deployed.
   deploy:
-    name: Request Launchplane deploy
+    name: Request Launchplane testing deploy
     needs: build-image
     if: >-
       github.event_name == 'workflow_run' &&
-      needs.build-image.result == 'success'
+      needs.build-image.result == 'success' &&
+      vars.LAUNCHPLANE_TESTING_DEPLOY == 'enabled'
     uses: cbusillo/launchplane/.github/workflows/reusable-generic-web-stable-deploy.yml@main
     with:
       launchplane_url: ${{ vars.LAUNCHPLANE_PUBLIC_URL }}
       product: ${{ vars.LAUNCHPLANE_PRODUCT }}
-      instance: ${{ vars.LAUNCHPLANE_INSTANCE }}
+      instance: testing
       artifact_id: ${{ needs.build-image.outputs.artifact_id }}
       source_git_ref: ${{ needs.build-image.outputs.source_git_ref }}
       timeout-ms: "720000"

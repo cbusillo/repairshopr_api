@@ -34,11 +34,42 @@ immutable sync image for the tested commit and submits the image digest to
 Launchplane; it must not store Dokploy host, token, compose id, or provider
 mutation logic in workflow code.
 
-The GitHub workflow builds and publishes the tested image, then calls
-Launchplane's reusable generic-web stable deploy workflow with only the product
-key, lane instance, immutable image digest, and tested source SHA. Launchplane
-owns the route payload, idempotency key policy, provider target resolution,
-provider mutation, deployment polling, and deployment evidence.
+A merge to `main` never changes production. After the `Test Suite` passes on
+`main`, `Launchplane Deploy` builds and publishes the tested image, then calls
+Launchplane's reusable generic-web stable deploy workflow for the `testing`
+lane with only the product key, the immutable image digest, and the tested
+source SHA. That deploy runs only while the repository variable
+`LAUNCHPLANE_TESTING_DEPLOY` is `enabled`; set it once Launchplane records a
+`testing` lane for the product. Until then a merge publishes the image and
+deploys nothing. Launchplane owns the route payload, idempotency key policy,
+provider target resolution, provider mutation, deployment polling, and
+deployment evidence.
+
+Production changes only through `Launchplane Promote`, dispatched on `main`.
+It is a dry run unless `dry_run` is turned off. A live promotion:
+
+1. Reads the deployment production runs now, as the rollback target, and stops
+   if there is none.
+2. Calls Launchplane's reusable generic-web prod promotion from `testing` to
+   `prod`. Launchplane requires the accepted release, captures and verifies a
+   production backup, deploys the artifact the testing lane runs, checks
+   health on both lanes, and writes the promotion record, which is the release
+   record. It creates no GitHub release, because this repository's `v*` tags
+   publish the PyPI package.
+3. Rolls production back to the deployment from step 1 when the deploy passed
+   but production failed its health check.
+
+A release needs acceptance as the product record shows it: the product's
+Client accepts it in Launchplane, or, when the Client is the Director, the
+Director's standing direction is the acceptance. Launchplane refuses a direct
+deploy that would change the artifact production runs (`promotion_required`).
+
+A testing lane on the production Docker host must set its own
+`SYNC_DB_VOLUME_NAME`, `SYNC_CONFIG_VOLUME_NAME`, `SYNC_DB_HOST_PORT` and
+`SYNC_HEALTH_HOST_PORT`; the defaults are production's. The `Test Suite`
+renders the compose contract both ways and fails if a second lane would share
+a volume or host port. A testing lane holds its own database and never
+production's sync-database or RepairShopr credentials.
 
 When an existing deploy reservation requires inspection, dispatch
 `Launchplane Recovery Request` on `main`. `Launchplane Deploy` has no manual

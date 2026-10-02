@@ -1,0 +1,104 @@
+---
+name: Launchplane Promote
+
+# Production changes only here. Launchplane promotes the artifact the testing
+# lane runs: it requires the accepted release, captures and verifies a
+# production backup, deploys, checks health, and records the promotion. When
+# production deploys but fails its health check, this workflow rolls it back to
+# the deployment it ran before.
+"on":
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Validate the promotion without changing production
+        required: false
+        default: true
+        type: boolean
+      artifact_id:
+        description: Optional check that testing runs this immutable artifact
+        required: false
+        default: ""
+        type: string
+      source_git_ref:
+        description: Optional check that testing runs this source commit
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: launchplane-promote-prod
+  cancel-in-progress: false
+
+jobs:
+  rollback-target:
+    name: Record the production deployment to roll back to
+    if: github.ref == 'refs/heads/main' && !inputs.dry_run
+    runs-on: ubuntu-latest
+    outputs:
+      deployment_record_id: ${{ steps.target.outputs.deployment_record_id }}
+    steps:
+      - name: Read the production lane from Launchplane
+        id: lp
+        uses: cbusillo/launchplane/.github/actions/launchplane-request@052db9d452f05381a3b43a82dfddfeefb34a8b72 # launchplane-request
+        with:
+          launchplane-url: ${{ vars.LAUNCHPLANE_PUBLIC_URL }}
+          method: GET
+          route-path: /v1/products/${{ vars.LAUNCHPLANE_PRODUCT }}/environments/prod
+          log-response-body: "false"
+          output-paths: >-
+            deployment_record_id=environment.target.expected_runtime_identity.deployment_record_id
+
+      - name: Require a production deployment record
+        id: target
+        env:
+          RECORD_ID: ${{ steps.lp.outputs.deployment_record_id }}
+        run: |
+          set -euo pipefail
+          if [ -z "${RECORD_ID}" ]; then
+            echo "Production has no recorded deployment to roll back to." >&2
+            exit 1
+          fi
+          echo "deployment_record_id=${RECORD_ID}" >> "$GITHUB_OUTPUT"
+          echo "Rollback target: \`${RECORD_ID}\`" >> "$GITHUB_STEP_SUMMARY"
+
+  promote:
+    name: Request Launchplane promotion
+    needs: rollback-target
+    if: >-
+      always() &&
+      github.ref == 'refs/heads/main' &&
+      (inputs.dry_run || needs.rollback-target.result == 'success')
+    # No release_tag: this repository's v* tags publish the PyPI package, so
+    # the Launchplane promotion record is the release record.
+    uses: cbusillo/launchplane/.github/workflows/reusable-generic-web-prod-promotion.yml@main
+    with:
+      launchplane_url: ${{ vars.LAUNCHPLANE_PUBLIC_URL }}
+      product: ${{ vars.LAUNCHPLANE_PRODUCT }}
+      from_instance: testing
+      to_instance: prod
+      artifact_id: ${{ inputs.artifact_id }}
+      source_git_ref: ${{ inputs.source_git_ref }}
+      dry_run: ${{ inputs.dry_run }}
+
+  rollback:
+    name: Roll production back after a failed health check
+    needs:
+      - rollback-target
+      - promote
+    if: >-
+      always() &&
+      !inputs.dry_run &&
+      needs.rollback-target.result == 'success' &&
+      needs.promote.outputs.deployment_status == 'pass' &&
+      needs.promote.outputs.destination_health_status != 'pass'
+    uses: cbusillo/launchplane/.github/workflows/reusable-generic-web-prod-rollback.yml@main
+    with:
+      launchplane_url: ${{ vars.LAUNCHPLANE_PUBLIC_URL }}
+      product: ${{ vars.LAUNCHPLANE_PRODUCT }}
+      instance: prod
+      rollback_deployment_record_id: >-
+        ${{ needs.rollback-target.outputs.deployment_record_id }}
