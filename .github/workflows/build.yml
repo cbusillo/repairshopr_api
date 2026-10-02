@@ -36,7 +36,6 @@ jobs:
       - name: Prepare image metadata
         id: image_metadata
         env:
-          GITHUB_REPOSITORY: ${{ github.repository }}
           SOURCE_COMMIT: ${{ github.sha }}
         run: |
           set -euo pipefail
@@ -75,19 +74,18 @@ jobs:
             echo "Build did not report an image digest." >&2
             exit 1
           fi
-          mkdir -p artifact-manifest
           jq -n \
             --arg commit "${SOURCE_COMMIT}" \
             --arg repository "${IMAGE_REPOSITORY}" \
             --arg digest "${IMAGE_DIGEST}" \
             '{schema_version: 1, kind: "generic-web", source_commit: $commit,
               image: {repository: $repository, digest: $digest}}' \
-            > artifact-manifest/manifest.json
+            > artifact-manifest.json
           echo "Published \`${IMAGE_REPOSITORY}@${IMAGE_DIGEST}\`" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload artifact manifest
         uses: actions/upload-artifact@v7
         with:
           name: artifact-manifest-${{ github.run_attempt }}
-          path: artifact-manifest/manifest.json
+          path: artifact-manifest.json
           if-no-files-found: error
