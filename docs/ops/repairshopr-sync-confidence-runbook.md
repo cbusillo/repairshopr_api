@@ -29,16 +29,32 @@ Always stop `sync` first, run reconcile, then restart `sync`.
 
 ## Deployment Boundary
 
-Deploys are requested through Launchplane. This repository publishes an
-immutable sync image for the tested commit and submits the image digest to
-Launchplane; it must not store Dokploy host, token, compose id, or provider
-mutation logic in workflow code.
+Launchplane owns every deploy. This repository builds and publishes an
+immutable sync image for each tested commit; it must not store Dokploy host,
+token, compose id, or provider mutation logic in workflow code.
 
-The GitHub workflow builds and publishes the tested image, then calls
-Launchplane's reusable generic-web stable deploy workflow with only the product
-key, lane instance, immutable image digest, and tested source SHA. Launchplane
-owns the route payload, idempotency key policy, provider target resolution,
-provider mutation, deployment polling, and deployment evidence.
+A merge to `main` never changes production. After the `Test Suite` passes on
+`main`, `Launchplane Deploy` builds and publishes the tested image as
+`ghcr.io/cbusillo/repairshopr_api:sha-<commit>` and records its immutable digest
+in the run summary. It deploys nothing.
+
+The artifact production runs changes only through a Launchplane promotion from
+the product's `testing` lane, requested in Launchplane rather than from this
+repository. Launchplane requires the accepted release, captures and verifies a
+production backup, deploys the artifact the testing lane runs, checks health,
+and writes the promotion record. A release needs acceptance as the product
+record shows it: the product's Client accepts it in Launchplane, or, when the
+Client is the Director, the Director's standing direction is the acceptance.
+Launchplane refuses a direct deploy that would change the artifact production
+runs (`promotion_required`). The recovery workflows below only settle an
+existing deploy reservation for the image production already runs.
+
+A testing lane on the production Docker host must set its own
+`SYNC_DB_VOLUME_NAME`, `SYNC_CONFIG_VOLUME_NAME`, `SYNC_DB_HOST_PORT` and
+`SYNC_HEALTH_HOST_PORT`; the defaults are production's. The `Test Suite`
+renders the compose contract both ways and fails if a second lane would share
+a volume or host port. A testing lane holds its own database and never
+production's sync-database or RepairShopr credentials.
 
 When an existing deploy reservation requires inspection, dispatch
 `Launchplane Recovery Request` on `main`. `Launchplane Deploy` has no manual

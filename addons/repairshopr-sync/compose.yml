@@ -42,7 +42,7 @@ services:
     image: mariadb:13.0
     restart: unless-stopped
     ports:
-      - "3307:3306"
+      - "${SYNC_DB_HOST_PORT:-3307}:3306"
     environment:
       - MARIADB_AUTO_UPGRADE=1
       - MARIADB_ROOT_PASSWORD=${SYNC_DB_ROOT_PASSWORD}
@@ -54,6 +54,6 @@ services:
 
 volumes:
   repairshopr_sync_config:
-    name: repairshopr_sync_config
+    name: ${SYNC_CONFIG_VOLUME_NAME:-repairshopr_sync_config}
   repairshopr_sync_mysql:
-    name: repairshopr_sync_mysql
+    name: ${SYNC_DB_VOLUME_NAME:-repairshopr_sync_mysql}

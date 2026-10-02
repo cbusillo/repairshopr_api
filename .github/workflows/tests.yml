@@ -61,6 +61,36 @@ jobs:
       - name: Check out the repo
         uses: actions/checkout@v7
 
+      # A testing lane on the production Docker host must never mount the
+      # production database or config volumes, or take its host ports.
+      - name: Require compose state to be separable per lane
+        run: |
+          render() {
+            docker compose -f addons/repairshopr-sync/compose.yml \
+              config --format json 2>/dev/null |
+              jq -c '{
+                volumes: [.volumes[].name] | sort,
+                ports: [.services[].ports[]?.published] | sort
+              }'
+          }
+          production="$(render)"
+          testing="$(
+            SYNC_CONFIG_VOLUME_NAME=lane_check_config \
+            SYNC_DB_VOLUME_NAME=lane_check_mysql \
+            SYNC_DB_HOST_PORT=13307 \
+            SYNC_HEALTH_HOST_PORT=18000 \
+            render
+          )"
+          shared="$(
+            jq -n --argjson a "$production" --argjson b "$testing" \
+              '[($a.volumes - ($a.volumes - $b.volumes))[],
+                ($a.ports - ($a.ports - $b.ports))[]]'
+          )"
+          if [ "$shared" != "[]" ]; then
+            echo "A second lane would share production state: $shared" >&2
+            exit 1
+          fi
+
       - name: Start MariaDB from production compose
         run: |
           image="$(
