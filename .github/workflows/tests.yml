@@ -3,10 +3,8 @@ name: Test Suite
 
 "on":
   pull_request:
-  push:
-    branches:
-      - main
-      - "launchplane/train/**"
+  # On main, Build runs this suite before it publishes the image.
+  workflow_call:
 
 permissions:
   contents: read

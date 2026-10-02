@@ -33,21 +33,24 @@ Launchplane owns every deploy. This repository builds and publishes an
 immutable sync image for each tested commit; it must not store Dokploy host,
 token, compose id, or provider mutation logic in workflow code.
 
-A merge to `main` never changes production. After the `Test Suite` passes on
-`main`, `Launchplane Deploy` builds and publishes the tested image as
-`ghcr.io/cbusillo/repairshopr_api:sha-<commit>` and records its immutable digest
-in the run summary. It deploys nothing.
+A merge to `main` never changes production. The `Build` workflow runs on the
+push to `main`: it runs the `Test Suite`, builds and publishes the image as
+`ghcr.io/cbusillo/repairshopr_api:sha-<commit>`, and uploads one
+`artifact-manifest-<run attempt>` artifact naming the commit and the image's
+immutable digest. Launchplane reacts to that completed run: it verifies the run
+and the manifest, and deploys the image to the product's `testing` lane. No
+workflow here calls Launchplane or holds a Launchplane grant.
 
 The artifact production runs changes only through a Launchplane promotion from
 the product's `testing` lane, requested in Launchplane rather than from this
 repository. Launchplane requires the accepted release, captures and verifies a
 production backup, deploys the artifact the testing lane runs, checks health,
-and writes the promotion record. A release needs acceptance as the product
-record shows it: the product's Client accepts it in Launchplane, or, when the
-Client is the Director, the Director's standing direction is the acceptance.
-Launchplane refuses a direct deploy that would change the artifact production
-runs (`promotion_required`). The recovery workflows below only settle an
-existing deploy reservation for the image production already runs.
+writes the promotion record, and rolls production back on its own if the deploy
+or health check fails. A release needs acceptance as the product record shows
+it: the product's Client accepts it in Launchplane, or, when the Client is the
+Director, the Director's standing direction is the acceptance. Launchplane
+refuses a direct deploy that would change the artifact production runs
+(`promotion_required`). Deploy recovery is an admin action in Launchplane.
 
 A testing lane on the production Docker host must set its own
 `SYNC_DB_VOLUME_NAME`, `SYNC_CONFIG_VOLUME_NAME`, `SYNC_DB_HOST_PORT` and
@@ -55,39 +58,6 @@ A testing lane on the production Docker host must set its own
 renders the compose contract both ways and fails if a second lane would share
 a volume or host port. A testing lane holds its own database and never
 production's sync-database or RepairShopr credentials.
-
-When an existing deploy reservation requires inspection, dispatch
-`Launchplane Recovery Request` on `main`. `Launchplane Deploy` has no manual
-dispatch of its own. The request workflow accepts the exact original product,
-instance, immutable artifact, source commit, GitHub Actions run ID and attempt,
-and a reason. It has no OIDC permission and only stages a one-day request
-artifact. `Launchplane Deploy` accepts that artifact only from a successful
-manual run on `main` and invokes the reusable recovery-only job. That job
-reconstructs the exact legacy deploy idempotency key through Launchplane's
-bounded recovery action, then calls only the read-only existing-reservation
-recovery route through GitHub Actions OIDC under the same authorized
-`workflow_run` and reusable workflow identities as stable deploy. The reusable
-Launchplane workflow validates the exact source workflow and consumes the
-triggering run's bounded artifact centrally. The
-bridge cannot build, publish, or deploy an image, and it exposes no recovery
-apply mode. Review the bounded recovery digest, proposed action, reservation
-state, and provider classification in the `Launchplane Deploy` workflow summary.
-
-After separate explicit approval, dispatch `Launchplane Recovery Apply Request`
-with the identical original deploy coordinates and the exact reviewed recovery
-digest. The staging workflow has no OIDC permission and only uploads a one-day
-bounded artifact. `Launchplane Deploy` accepts that artifact only from a
-successful manual run on `main`, verifies its single-file schema, size, target,
-immutable image, source commit, original run identity, reason, and digest, then
-calls the digest-gated recovery apply route under the existing authorized
-`workflow_run` identity. The Launchplane service performs a fresh inspection
-and rejects stale evidence before writing. The workflow suppresses the raw
-response and succeeds only when the result settles the reservation without
-retry: `adopt_observed` with present/done provider evidence, or
-`close_out_observed` (the service proved the target is configured for, and
-running, exactly the original immutable image) with unknown provider evidence.
-Both require completed reservation state, the exact reviewed digest, and
-`retry_safe=false`. It never exposes or enables provider retry.
 
 The MariaDB integration gate resolves its database image from
 `addons/repairshopr-sync/compose.yml` and starts an isolated container from that

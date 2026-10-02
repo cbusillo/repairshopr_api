@@ -1,0 +1,93 @@
+---
+name: Build
+
+# Launchplane deploys the testing lane from this workflow's completed push run:
+# it verifies the run and reads the image digest from the uploaded manifest.
+# This repository never calls Launchplane.
+"on":
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-main
+  cancel-in-progress: false
+
+jobs:
+  tests:
+    name: Test Suite
+    uses: ./.github/workflows/tests.yml
+
+  build-image:
+    name: Build tested sync image
+    needs: tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v7
+
+      - name: Prepare image metadata
+        id: image_metadata
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          SOURCE_COMMIT: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+
+          image_repository="ghcr.io/${GITHUB_REPOSITORY,,}"
+          {
+            echo "image_repository=${image_repository}"
+            echo "image_reference=${image_repository}:sha-${SOURCE_COMMIT}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - name: Build and publish sync image
+        id: build_image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: docker/Dockerfile.sync
+          push: true
+          tags: ${{ steps.image_metadata.outputs.image_reference }}
+
+      - name: Write artifact manifest
+        env:
+          IMAGE_REPOSITORY: ${{ steps.image_metadata.outputs.image_repository }}
+          IMAGE_DIGEST: ${{ steps.build_image.outputs.digest }}
+          SOURCE_COMMIT: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+
+          if [[ ! "${IMAGE_DIGEST}" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            echo "Build did not report an image digest." >&2
+            exit 1
+          fi
+          mkdir -p artifact-manifest
+          jq -n \
+            --arg commit "${SOURCE_COMMIT}" \
+            --arg repository "${IMAGE_REPOSITORY}" \
+            --arg digest "${IMAGE_DIGEST}" \
+            '{schema_version: 1, kind: "generic-web", source_commit: $commit,
+              image: {repository: $repository, digest: $digest}}' \
+            > artifact-manifest/manifest.json
+          echo "Published \`${IMAGE_REPOSITORY}@${IMAGE_DIGEST}\`" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload artifact manifest
+        uses: actions/upload-artifact@v7
+        with:
+          name: artifact-manifest-${{ github.run_attempt }}
+          path: artifact-manifest/manifest.json
+          if-no-files-found: error

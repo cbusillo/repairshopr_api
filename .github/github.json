@@ -51,9 +51,7 @@
   },
   "importantWorkflows": [
     "Test Suite",
-    "Launchplane Recovery Request",
-    "Launchplane Recovery Apply Request",
-    "Launchplane Deploy",
+    "Build",
     "Publish to PyPI",
     "CodeQL",
     "Dependency Graph",
