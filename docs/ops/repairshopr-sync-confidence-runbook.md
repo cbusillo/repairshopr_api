@@ -29,10 +29,9 @@ Always stop `sync` first, run reconcile, then restart `sync`.
 
 ## Deployment Boundary
 
-Deploys are requested through Launchplane. This repository publishes an
-immutable sync image for the tested commit and submits the image digest to
-Launchplane; it must not store Dokploy host, token, compose id, or provider
-mutation logic in workflow code.
+Launchplane owns every deploy. This repository builds and publishes an
+immutable sync image for each tested commit; it must not store Dokploy host,
+token, compose id, or provider mutation logic in workflow code.
 
 A merge to `main` never changes production. After the `Test Suite` passes on
 `main`, `Launchplane Deploy` builds and publishes the tested image as
