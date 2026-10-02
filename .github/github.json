@@ -27,7 +27,7 @@
       "refresh": "uv lock"
     },
     "configAuthority": {
-      "workflow": "cbusillo/launchplane/.github/workflows/reusable-product-repo-config-authority.yml@fddedd31063c42903f33df9a62120fbb38dd923a"
+      "workflow": "cbusillo/launchplane/.github/workflows/reusable-product-repo-config-authority.yml@591329bff68f73232cc0ecb7846246b36f1e17cf"
     },
     "inspection": {
       "tool": "jetbrains",

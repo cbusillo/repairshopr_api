@@ -11,9 +11,9 @@ permissions:
 
 jobs:
   launchplane-config-authority:
-    uses: cbusillo/launchplane/.github/workflows/reusable-product-repo-config-authority.yml@fddedd31063c42903f33df9a62120fbb38dd923a
+    uses: cbusillo/launchplane/.github/workflows/reusable-product-repo-config-authority.yml@591329bff68f73232cc0ecb7846246b36f1e17cf
     with:
-      launchplane-revision: fddedd31063c42903f33df9a62120fbb38dd923a
+      launchplane-revision: 591329bff68f73232cc0ecb7846246b36f1e17cf
 
   test:
     runs-on: ubuntu-latest
