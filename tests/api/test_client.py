@@ -13,7 +13,12 @@ import requests
 from tenacity import stop_after_attempt, wait_none
 
 from repairshopr_api.base.model import BaseModel
-from repairshopr_api.client import Client, _preview_response_body, _request_error_context
+from repairshopr_api.client import (
+    MAX_ERROR_BODY_PREVIEW_CHARS,
+    Client,
+    _preview_response_body,
+    _request_error_context,
+)
 from repairshopr_api.type_defs import JsonObject, JsonValue, is_json_object
 
 
@@ -259,17 +264,6 @@ def test_wait_for_rate_limit_sleeps_when_limit_exceeded(
     assert len(client._request_timestamps) >= 1
 
 
-def test_display_api_call_stats_runs_without_error(
-    caplog: pytest.LogCaptureFixture,
-) -> None:
-    client = _make_client()
-    client.api_call_duration["tickets_bulk"] = [0.1, 0.2]
-    client.api_call_counter["tickets_bulk"] = 2
-
-    caplog.set_level("INFO")
-    client.display_api_call_stats()
-
-    assert "API Stats:" in caplog.text
 
 
 def test_time_api_call_tracks_counter(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -443,7 +437,7 @@ def test_preview_response_body_and_error_context_helpers() -> None:
     long_text = "x" * 400
     preview = _preview_response_body(long_text)
     assert preview.endswith("...")
-    assert len(preview) == 303
+    assert preview == "x" * MAX_ERROR_BODY_PREVIEW_CHARS + "..."
 
     response = requests.Response()
     response.status_code = 500

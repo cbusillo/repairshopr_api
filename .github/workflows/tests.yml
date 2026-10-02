@@ -19,6 +19,7 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
       - name: Check out the repo
@@ -45,6 +46,7 @@ jobs:
 
   mysql-integration:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     env:
       DOCKER_IMAGE_REFERENCE: ci-unused
       MARIADB_CONTAINER: mariadb-${{ github.run_id }}-${{ github.run_attempt }}
@@ -133,6 +135,8 @@ jobs:
           RUN_MARIADB_INTEGRATION: "1"
         run: |
           uv run python -m django migrate --noinput \
+            --settings=tests.django_settings_mariadb
+          uv run python -m django makemigrations --check --dry-run \
             --settings=tests.django_settings_mariadb
           uv run pytest -q -m integration \
             --ds=tests.django_settings_mariadb \
