@@ -54,7 +54,6 @@
     "Launchplane Recovery Request",
     "Launchplane Recovery Apply Request",
     "Launchplane Deploy",
-    "Launchplane Promote",
     "Publish to PyPI",
     "CodeQL",
     "Dependency Graph",

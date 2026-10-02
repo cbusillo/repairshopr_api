@@ -33,9 +33,6 @@ jobs:
       github.event.workflow_run.name == 'Test Suite' &&
       github.event.workflow_run.conclusion == 'success' &&
       github.event.workflow_run.event == 'push'
-    outputs:
-      artifact_id: ${{ steps.launchplane_artifact.outputs.artifact_id }}
-      source_git_ref: ${{ github.event.workflow_run.head_sha }}
 
     steps:
       - name: Check out tested commit
@@ -100,25 +97,11 @@ jobs:
 
           artifact_id="${IMAGE_REPOSITORY}@${IMAGE_DIGEST}"
           echo "artifact_id=${artifact_id}" >> "$GITHUB_OUTPUT"
+          echo "Published \`${artifact_id}\`" >> "$GITHUB_STEP_SUMMARY"
 
-  # A merge never deploys production: production changes only through the
-  # Launchplane Promote workflow. Until Launchplane records a testing lane for
-  # the product, the tested image is published and not deployed.
-  deploy:
-    name: Request Launchplane testing deploy
-    needs: build-image
-    if: >-
-      github.event_name == 'workflow_run' &&
-      needs.build-image.result == 'success' &&
-      vars.LAUNCHPLANE_TESTING_DEPLOY == 'enabled'
-    uses: cbusillo/launchplane/.github/workflows/reusable-generic-web-stable-deploy.yml@main
-    with:
-      launchplane_url: ${{ vars.LAUNCHPLANE_PUBLIC_URL }}
-      product: ${{ vars.LAUNCHPLANE_PRODUCT }}
-      # No instance: the reusable workflow deploys its default, testing.
-      artifact_id: ${{ needs.build-image.outputs.artifact_id }}
-      source_git_ref: ${{ needs.build-image.outputs.source_git_ref }}
-      timeout-ms: "720000"
+  # A merge publishes the tested image and deploys nothing. Production changes
+  # only through a Launchplane promotion requested in Launchplane, never from
+  # this repository.
 
   recovery-dry-run:
     name: Inspect existing deploy reservation
