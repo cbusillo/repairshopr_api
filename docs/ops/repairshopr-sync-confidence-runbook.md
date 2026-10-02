@@ -48,17 +48,21 @@ deployment evidence.
 The artifact production runs changes only through `Launchplane Promote`,
 dispatched on `main`. The recovery workflows below only settle an existing
 deploy reservation for the image production already runs.
-It is a dry run unless `dry_run` is turned off. A live promotion:
+It is a dry run unless `live` is ticked. Launchplane's grants bind it to
+`main`. A live promotion:
 
-1. Reads the deployment production runs now, as the rollback target, and stops
-   if there is none.
+1. Requires `rollback_deployment_record_id`: the deployment production runs
+   now. Read it just before dispatch from the Launchplane `prod` environment
+   (`target.expected_runtime_identity.deployment_record_id`, for example with
+   the launchplane skill's `product-environment-read`). Without it the run
+   stops before anything changes.
 2. Calls Launchplane's reusable generic-web prod promotion from `testing` to
    `prod`. Launchplane requires the accepted release, captures and verifies a
    production backup, deploys the artifact the testing lane runs, checks
    health on both lanes, and writes the promotion record, which is the release
    record. It creates no GitHub release, because this repository's `v*` tags
    publish the PyPI package.
-3. Rolls production back to the deployment from step 1 when Launchplane
+3. Rolls production back to that deployment when Launchplane
    started a production deploy and the promotion did not pass, including a
    failed post-deploy health check.
 

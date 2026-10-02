@@ -115,7 +115,7 @@ jobs:
     with:
       launchplane_url: ${{ vars.LAUNCHPLANE_PUBLIC_URL }}
       product: ${{ vars.LAUNCHPLANE_PRODUCT }}
-      instance: testing
+      # No instance: the reusable workflow deploys its default, testing.
       artifact_id: ${{ needs.build-image.outputs.artifact_id }}
       source_git_ref: ${{ needs.build-image.outputs.source_git_ref }}
       timeout-ms: "720000"
