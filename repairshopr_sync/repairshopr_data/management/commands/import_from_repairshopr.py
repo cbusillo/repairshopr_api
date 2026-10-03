@@ -266,6 +266,11 @@ class Command(BaseCommand):
         reverse_sort_on_updated_at = {"sort": "updated_at ASC"}
         self.model_mapping = {
             # Django model name: (num_last_pages, params)
+            # Customer, Estimate, Payment and Product ignore since_updated_at
+            # in live checks (2026-10-03, #100), even with a future cutoff.
+            # Keep their last-page windows to avoid rereading the full dataset
+            # each cycle. See docs/incremental-pagination.md for the evidence
+            # and the limits of this workaround.
             "Customer": (10, reverse_sort_on_updated_at),
             "Estimate": (1, None),
             "Invoice": (None, None),
