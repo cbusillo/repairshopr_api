@@ -4,6 +4,7 @@ import json
 import os
 from datetime import datetime
 from importlib.metadata import PackageNotFoundError, version
+from pathlib import Path
 from typing import Any
 
 from django.db import DatabaseError
@@ -210,6 +211,10 @@ def build_health_payload(stale_threshold_seconds: int) -> tuple[dict[str, Any], 
         db_error = "sync_status_unavailable"
 
     not_ready_reasons: list[str] = []
+    startup_marker = os.getenv("SYNC_STARTUP_COMPLETE_FILE")
+    startup_complete = bool(startup_marker and Path(startup_marker).is_file())
+    if not startup_complete:
+        not_ready_reasons.append("startup_incomplete")
     if sync_payload["status"] in {"unknown", "failed", "unavailable"}:
         not_ready_reasons.append(f"sync_{sync_payload['status']}")
     if sync_payload.get("is_stale"):
@@ -233,6 +238,7 @@ def build_health_payload(stale_threshold_seconds: int) -> tuple[dict[str, Any], 
         "runtime_identity": runtime_identity,
         "sync": sync_payload,
         "components": {
+            "startup": {"status": "ok" if startup_complete else "pending"},
             "repairshopr": {"status": "ok" if db_error is None else "error"},
             "sync_freshness": {"status": "ok" if ready else "error"},
         },

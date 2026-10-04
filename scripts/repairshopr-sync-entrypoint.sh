@@ -5,6 +5,10 @@ log() {
   echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] $*" >&2
 }
 
+if [[ -n "${SYNC_STARTUP_COMPLETE_FILE:-}" ]]; then
+  rm -f "${SYNC_STARTUP_COMPLETE_FILE}"
+fi
+
 if [[ -z "${REPAIRSHOPR_TOKEN:-}" ]]; then
   echo "Missing REPAIRSHOPR_TOKEN" >&2
   exit 1
@@ -267,6 +271,10 @@ if ! run_manage "migrate" migrate --noinput; then
   log "Migration failed; sleeping for ${SYNC_FAILURE_SLEEP_SECONDS}s before exiting for container restart."
   sleep "${SYNC_FAILURE_SLEEP_SECONDS}"
   exit 1
+fi
+
+if [[ -n "${SYNC_STARTUP_COMPLETE_FILE:-}" ]]; then
+  touch "${SYNC_STARTUP_COMPLETE_FILE}"
 fi
 
 while true; do

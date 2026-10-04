@@ -1,8 +1,13 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Literal
 
 import pytest
+from django.utils.timezone import now
+
+from repairshopr_data.models import SyncStatus
+from repairshopr_data.sync_health import build_health_payload
 
 from scripts import repairshopr_sync_with_health as wrapper
 
@@ -37,20 +42,25 @@ def test_wrapper_can_disable_health_process(
     class FinishedProcess:
         returncode = 0
 
-        def __init__(self, command: list[str]) -> None:
+        def __init__(self, command: list[str], *, env: dict[str, str]) -> None:
+            _ = env
             processes.append(command)
 
-        def poll(self) -> int:
+        @staticmethod
+        def poll() -> int:
             return 0
 
-        def terminate(self) -> None:
+        @staticmethod
+        def terminate() -> None:
             return None
 
-        def wait(self, timeout: int | None = None) -> int:
+        @staticmethod
+        def wait(timeout: int | None = None) -> int:
             _ = timeout
             return 0
 
-        def kill(self) -> None:
+        @staticmethod
+        def kill() -> None:
             return None
 
     monkeypatch.setenv("SYNC_HEALTH_ENABLED", "0")
@@ -76,39 +86,49 @@ def test_wrapper_waits_for_health_before_launching_sync(
     class HealthReadyProcess:
         returncode = 0
 
-        def __init__(self, command: list[str]) -> None:
+        def __init__(self, command: list[str], *, env: dict[str, str]) -> None:
+            _ = env
             health_processes.append(command)
 
-        def poll(self) -> int | None:
+        @staticmethod
+        def poll() -> int | None:
             return None
 
-        def terminate(self) -> None:
+        @staticmethod
+        def terminate() -> None:
             return None
 
-        def wait(self, timeout: int | None = None) -> int:
+        @staticmethod
+        def wait(timeout: int | None = None) -> int:
             _ = timeout
             return 0
 
-        def kill(self) -> None:
+        @staticmethod
+        def kill() -> None:
             return None
 
     class SyncProcess:
         returncode = 0
 
-        def __init__(self, command: list[str]) -> None:
+        def __init__(self, command: list[str], *, env: dict[str, str]) -> None:
+            _ = env
             sync_processes.append(command)
 
-        def poll(self) -> int | None:
+        @staticmethod
+        def poll() -> int | None:
             return 0
 
-        def terminate(self) -> None:
+        @staticmethod
+        def terminate() -> None:
             return None
 
-        def wait(self, timeout: int | None = None) -> int:
+        @staticmethod
+        def wait(timeout: int | None = None) -> int:
             _ = timeout
             return 0
 
-        def kill(self) -> None:
+        @staticmethod
+        def kill() -> None:
             return None
 
     connections: list[tuple[str, int]] = []
@@ -128,11 +148,11 @@ def test_wrapper_waits_for_health_before_launching_sync(
             raise OSError("not ready yet")
         return ReadySocket()
 
-    def fake_popen(command: list[str]) -> object:
+    def fake_popen(command: list[str], *, env: dict[str, str]) -> object:
         popen_calls.append(command)
         if len(popen_calls) == 1:
-            return HealthReadyProcess(command)
-        return SyncProcess(command)
+            return HealthReadyProcess(command, env=env)
+        return SyncProcess(command, env=env)
 
     class BootstrapResult:
         returncode = 0
@@ -180,20 +200,25 @@ def test_wrapper_fails_before_sync_if_health_exits_early(
     class DeadHealthProcess:
         returncode = 2
 
-        def __init__(self, command: list[str]) -> None:
+        def __init__(self, command: list[str], *, env: dict[str, str]) -> None:
+            _ = env
             processes.append(command)
 
-        def poll(self) -> int:
+        @staticmethod
+        def poll() -> int:
             return 2
 
-        def terminate(self) -> None:
+        @staticmethod
+        def terminate() -> None:
             return None
 
-        def wait(self, timeout: int | None = None) -> int:
+        @staticmethod
+        def wait(timeout: int | None = None) -> int:
             _ = timeout
             return 2
 
-        def kill(self) -> None:
+        @staticmethod
+        def kill() -> None:
             return None
 
     monkeypatch.setattr(
@@ -256,3 +281,61 @@ def test_health_command_falls_back_for_malformed_threshold_env(
     command = wrapper._health_command()
 
     assert command[-1] == "900"
+
+
+@pytest.mark.django_db
+def test_wrapper_uses_fresh_startup_signal_for_each_run(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    current_time = now()
+    SyncStatus.objects.create(
+        id=1,
+        status="success",
+        cycle_started_at=current_time,
+        cycle_finished_at=current_time,
+        last_heartbeat=current_time,
+    )
+    old_marker = tmp_path / "old-startup"
+    old_marker.touch()
+    monkeypatch.setenv("SYNC_STARTUP_COMPLETE_FILE", str(old_marker))
+    monkeypatch.setenv("SYNC_HEALTH_ENABLED", "1")
+    markers: list[Path] = []
+
+    class Process:
+        returncode = 0
+
+        def __init__(self, command: list[str], *, env: dict[str, str]) -> None:
+            self.is_sync = command[0] == "bash"
+            marker = Path(env["SYNC_STARTUP_COMPLETE_FILE"])
+            with monkeypatch.context() as child_environment:
+                child_environment.setenv("SYNC_STARTUP_COMPLETE_FILE", str(marker))
+                if self.is_sync:
+                    assert marker == markers[-1]
+                    marker.touch()
+                    assert build_health_payload(900)[1] == 200
+                else:
+                    markers.append(marker)
+                    assert not marker.exists()
+                    assert build_health_payload(900)[1] == 503
+
+        def poll(self) -> int | None:
+            return 0 if self.is_sync else None
+
+        @staticmethod
+        def terminate() -> None:
+            return None
+
+        @staticmethod
+        def wait(timeout: int | None = None) -> int:
+            _ = timeout
+            return 0
+
+    monkeypatch.setattr(wrapper.subprocess, "run", lambda *args, **kwargs: Process)
+    monkeypatch.setattr(wrapper.subprocess, "Popen", Process)
+    monkeypatch.setattr(wrapper, "_wait_for_health_server", lambda *args: True)
+    assert wrapper.main() == 0
+    assert wrapper.main() == 0
+    assert markers[0] != markers[1]
+    assert all(not marker.exists() for marker in markers)
+    assert old_marker.is_file()
