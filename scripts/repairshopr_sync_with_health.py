@@ -7,7 +7,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
-
+from tempfile import TemporaryDirectory
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 MANAGE_PY = PROJECT_ROOT / "repairshopr_sync" / "manage.py"
@@ -106,15 +106,25 @@ def main() -> int:
     if bootstrap_result.returncode != 0:
         return bootstrap_result.returncode
 
+    with TemporaryDirectory(prefix="repairshopr-sync-startup-") as startup_directory:
+        child_env = os.environ.copy()
+        child_env["SYNC_STARTUP_COMPLETE_FILE"] = str(
+            Path(startup_directory) / "complete"
+        )
+        return _run_children(child_env)
+
+
+def _run_children(child_env: dict[str, str]) -> int:
     health_process: subprocess.Popen[bytes] | None = None
     if os.getenv("SYNC_HEALTH_ENABLED", "1") == "1":
-        health_process = subprocess.Popen(_health_command())
+        started_health = subprocess.Popen(_health_command(), env=child_env)
+        health_process = started_health
         health_host = os.getenv("SYNC_HEALTH_BIND_ADDRESS", "0.0.0.0")
-        if not _wait_for_health_server(health_process, health_host, _health_port()):
-            _stop_process(health_process)
-            return health_process.returncode or 1
+        if not _wait_for_health_server(started_health, health_host, _health_port()):
+            _stop_process(started_health)
+            return started_health.returncode or 1
 
-    sync_process = subprocess.Popen(["bash", str(SYNC_ENTRYPOINT)])
+    sync_process = subprocess.Popen(["bash", str(SYNC_ENTRYPOINT)], env=child_env)
 
     def stop_children(_signum: int, _frame: object) -> None:
         if health_process is not None:

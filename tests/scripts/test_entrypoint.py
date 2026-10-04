@@ -8,6 +8,10 @@ import sys
 from pathlib import Path
 
 import pytest
+from django.utils.timezone import now
+
+from repairshopr_data.models import SyncStatus
+from repairshopr_data.sync_health import build_health_payload
 
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPT_PATH = ROOT / "scripts" / "repairshopr-sync-entrypoint.sh"
@@ -464,3 +468,52 @@ def test_entrypoint_watchdog_escalates_to_sigkill_for_stuck_import(
     assert "watchdog detected stale sync status" in result.stderr
     assert "forcing SIGKILL" in result.stderr
     assert "Import failed; sleeping for 7s before next attempt." in result.stderr
+
+
+@pytest.mark.django_db
+@pytest.mark.scripts
+@pytest.mark.parametrize("failed_command", ["", "flush", "migrate"])
+def test_startup_readiness_with_previous_successful_sync(
+    stubbed_runtime: dict[str, str],
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    failed_command: str,
+) -> None:
+    current_time = now()
+    SyncStatus.objects.create(
+        id=1,
+        status="success",
+        cycle_started_at=current_time,
+        cycle_finished_at=current_time,
+        last_heartbeat=current_time,
+    )
+    marker = tmp_path / "startup-complete"
+    monkeypatch.setenv("SYNC_STARTUP_COMPLETE_FILE", str(marker))
+    payload, status = build_health_payload(900)
+    assert status == 503
+    assert "startup_incomplete" in payload["not_ready_reasons"]
+
+    env = dict(stubbed_runtime)
+    env.update(
+        {
+            "SYNC_STARTUP_COMPLETE_FILE": str(marker),
+            "SYNC_DB_RESET": "1",
+            "MOCK_MANAGE_FAIL_COMMAND": failed_command,
+            "SYNC_WATCHDOG_ENABLED": "0",
+            "SYNC_FAILURE_SLEEP_SECONDS": "7",
+            "SYNC_INTERVAL_SECONDS": "30",
+            "STOP_ON_SLEEP_ARG": "30",
+        }
+    )
+    marker.touch()
+    result = _run_entrypoint(env)
+    payload, status = build_health_payload(900)
+    if failed_command:
+        assert result.returncode == 1
+        assert status == 503
+        assert "startup_incomplete" in payload["not_ready_reasons"]
+        assert not marker.exists()
+    else:
+        assert result.returncode == 77
+        assert status == 200
+        assert payload["status"] == "ok"

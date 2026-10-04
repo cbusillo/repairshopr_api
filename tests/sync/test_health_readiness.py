@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 import pytest
 
@@ -10,7 +11,10 @@ from repairshopr_data.views import health
 
 
 @pytest.fixture(autouse=True)
-def health_env(monkeypatch: pytest.MonkeyPatch) -> None:
+def health_env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    startup_marker = tmp_path / "startup-complete"
+    startup_marker.touch()
+    monkeypatch.setenv("SYNC_STARTUP_COMPLETE_FILE", str(startup_marker))
     for env_name in (
         "GITHUB_SHA",
         "IMAGE_REFERENCE",
