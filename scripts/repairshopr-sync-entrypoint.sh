@@ -257,14 +257,16 @@ SYNC_FAILURE_SLEEP_SECONDS="${SYNC_FAILURE_SLEEP_SECONDS:-60}"
 if [[ "${SYNC_DB_RESET}" = "1" ]]; then
   log "Resetting RepairShopr sync DB via Django flush."
   if ! run_manage "flush" flush --noinput; then
-    log "Sync DB reset failed; sleeping for ${SYNC_FAILURE_SLEEP_SECONDS}s before retry."
+    log "Sync DB reset failed; sleeping for ${SYNC_FAILURE_SLEEP_SECONDS}s before exiting for container restart."
     sleep "${SYNC_FAILURE_SLEEP_SECONDS}"
+    exit 1
   fi
 fi
 
 if ! run_manage "migrate" migrate --noinput; then
-  log "Migration failed; sleeping for ${SYNC_FAILURE_SLEEP_SECONDS}s before retry."
+  log "Migration failed; sleeping for ${SYNC_FAILURE_SLEEP_SECONDS}s before exiting for container restart."
   sleep "${SYNC_FAILURE_SLEEP_SECONDS}"
+  exit 1
 fi
 
 while true; do
