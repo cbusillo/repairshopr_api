@@ -71,6 +71,9 @@ At startup, the sync entrypoint runs the optional database flush
 fails, it waits `SYNC_FAILURE_SLEEP_SECONDS` (default 60 seconds) and exits
 nonzero so the container restart policy can retry startup. It never enters the
 sync loop after a failed flush or migration.
+These overrides apply when set directly in the container environment; the
+add-on Compose contract does not forward either setting. With `SYNC_DB_RESET=1`,
+the flush repeats on every container restart, including migration retries.
 
 The `sync` container serves JSON readiness while the background sync loop is
 running. `docker/coolify/compose.yml` remains the provider entrypoint and loads
