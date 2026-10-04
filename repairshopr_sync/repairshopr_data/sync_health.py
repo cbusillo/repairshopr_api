@@ -174,7 +174,7 @@ def image_reference() -> str | None:
     return None
 
 
-def sync_interval_seconds() -> int:
+def sync_interval_from_environment() -> int:
     value = os.getenv("SYNC_INTERVAL_SECONDS")
     if value is None or not value.strip():
         return DEFAULT_SYNC_INTERVAL_SECONDS
@@ -191,7 +191,7 @@ def build_health_payload(stale_threshold_seconds: int) -> tuple[dict[str, Any], 
     try:
         sync_payload = build_sync_status_payload(
             stale_threshold_seconds,
-            sync_interval_seconds=sync_interval_seconds(),
+            sync_interval_seconds=sync_interval_from_environment(),
         )
     except DatabaseError:
         sync_payload = {
