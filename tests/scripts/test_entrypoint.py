@@ -54,6 +54,9 @@ SYNC_STATUS_READY_FIFO="${MOCK_SYNC_STATUS_READY_FIFO:-}"
 if [[ "${1:-}" == *"repairshopr_sync/manage.py" ]]; then
   cmd="${2:-}"
   echo "manage:${cmd}" >> "${LOG_FILE}"
+  if [[ "${cmd}" == "${MOCK_MANAGE_FAIL_COMMAND:-}" ]]; then
+    exit 1
+  fi
   if [[ "${cmd}" == "sync_status" ]]; then
     check_count=0
     if [[ -f "${SYNC_STATUS_CHECK_FILE}" ]]; then
@@ -242,13 +245,16 @@ def test_entrypoint_validates_required_env(
 
 
 @pytest.mark.scripts
+@pytest.mark.parametrize("reset_db", ["0", "1"])
 def test_entrypoint_waits_for_db_then_runs_sync_cycle(
     stubbed_runtime: dict[str, str],
+    reset_db: str,
 ) -> None:
     env = dict(stubbed_runtime)
     env.update(
         {
             "DB_READY_AFTER": "3",
+            "SYNC_DB_RESET": reset_db,
             "SYNC_DB_WAIT_RETRIES": "5",
             "SYNC_DB_WAIT_SECONDS": "4",
             "SYNC_INTERVAL_SECONDS": "30",
@@ -272,6 +278,45 @@ def test_entrypoint_waits_for_db_then_runs_sync_cycle(
     assert "manage:migrate" in event_log
     assert "manage:import_from_repairshopr" in event_log
     assert "sleep:4" in event_log
+    commands = [
+        event for event in event_log.splitlines() if event.startswith("manage:")
+    ]
+    expected = ["manage:migrate", "manage:import_from_repairshopr"]
+    if reset_db == "1":
+        expected.insert(0, "manage:flush")
+    assert commands == expected
+
+
+@pytest.mark.scripts
+@pytest.mark.parametrize("failed_command", ["flush", "migrate"])
+def test_entrypoint_startup_failure_exits_after_backoff_without_syncing(
+    stubbed_runtime: dict[str, str],
+    failed_command: str,
+) -> None:
+    env = dict(stubbed_runtime)
+    env.update(
+        {
+            "SYNC_DB_RESET": "1",
+            "MOCK_MANAGE_FAIL_COMMAND": failed_command,
+            "SYNC_WATCHDOG_ENABLED": "0",
+            "SYNC_FAILURE_SLEEP_SECONDS": "7",
+            "SYNC_INTERVAL_SECONDS": "30",
+            "STOP_ON_SLEEP_ARG": "30",
+            "STOP_EXIT_CODE": "77",
+        }
+    )
+
+    result = _run_entrypoint(env)
+
+    assert result.returncode == 1
+    assert f"failed during {failed_command}." in result.stderr
+    assert "SYNC_LOOP start" not in result.stderr
+    events = Path(env["MOCK_LOG_FILE"]).read_text().splitlines()
+    expected = ["db-check:1", "manage:flush"]
+    if failed_command == "migrate":
+        expected.append("manage:migrate")
+    expected.append("sleep:7")
+    assert events == expected
 
 
 @pytest.mark.scripts

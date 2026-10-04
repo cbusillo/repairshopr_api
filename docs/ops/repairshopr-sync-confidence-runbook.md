@@ -66,6 +66,12 @@ CI before the same Compose contract is deployed.
 
 ## Launchplane Health Readiness
 
+At startup, the sync entrypoint runs the optional database flush
+(`SYNC_DB_RESET=1`) and then migrations before importing. If either command
+fails, it waits `SYNC_FAILURE_SLEEP_SECONDS` (default 60 seconds) and exits
+nonzero so the container restart policy can retry startup. It never enters the
+sync loop after a failed flush or migration.
+
 The `sync` container serves JSON readiness while the background sync loop is
 running. `docker/coolify/compose.yml` remains the provider entrypoint and loads
 the product-owned add-on contract from `addons/repairshopr-sync/compose.yml`.
