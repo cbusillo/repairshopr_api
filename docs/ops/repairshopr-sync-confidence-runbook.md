@@ -93,8 +93,8 @@ Readiness returns HTTP 503 with `startup_incomplete` until this container's
 startup flush (when enabled) and migrations succeed, even if the database still
 holds a recent successful sync from a previous process. The default container
 wrapper creates a private temporary startup marker path, shares it with the
-health server and sync entrypoint, and removes it on exit. Each wrapper run uses
-a new path; `SYNC_STARTUP_COMPLETE_FILE` is internal process state and must not
+health server and sync entrypoint, and removes it on normal exit. Abrupt process
+death can leave the directory behind, but each wrapper run uses a new path; `SYNC_STARTUP_COMPLETE_FILE` is internal process state and must not
 be set in lane configuration or stored on a persistent volume. The entrypoint
 writes the marker only after successful migrations. A standalone health server
 without the wrapper's startup signal stays non-ready; run

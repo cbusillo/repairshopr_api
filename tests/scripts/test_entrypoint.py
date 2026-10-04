@@ -505,6 +505,7 @@ def test_startup_readiness_with_previous_successful_sync(
             "STOP_ON_SLEEP_ARG": "30",
         }
     )
+    marker.touch()
     result = _run_entrypoint(env)
     payload, status = build_health_payload(900)
     if failed_command:
