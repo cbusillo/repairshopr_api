@@ -117,6 +117,9 @@ Pushing to `main` without a tag does not publish to PyPI.
 
 ## Sync images and promotion
 
+RepairShopr Sync runs as the `sync` container in
+[`addons/repairshopr-sync/compose.yml`](addons/repairshopr-sync/compose.yml).
+
 A merge to `main` runs the `Build` workflow: tests pass before it publishes a
 commit-addressed sync image to GHCR and uploads an artifact manifest.
 Launchplane consumes that completed push run for the testing lane; this
