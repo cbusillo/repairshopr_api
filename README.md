@@ -21,6 +21,16 @@ validation commands are recorded in [.github/github.json](.github/github.json).
 - Install development dependencies explicitly: `uv sync --locked --group dev`
 - Build package: `uv build`
 
+### Display client settings
+
+Run `uv run python -m repairshopr_api.config.display_settings` from the project
+root, or use PyCharm's **Display Client Settings** run configuration. The command
+prints the Repairshopr and Django settings as JSON, including defaults. Credential
+values and additional fields outside the known public settings are shown as
+`[REDACTED]`; the existing `display_settings()` callable still returns raw fields.
+The command uses the normal settings initializer, which can create or rewrite the
+configured TOML file and prompt for values marked `from_terminal`.
+
 ## Lockfile Guardrails
 
 This repo treats `uv.lock` as a committed artifact and enforces lockfile
