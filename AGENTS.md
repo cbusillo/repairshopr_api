@@ -70,5 +70,6 @@ see [README.md — Sync images and promotion](README.md#sync-images-and-promotio
   `weak_warning` findings on touched files.
 - Do not add suppression comments (`# noinspection`, `# noqa`,
   `# type: ignore`, etc.) unless the maintainer has been notified
-  first with rationale and has explicitly approved.
+  first with the exact rule, rationale, and narrowest possible suppression,
+  and has explicitly approved.
 - Use the `jetbrains-inspection` skill for exact-worktree inspection routing.

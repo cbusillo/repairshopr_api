@@ -16,8 +16,9 @@ validation commands are recorded in [.github/github.json](.github/github.json).
 ## Development
 
 - Python version: `3.14`
-- Install runtime dependencies: `uv sync --locked`
-- Install development dependencies: `uv sync --locked --group dev`
+- Install project dependencies (including the default `dev` group): `uv sync --locked`
+- Install runtime dependencies only: `uv sync --locked --no-dev`
+- Install development dependencies explicitly: `uv sync --locked --group dev`
 - Build package: `uv build`
 
 ## Lockfile Guardrails
@@ -112,7 +113,7 @@ when a tag matching `v*` is pushed.
 
 Do not commit or push release changes directly to `main`.
 
-Pushing to `main` without a tag does not publish.
+Pushing to `main` without a tag does not publish to PyPI.
 
 ## Sync images and promotion
 
