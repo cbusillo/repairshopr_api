@@ -5,11 +5,20 @@ Python client and sync utilities for RepairShopr.
 - `repairshopr_api`: API models and helpers
 - `repairshopr_sync`: Django-based sync service (optional)
 
+## Project direction
+
+The Director's [overall direction](https://github.com/cbusillo/direction/blob/HEAD/DIRECTION.md)
+applies; this repository has no DIRECTION.md of its own.
+[AGENTS.md](AGENTS.md) is the only agent-instruction file and owns the
+repository's agent workflow and quality requirements. Workflow facts and
+validation commands are recorded in [.github/github.json](.github/github.json).
+
 ## Development
 
 - Python version: `3.14`
-- Install runtime dependencies: `uv sync`
-- Install development dependencies: `uv sync --group dev`
+- Install project dependencies (including the default `dev` group): `uv sync --locked`
+- Install runtime dependencies only: `uv sync --locked --no-dev`
+- Install development dependencies explicitly: `uv sync --locked --group dev`
 - Build package: `uv build`
 
 ## Lockfile Guardrails
@@ -26,14 +35,14 @@ consistency with local checks and CI.
 
 The repository uses `pytest` with coverage gates.
 
-- Install test dependencies: `uv sync --group dev`
+- Install test dependencies: `uv sync --locked --group dev`
 - Run the full suite: `uv run pytest -q`
 - Run with explicit coverage output: `uv run pytest --cov --cov-report=term-missing`
 - Run MariaDB integration tests against a local database initialized with the
   CI defaults:
 
   ```bash
-  uv sync --group dev --extra sync
+  uv sync --locked --group dev --extra sync
   export RUN_MARIADB_INTEGRATION=1
   export MARIADB_DATABASE=repairshopr_test
   export MARIADB_USER=repairshopr_api
@@ -83,19 +92,9 @@ See the production runbook in
 
 ## Code Quality Gates
 
-In addition to tests, run IDE inspections on changed code before opening a PR.
-
-- PyCharm: run **Inspect Code** on changed files (or whole project for larger changes).
-- Required threshold: zero `error`, `warning`, and `weak_warning`
-  findings in touched files.
-- Do not add suppressions (`# noinspection`, `# noqa`,
-  `# type: ignore`, etc.) without explicit maintainer approval.
-- If a suppression seems necessary, stop and document the exact
-  rule, why it is unavoidable/false-positive, and the narrowest
-  possible suppression for approval first.
-
-This is a local quality gate and complements (does not replace) the pytest/coverage
-gates above.
+Changed code is inspected in PyCharm before a PR and merge, alongside the
+pytest/coverage gates above. See [AGENTS.md — Code Quality](AGENTS.md#code-quality)
+for thresholds, suppression approval, and worktree-safe inspection routing.
 
 ## Release (PyPI)
 
@@ -109,8 +108,20 @@ when a tag matching `v*` is pushed.
 5. Open a PR and merge the release branch through GitHub after checks pass.
 6. After explicit release approval, update local `main` to the merged commit.
 7. Create a tag `vX.Y.Z` at that commit.
-8. Push the tag only: `git push origin vX.Y.Z`.
+8. Push the tag only. For agent work, use the shared GitHub skill's
+   `git-push-as-bot origin vX.Y.Z` helper.
 
 Do not commit or push release changes directly to `main`.
 
-Pushing to `main` without a tag does not publish.
+Pushing to `main` without a tag does not publish to PyPI.
+
+## Sync images and promotion
+
+A merge to `main` runs the `Build` workflow: tests pass before it publishes a
+commit-addressed sync image to GHCR and uploads an artifact manifest.
+Launchplane consumes that completed push run for the testing lane; this
+repository does not call Launchplane directly. Production promotion follows
+the [overall direction](https://github.com/cbusillo/direction/blob/HEAD/DIRECTION.md)
+and the [sync operations runbook](docs/ops/repairshopr-sync-confidence-runbook.md).
+The remaining release-routing work is tracked in
+[#103](https://github.com/cbusillo/repairshopr_api/issues/103).
