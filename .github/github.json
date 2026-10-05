@@ -60,6 +60,7 @@
   "prWorkflow": {
     "mergeMethod": "merge",
     "requiredStatusChecks": ["test", "mysql-integration"],
+    "codeScanningMergeRule": "CodeQL: errors / high_or_higher",
     "watchSkill": "babysit-pr"
   },
   "relatedRepos": [],
