@@ -55,7 +55,7 @@ def coerce_datetime(value: object) -> datetime | None:
             timestamp /= 1000.0
         try:
             return datetime.fromtimestamp(timestamp, tz=timezone.utc)
-        except (OSError, OverflowError, ValueError):
+        except OSError, OverflowError, ValueError:
             return None
     return None
 

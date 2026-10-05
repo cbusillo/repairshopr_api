@@ -49,6 +49,9 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["repairshopr_api", "repairshopr_sync"]
 
+[tool.black]
+target-version = ["py314"]
+
 [tool.pytest.ini_options]
 minversion = "8.0"
 testpaths = ["tests"]
