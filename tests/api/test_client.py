@@ -172,7 +172,9 @@ def test_prefetch_line_items_builds_cache_for_old_updated_at() -> None:
 
     assert client._has_line_item_in_cache is True
     cached_entries = [
-        value for key, value in client._cache.items() if key.startswith("line_item_list_")
+        value
+        for key, value in client._cache.items()
+        if key.startswith("line_item_list_")
     ]
     assert cached_entries
     first_page_rows, _meta = cached_entries[0]
@@ -262,8 +264,6 @@ def test_wait_for_rate_limit_sleeps_when_limit_exceeded(
     assert sleep_calls and sleep_calls[0] > 0
     assert client.api_sleep_time > 0
     assert len(client._request_timestamps) >= 1
-
-
 
 
 def test_time_api_call_tracks_counter(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -442,7 +442,9 @@ def test_preview_response_body_and_error_context_helpers() -> None:
     response = requests.Response()
     response.status_code = 500
     response._content = b"error text"
-    context = _request_error_context("https://store.repairshopr.com/api/v1/invoices", response)
+    context = _request_error_context(
+        "https://store.repairshopr.com/api/v1/invoices", response
+    )
     assert "url=/api/v1/invoices" in context
     assert "content_type=unknown" in context
 
@@ -452,7 +454,9 @@ def test_client_init_raises_when_credentials_missing(
 ) -> None:
     monkeypatch.setenv("REPAIRSHOPR_URL_STORE_NAME", "")
     monkeypatch.setenv("REPAIRSHOPR_TOKEN", "")
-    monkeypatch.setattr("repairshopr_api.client.settings.repairshopr.url_store_name", "")
+    monkeypatch.setattr(
+        "repairshopr_api.client.settings.repairshopr.url_store_name", ""
+    )
     monkeypatch.setattr("repairshopr_api.client.settings.repairshopr.token", "")
 
     with pytest.raises(ValueError, match="must be provided"):

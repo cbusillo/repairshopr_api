@@ -550,7 +550,6 @@ class Command(BaseCommand):
 
         return total_rows
 
-
     @staticmethod
     def _pick_first_invoice_id_at_or_after(target_id: int) -> int | None:
         return (
@@ -566,10 +565,14 @@ class Command(BaseCommand):
 
         newest_count = min(3, sample_size)
         recent_invoice_ids = list(
-            Invoice.objects.order_by("-updated_at", "-id").values_list("id", flat=True)[:newest_count]
+            Invoice.objects.order_by("-updated_at", "-id").values_list("id", flat=True)[
+                :newest_count
+            ]
         )
 
-        aggregate = Invoice.objects.aggregate(min_id=models.Min("id"), max_id=models.Max("id"))
+        aggregate = Invoice.objects.aggregate(
+            min_id=models.Min("id"), max_id=models.Max("id")
+        )
         min_id = aggregate.get("min_id")
         max_id = aggregate.get("max_id")
         if not isinstance(min_id, int) or not isinstance(max_id, int):

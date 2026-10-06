@@ -39,9 +39,7 @@ if settings.debug:
 ListItem: TypeAlias = JsonObject | JsonArray
 ListResult: TypeAlias = tuple[list[ListItem], JsonObject | None]
 CacheValue: TypeAlias = ListResult | JsonObject
-ProgressCallback: TypeAlias = Callable[
-    [str, int, int, int, JsonObject | None], None
-]
+ProgressCallback: TypeAlias = Callable[[str, int, int, int, JsonObject | None], None]
 
 
 ModelType = TypeVar("ModelType", bound=BaseModel)
@@ -58,7 +56,9 @@ def _log_retry_attempt(retry_state: RetryCallState) -> None:
     )
 
 
-def _preview_response_body(raw_body: str, *, max_chars: int = MAX_ERROR_BODY_PREVIEW_CHARS) -> str:
+def _preview_response_body(
+    raw_body: str, *, max_chars: int = MAX_ERROR_BODY_PREVIEW_CHARS
+) -> str:
     normalized_body = " ".join(raw_body.split())
     if len(normalized_body) <= max_chars:
         return normalized_body
@@ -206,11 +206,16 @@ class Client(requests.Session):
                 raise requests.RequestException("Rate limit reached")
 
             case HTTPStatus.UNAUTHORIZED:
-                logger.error("Received authorization error: %s", _request_error_context(url, response))
+                logger.error(
+                    "Received authorization error: %s",
+                    _request_error_context(url, response),
+                )
                 raise PermissionError("Authorization failed with the provided token.")
 
             case HTTPStatus.NOT_FOUND:
-                logger.warning("Received 404 error: %s", _request_error_context(url, response))
+                logger.warning(
+                    "Received 404 error: %s", _request_error_context(url, response)
+                )
                 raise ValueError("Received 404 error.")
 
             case _:

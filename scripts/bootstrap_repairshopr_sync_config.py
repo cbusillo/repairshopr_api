@@ -5,7 +5,6 @@ from pathlib import Path
 
 import toml
 
-
 REQUIRED_ENV_VARS = (
     "REPAIRSHOPR_TOKEN",
     "REPAIRSHOPR_URL_STORE_NAME",
@@ -30,7 +29,9 @@ def config_file_path() -> Path:
     configured_path = os.getenv("CONFIG_FILE", "").strip()
     if configured_path:
         return Path(configured_path).expanduser()
-    config_root = Path(os.getenv("HOME", "/var/lib/repairshopr")) / ".config" / "repairshopr-api"
+    config_root = (
+        Path(os.getenv("HOME", "/var/lib/repairshopr")) / ".config" / "repairshopr-api"
+    )
     return config_root / "config.toml"
 
 

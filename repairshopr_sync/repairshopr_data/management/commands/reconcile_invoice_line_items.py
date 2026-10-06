@@ -188,7 +188,9 @@ class Command(BaseCommand):
 
         missing_invoice_ids: set[int] = scan["missing_invoice_ids"]
         existing_missing_invoices = set(
-            Invoice.objects.filter(id__in=missing_invoice_ids).values_list("id", flat=True)
+            Invoice.objects.filter(id__in=missing_invoice_ids).values_list(
+                "id", flat=True
+            )
         )
         missing_parent_invoices = missing_invoice_ids - existing_missing_invoices
 
