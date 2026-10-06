@@ -73,4 +73,6 @@ def test_bootstrap_config_fails_closed_when_required_env_missing(
     except SystemExit as error:
         assert str(error) == "Missing DJANGO_SECRET_KEY"
     else:
-        raise AssertionError("bootstrap_config should fail when required env is missing")
+        raise AssertionError(
+            "bootstrap_config should fail when required env is missing"
+        )

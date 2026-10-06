@@ -211,7 +211,9 @@ def build_invoice_line_items_models() -> tuple[type, type[BaseModel]]:
         __name__ = "Invoice"
         _meta = SimpleNamespace(
             related_objects=[
-                SimpleNamespace(name="line_items", field=SimpleNamespace(name="parent_invoice"))
+                SimpleNamespace(
+                    name="line_items", field=SimpleNamespace(name="parent_invoice")
+                )
             ]
         )
         objects = SimpleNamespace()
@@ -320,7 +322,9 @@ def test_resolve_related_collection_allows_line_items_property() -> None:
     assert _resolve_related_collection(ApiInstanceWithLineItems(), "line_items") == [
         {"id": 5}
     ]
-    assert _resolve_related_collection(ApiInstanceWithOtherProperty(), "comments") is None
+    assert (
+        _resolve_related_collection(ApiInstanceWithOtherProperty(), "comments") is None
+    )
     assert calls["count"] == 1
 
 
@@ -361,8 +365,6 @@ def test_handle_model_uses_baseline_when_last_updated_is_too_old(
 
     _, _, num_last_pages_arg, _ = fake_client.calls[0]
     assert num_last_pages_arg is None
-
-
 
 
 def test_handle_logs_timing_and_updates_last_updated_at(
@@ -445,8 +447,6 @@ def test_validate_sync_completeness_warns_for_full_sync_parity_mismatch(
 
     cmd.validate_sync_completeness(full_sync=True)
     assert "invoice_line_items: expected=10 actual=200" in caplog.text
-
-
 
 
 def test_validate_sync_completeness_does_not_raise_for_incremental_sample_errors(
@@ -925,7 +925,9 @@ def test_handle_model_resets_non_line_item_relations_even_with_skipped_children(
         __name__ = "Ticket"
         _meta = SimpleNamespace(
             related_objects=[
-                SimpleNamespace(name="ticketcomments", field=SimpleNamespace(name="ticket"))
+                SimpleNamespace(
+                    name="ticketcomments", field=SimpleNamespace(name="ticket")
+                )
             ]
         )
         objects = SimpleNamespace()
@@ -952,7 +954,9 @@ def test_handle_model_resets_non_line_item_relations_even_with_skipped_children(
         command_module, "create_or_update_django_instance", fake_create_or_update
     )
     fake_client.get_model = lambda *_args, **_kwargs: [
-        SimpleNamespace(id=1, ticketcomments=[SimpleNamespace(id=11), SimpleNamespace(id=12)])
+        SimpleNamespace(
+            id=1, ticketcomments=[SimpleNamespace(id=11), SimpleNamespace(id=12)]
+        )
     ]
     set_handle_model_imports_for_submodels(monkeypatch, cmd, DjangoModel, ApiModel)
 
@@ -1056,7 +1060,9 @@ def test_sync_ticket_settings_success_and_failure_paths(
     assert heartbeat_calls
 
     caplog.set_level(logging.WARNING)
-    cmd.client.fetch_ticket_settings = lambda: (_ for _ in ()).throw(ValueError("api down"))
+    cmd.client.fetch_ticket_settings = lambda: (_ for _ in ()).throw(
+        ValueError("api down")
+    )
     cmd.sync_ticket_settings()
     assert "Failed to fetch ticket settings" in caplog.text
 
@@ -1117,7 +1123,9 @@ def test_evaluate_invoice_line_item_sample_parity_reports_mismatches(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     cmd, _ = command
-    monkeypatch.setattr(cmd, "_build_invoice_sample_ids", lambda _sample_size: [1, 2, 3])
+    monkeypatch.setattr(
+        cmd, "_build_invoice_sample_ids", lambda _sample_size: [1, 2, 3]
+    )
     monkeypatch.setattr(
         cmd,
         "_fetch_invoice_line_item_count",
@@ -1174,7 +1182,11 @@ def test_validate_sync_completeness_handles_metadata_failure_modes(
     monkeypatch.setattr(
         cmd,
         "_evaluate_invoice_line_item_sample_parity",
-        lambda *_args, **_kwargs: {"sample_size": 0, "mismatch_count": 0, "mismatches": []},
+        lambda *_args, **_kwargs: {
+            "sample_size": 0,
+            "mismatch_count": 0,
+            "mismatches": [],
+        },
     )
 
     cmd.validate_sync_completeness(full_sync=False)
@@ -1208,7 +1220,9 @@ def test_handle_marks_sync_failed_on_exception(
     monkeypatch.setattr(
         cmd,
         "handle_model",
-        lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("import exploded")),
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            RuntimeError("import exploded")
+        ),
     )
     monkeypatch.setattr(
         cmd,

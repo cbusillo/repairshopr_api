@@ -11,7 +11,9 @@ from repairshopr_data.management.commands import (
 
 
 class _FilterResult:
-    def __init__(self, *, ids: set[int] | None = None, count_value: int | None = None) -> None:
+    def __init__(
+        self, *, ids: set[int] | None = None, count_value: int | None = None
+    ) -> None:
         self._ids = ids or set()
         self._count_value = count_value
 
@@ -31,7 +33,9 @@ def _build_invoice_line_item_manager(
     def filter_fn(**kwargs: object) -> _FilterResult:
         id_in = kwargs.get("id__in")
         if isinstance(id_in, (list, set)):
-            return _FilterResult(ids={item for item in id_in if item in db_line_item_ids})
+            return _FilterResult(
+                ids={item for item in id_in if item in db_line_item_ids}
+            )
 
         if kwargs.get("parent_invoice_id__isnull"):
             return _FilterResult(count_value=0)
@@ -61,7 +65,9 @@ def _build_invoice_manager() -> object:
     def filter_fn(**kwargs: object) -> _FilterResult:
         id_in = kwargs.get("id__in")
         assert isinstance(id_in, set)
-        return _FilterResult(ids={invoice_id for invoice_id in id_in if invoice_id == 30})
+        return _FilterResult(
+            ids={invoice_id for invoice_id in id_in if invoice_id == 30}
+        )
 
     return SimpleNamespace(filter=filter_fn)
 
@@ -138,9 +144,15 @@ def test_reconcile_compute_db_not_in_api_unique(
             assert params is not None
             page = params.get("page", 1)
             if page == 1:
-                return [{"id": 1, "invoice_id": 10}], {"total_pages": 2, "total_entries": 3}
+                return [{"id": 1, "invoice_id": 10}], {
+                    "total_pages": 2,
+                    "total_entries": 3,
+                }
             if page == 2:
-                return [{"id": 3, "invoice_id": 30}], {"total_pages": 2, "total_entries": 3}
+                return [{"id": 3, "invoice_id": 30}], {
+                    "total_pages": 2,
+                    "total_entries": 3,
+                }
             raise AssertionError(f"unexpected page: {page}")
 
     monkeypatch.setattr(command_module, "Client", lambda: FakeClient())

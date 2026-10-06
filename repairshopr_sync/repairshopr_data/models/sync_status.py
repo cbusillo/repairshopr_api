@@ -17,4 +17,3 @@ class SyncStatus(models.Model):
     class Meta:
         verbose_name = "Sync Status"
         verbose_name_plural = "Sync Status"
-

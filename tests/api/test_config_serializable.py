@@ -23,9 +23,7 @@ def test_serializable_uses_class_annotations_for_to_dict_and_from_dict() -> None
     assert "db_name" in serialized
 
 
-def test_app_settings_persists_nested_section_values(
-    tmp_path, monkeypatch
-) -> None:
+def test_app_settings_persists_nested_section_values(tmp_path, monkeypatch) -> None:
     config_path = tmp_path / "config.toml"
     monkeypatch.setenv("REPAIRSHOPR_CONFIG_FILE", str(config_path))
 
