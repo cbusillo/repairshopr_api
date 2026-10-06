@@ -14,9 +14,9 @@ permissions:
 
 jobs:
   launchplane-config-authority:
-    uses: cbusillo/launchplane/.github/workflows/reusable-product-repo-config-authority.yml@bd4f20a299742dd140ed913559ec7fca6391d606
+    uses: cbusillo/launchplane/.github/workflows/reusable-product-repo-config-authority.yml@56c285383cdc5e762af8ef51c2c3691a98def923
     with:
-      launchplane-revision: bd4f20a299742dd140ed913559ec7fca6391d606
+      launchplane-revision: 56c285383cdc5e762af8ef51c2c3691a98def923
       python-version: "3.14"
 
   test:
@@ -42,6 +42,9 @@ jobs:
 
       - name: Install dependencies
         run: uv sync --locked --group dev
+
+      - name: Check formatting
+        run: uv run black --check .
 
       - name: Run tests with coverage gate
         run: uv run pytest -q
