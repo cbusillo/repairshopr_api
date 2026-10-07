@@ -19,6 +19,7 @@ from tenacity import (
 
 from repairshopr_api.config import settings
 from repairshopr_api import models
+from repairshopr_api.models.ticket import Comment
 from repairshopr_api.base.model import BaseModel
 from repairshopr_api.converters.strings import snake_case
 from repairshopr_api.type_defs import (
@@ -232,6 +233,38 @@ class Client(requests.Session):
     def clear_cache(self) -> None:
         self._cache.clear()
         self._has_line_item_in_cache = False
+
+    def fetch_ticket_comments(self, ticket_id: int) -> list[Comment]:
+        """Read every comment page; ticket list rows contain only the first comment."""
+        comments: list[Comment] = []
+        page = 1
+        while True:
+            response = self.get(
+                f"{self.base_url}/tickets/{ticket_id}/comments",
+                params={"page": page, "per_page": 100},
+            )
+            payload = response.json()
+            if not is_json_object(payload):
+                raise ValueError("Unexpected ticket comments payload.")
+            rows = payload.get("comments")
+            if not isinstance(rows, list) or not all(
+                is_json_object(row) for row in rows
+            ):
+                raise ValueError("Missing or invalid ticket comments list.")
+            meta = payload.get("meta")
+            total_pages = meta.get("total_pages") if is_json_object(meta) else None
+            if not isinstance(total_pages, int):
+                raise ValueError("Missing or invalid ticket comments pagination.")
+            comments.extend(
+                Comment.from_dict(row) for row in rows if is_json_object(row)
+            )
+            if self._progress_callback is not None:
+                self._progress_callback(
+                    "ticket_comments", page, len(comments), len(rows), meta
+                )
+            if page >= total_pages:
+                return comments
+            page += 1
 
     def fetch_ticket_settings(self) -> JsonObject:
         url = f"{self.base_url}/tickets/settings"
@@ -452,7 +485,10 @@ class Client(requests.Session):
 
         if updated_at:
             self.updated_at = updated_at
-            params["since_updated_at"] = updated_at.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+            cutoff_parameter = (
+                "updated_after" if model is models.Estimate else "since_updated_at"
+            )
+            params[cutoff_parameter] = updated_at.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
 
         page = 1
         processed_rows = 0

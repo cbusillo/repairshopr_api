@@ -14,6 +14,7 @@ from django.utils.timezone import make_aware, now
 from repairshopr_api.config import settings
 from repairshopr_api.client import Client, ModelType
 from repairshopr_api.base.model import BaseModel
+from repairshopr_api.models.ticket import Ticket as ApiTicket
 from repairshopr_api.type_defs import JsonValue, QueryParams
 from repairshopr_api.utils import coerce_datetime, parse_datetime
 from repairshopr_data.models import (
@@ -266,13 +267,9 @@ class Command(BaseCommand):
         reverse_sort_on_updated_at = {"sort": "updated_at ASC"}
         self.model_mapping = {
             # Django model name: (num_last_pages, params)
-            # Customer, Estimate, Payment and Product ignore since_updated_at
-            # in live checks (2026-10-03, #100), even with a future cutoff.
-            # Keep their last-page windows to avoid rereading the full dataset
-            # each cycle. See docs/incremental-pagination.md for the evidence
-            # and the limits of this workaround.
+            # Endpoint windows and their evidence: docs/incremental-pagination.md.
             "Customer": (10, reverse_sort_on_updated_at),
-            "Estimate": (1, None),
+            "Estimate": (None, None),
             "Invoice": (None, None),
             "Payment": (2, None),
             "Product": (2, reverse_sort_on_updated_at),
@@ -419,6 +416,10 @@ class Command(BaseCommand):
         for api_instance in api_instances:
             # Keep heartbeat current during slow record-level processing.
             self._maybe_write_sync_heartbeat()
+            if isinstance(api_instance, ApiTicket) and api_instance.id:
+                api_instance.comments = self.client.fetch_ticket_comments(
+                    api_instance.id
+                )
             django_instance = create_or_update_django_instance(
                 django_model, api_instance
             )

@@ -76,6 +76,12 @@ Notes:
 - Dependabot opens Django-stack updates separately from other Python dependency
   updates and monitors the production Compose database image directly.
 
+## Sync coverage
+
+See [incremental pagination and ticket comments](docs/incremental-pagination.md)
+for endpoint filters, pagination windows, comment fetching and historical
+recovery limits.
+
 ## Line Item Forensics
 
 Use the dedicated reconcile command to diagnose invoice line-item drift without
