@@ -309,6 +309,9 @@ class Command(BaseCommand):
         _processed_on_page: int,
         _meta_data: Mapping[str, object] | None,
     ) -> None:
+        if model_name == "ticket_comments":
+            self._maybe_write_sync_heartbeat()
+            return
         if self._status_current_model != model_name:
             self._status_current_model = model_name
         self._status_current_page = page

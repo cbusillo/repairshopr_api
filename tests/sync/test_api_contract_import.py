@@ -1,7 +1,7 @@
 """Current vendor API contracts exercised through HTTP and the Django importer."""
 
 from collections.abc import Mapping
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from urllib.parse import urlparse
 
 import pytest
@@ -83,7 +83,19 @@ def test_ticket_import_fetches_full_comment_history_before_replacing_relations(
     ticket = Ticket.objects.create(id=101)
     TicketComment.objects.create(id=202, ticket=ticket, body="Previously synced")
     requested_pages: list[int] = []
+    observed_models: list[str | None] = []
+    comment_rows: list[JsonObject] = [
+        {"id": 200 + page, "body": f"Comment {page}"} for page in range(1, 4)
+    ]
     checkpoint = settings.django.last_updated_at
+    clock = datetime(2026, 9, 2, tzinfo=timezone.utc)
+
+    def advancing_now() -> datetime:
+        nonlocal clock
+        clock += timedelta(seconds=40)
+        return clock
+
+    monkeypatch.setattr(import_from_repairshopr, "now", advancing_now)
 
     def request(
         _session: requests.Session,
@@ -112,12 +124,20 @@ def test_ticket_import_fetches_full_comment_history_before_replacing_relations(
         page = params["page"]
         assert isinstance(page, int)
         requested_pages.append(page)
+        observed_models.append(SyncStatus.objects.get(id=1).current_model)
         if fail_second_page and page == 2:
             raise ValueError("Comment page unavailable")
+        if page == 2:
+            comment_rows.append({"id": 204, "body": "Added during pagination"})
+        rows = sorted(
+            comment_rows,
+            key=lambda row: row["id"],
+            reverse=params.get("sort_direction") != "ASC",
+        )
         return response(
             {
-                "comments": [{"id": 200 + page, "body": f"Comment {page}"}],
-                "meta": {"total_pages": 3},
+                "comments": rows[page - 1 : page],
+                "meta": {"total_pages": len(rows)},
             }
         )
 
@@ -133,12 +153,12 @@ def test_ticket_import_fetches_full_comment_history_before_replacing_relations(
             (202, "Previously synced")
         ]
     else:
-        command.handle_model(
-            "repairshopr_data.models.ticket.Ticket", "repairshopr_api.models.Ticket"
-        )
-        assert requested_pages == [1, 2, 3]
+        command.handle()
+        assert requested_pages == [1, 2, 3, 4]
+        assert observed_models == ["ticket"] * len(requested_pages)
         assert set(ticket.comments.values_list("id", "body")) == {
             (201, "Comment 1"),
             (202, "Comment 2"),
             (203, "Comment 3"),
+            (204, "Added during pagination"),
         }

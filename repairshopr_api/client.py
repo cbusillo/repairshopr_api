@@ -241,7 +241,12 @@ class Client(requests.Session):
         while True:
             response = self.get(
                 f"{self.base_url}/tickets/{ticket_id}/comments",
-                params={"page": page, "per_page": 100},
+                params={
+                    "page": page,
+                    "per_page": 100,
+                    "sort_by": "created_at",
+                    "sort_direction": "ASC",
+                },
             )
             payload = response.json()
             if not is_json_object(payload):

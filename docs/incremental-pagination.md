@@ -48,10 +48,15 @@ documents `updated_after` for `GET /estimates`. The comparison above tested
 `since_updated_at`, so it does not establish whether the documented estimate
 filter works. The client now uses `updated_after` and the sync removes the
 estimate window to avoid dropping middle pages of a filtered change set.
-If the server ignores that documented filter too, every estimate page will
-be read each cycle, increasing API traffic. No live verification was run for
-this source change; the HTTP-faked Django regression covers the documented
-request and imports a change set spanning four pages.
+A bounded read-only API comparison for #126 on October 6, 2026 confirmed
+that a future `updated_after` cutoff returned no estimates, while the old
+`since_updated_at` parameter returned older rows. This used the indexed local
+development credential, which was not compared with the deployed token.
+The HTTP-faked Django regression imports a filtered change set spanning four
+pages. If another account or a later server regression ignores `updated_after`,
+every estimate page and its per-estimate line-item requests will be read each
+cycle, potentially adding hours of API work; inspect filtering before using
+the sync with a different account.
 
 ## Limits and rechecking
 
@@ -72,12 +77,20 @@ containing older records cannot be a correctly filtered result.
 The current vendor specification deprecates `all_comments` on `GET /tickets`
 and names March 31, 2026 as the transition to returning only the first
 comment. The sync fetches all pages of `GET /tickets/{id}/comments` for every
-ticket it imports before replacing that ticket's comment relations. This adds
+ticket it imports before replacing that ticket's comment relations. Comment
+pages request ascending creation order so new comments append rather than
+shift older rows across already-read page boundaries. This adds
 API requests, using the existing client rate limit and retry behavior. A failed
 comment page fails the cycle before replacing that ticket's relations or
-advancing the checkpoint. The client library's `Ticket.comments` field still
+advancing the checkpoint. Comment-page progress refreshes the heartbeat while
+preserving ticket-level counters. The client library's `Ticket.comments` field still
 reflects the response it receives; `Client.fetch_ticket_comments` explicitly
 retrieves the full history.
+
+The same read-only comparison returned one embedded comment and two comments
+from the separate endpoint for a sampled ticket; the local credential could
+read that endpoint, and Ticket's future-cutoff query returned no rows. This is
+bounded account evidence, not qualification of the deployed token's permissions.
 
 Comment reads have no date cutoff: replacing relations from only recently
 changed comments would detach older comments. Tickets outside the current
