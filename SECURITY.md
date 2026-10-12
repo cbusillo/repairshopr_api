@@ -12,8 +12,8 @@ Report suspected vulnerabilities privately through GitHub's
 [Report a vulnerability](https://github.com/cbusillo/repairshopr_api/security/advisories/new)
 form. Do not open a public issue for a vulnerability.
 
-Include the package version, the impact, and the smallest steps that
-reproduce it.
+Include the package version or sync image commit, the impact, and the
+smallest steps that reproduce it.
 
 Do not send API keys, customer records, ticket or invoice contents, or other
 personal data. Use redacted or made-up values.
