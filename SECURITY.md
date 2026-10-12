@@ -2,8 +2,9 @@
 
 ## Supported Versions
 
-Only the latest release on PyPI is supported. Fixes ship in a new release
-built from `main`.
+The API package supports only the latest release on PyPI. The sync service
+supports the current image built from `main`. Package fixes ship in a new
+PyPI release; sync service fixes ship in a new image.
 
 ## Reporting a Vulnerability
 
