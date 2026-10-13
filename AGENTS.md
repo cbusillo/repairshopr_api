@@ -8,9 +8,8 @@ skills. Keep durable work status in the owning GitHub issue.
 
 For issue-backed work, use `github-plan` to read the issue and linked context,
 recheck ownership, and claim before creating a linked task worktree. Use
-`github` for bot-owned commits, pushes, and PRs. This repository does not use
-the Launchplane merge train: when merge authority covers the change, land a
-normal merge commit after green CI and the applicable quality gates. Use
+`github` for bot-owned commits, pushes, and PRs, following the overall direction
+for landing. Use
 `model-review` for execution-guidance changes such as this file; weigh findings
 under the shared review reference. Use `work-closeout` after landing.
 

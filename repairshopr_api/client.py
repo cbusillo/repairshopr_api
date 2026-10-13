@@ -130,7 +130,7 @@ class Client(requests.Session):
 
     def _wait_for_rate_limit(self) -> None:
         self._clear_old_request_timestamps()
-        if len(self._request_timestamps) > self.REQUEST_LIMIT:
+        if len(self._request_timestamps) >= self.REQUEST_LIMIT:
             oldest_request = self._request_timestamps[0]
             sleep_time = 60 - (datetime.now() - oldest_request).total_seconds()
             if sleep_time > 0:
@@ -382,13 +382,15 @@ class Client(requests.Session):
         self,
         model_name: str,
         params: QueryParams | None = None,
+        *,
+        use_cache: bool = True,
     ) -> ListResult:
         cache_key = f"{model_name}_list"
         if params:
             sorted_params = tuple(sorted(params.items()))
             cache_key += f"_{hash(sorted_params)}"
 
-        if cache_key in self._cache:
+        if use_cache and cache_key in self._cache:
             return self._cache[cache_key]
 
         response = self.get(f"{self.base_url}/{model_name}s", params=params)
@@ -425,7 +427,8 @@ class Client(requests.Session):
         ]
         typed_meta_data: JsonObject | None = meta_data
         result: ListResult = typed_response_data, typed_meta_data
-        self._cache[cache_key] = result
+        if use_cache:
+            self._cache[cache_key] = result
 
         return result
 

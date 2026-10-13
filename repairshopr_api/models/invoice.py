@@ -57,6 +57,9 @@ class Invoice(BaseModel):
     contact_id: int | None = None
     note: str | None = None
     hardwarecost: float | None = None
+    amount_paid: float | None = None
+    balance_due: float | None = None
+    is_recurring: bool | None = None
 
     @related_field(User)
     def user(self) -> User:

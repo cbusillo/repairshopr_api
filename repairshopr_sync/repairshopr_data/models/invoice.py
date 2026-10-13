@@ -25,6 +25,9 @@ class Invoice(models.Model):
     contact_id = models.IntegerField(null=True)
     note = models.TextField(null=True)
     hardwarecost = models.FloatField(null=True)
+    amount_paid = models.FloatField(null=True)
+    balance_due = models.FloatField(null=True)
+    is_recurring = models.BooleanField(null=True)
 
     def __str__(self) -> str:
         return f"{self.id} - {self.customer_business_then_name} - {self.number} - {self.created_at}"
