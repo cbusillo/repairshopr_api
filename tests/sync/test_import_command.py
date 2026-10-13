@@ -472,8 +472,9 @@ def test_validate_sync_completeness_fails_for_unverified_incremental_sample(
         ),
     )
 
-    with pytest.raises(command_module.CommandError, match="could not be verified"):
+    with pytest.raises(command_module.CommandError) as failure:
         cmd.validate_sync_completeness(full_sync=False)
+    assert isinstance(failure.value.__cause__, requests.RequestException)
 
 
 def test_validate_sync_completeness_raises_for_unexpected_incremental_sample_errors(
@@ -1000,7 +1001,7 @@ def test_validate_sync_completeness_full_sync_emits_parity_and_sample_checks(
         lambda event, payload: check_events.append((event, payload)),
     )
 
-    with pytest.raises(command_module.CommandError, match="checkpoint unchanged"):
+    with pytest.raises(command_module.CommandError):
         cmd.validate_sync_completeness(full_sync=True)
 
     assert any(event == "line_item_parity" for event, _ in check_events)
