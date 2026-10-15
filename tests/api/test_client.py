@@ -241,7 +241,7 @@ def test_client_cache_and_rate_state_are_instance_scoped() -> None:
     assert first_client._request_timestamps is not second_client._request_timestamps
 
 
-def test_wait_for_rate_limit_sleeps_when_limit_exceeded(
+def test_wait_for_rate_limit_sleeps_at_the_limit(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     client = _make_client()
@@ -249,9 +249,7 @@ def test_wait_for_rate_limit_sleeps_when_limit_exceeded(
     client._request_timestamps.clear()
 
     now = datetime(2026, 2, 1, 12)
-    client._request_timestamps.extend(
-        [now - timedelta(seconds=10), now - timedelta(seconds=5)]
-    )
+    client._request_timestamps.append(now - timedelta(seconds=10))
 
     monkeypatch.setattr("repairshopr_api.client.datetime", Mock(now=lambda: now))
     sleep_calls: list[float] = []

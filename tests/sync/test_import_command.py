@@ -52,7 +52,10 @@ class FakeClient:
 
     @staticmethod
     def fetch_from_api(
-        _model_name: str, params: dict[str, object] | None = None
+        _model_name: str,
+        params: dict[str, object] | None = None,
+        *,
+        use_cache: bool = True,
     ) -> tuple[list[dict[str, object]], dict[str, int]]:
         if params and "invoice_id" in params:
             return [], {"total_pages": 1}
@@ -449,7 +452,7 @@ def test_validate_sync_completeness_warns_for_full_sync_parity_mismatch(
     assert "invoice_line_items: expected=10 actual=200" in caplog.text
 
 
-def test_validate_sync_completeness_does_not_raise_for_incremental_sample_errors(
+def test_validate_sync_completeness_fails_for_unverified_incremental_sample(
     command: CommandFixture, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     cmd, _ = command
@@ -469,7 +472,9 @@ def test_validate_sync_completeness_does_not_raise_for_incremental_sample_errors
         ),
     )
 
-    cmd.validate_sync_completeness(full_sync=False)
+    with pytest.raises(command_module.CommandError) as failure:
+        cmd.validate_sync_completeness(full_sync=False)
+    assert isinstance(failure.value.__cause__, requests.RequestException)
 
 
 def test_validate_sync_completeness_raises_for_unexpected_incremental_sample_errors(
@@ -996,7 +1001,8 @@ def test_validate_sync_completeness_full_sync_emits_parity_and_sample_checks(
         lambda event, payload: check_events.append((event, payload)),
     )
 
-    cmd.validate_sync_completeness(full_sync=True)
+    with pytest.raises(command_module.CommandError):
+        cmd.validate_sync_completeness(full_sync=True)
 
     assert any(event == "line_item_parity" for event, _ in check_events)
     assert any(event == "invoice_line_item_sample" for event, _ in check_events)
@@ -1098,6 +1104,8 @@ def test_fetch_line_item_total_entries_and_invoice_pagination(
     def fake_fetch(
         _model_name: str,
         params: dict[str, object] | None = None,
+        *,
+        use_cache: bool = True,
     ) -> tuple[list[dict[str, object]], dict[str, object] | None]:
         call_log.append(params)
         if params == {"invoice_id_not_null": "true"}:
@@ -1114,7 +1122,7 @@ def test_fetch_line_item_total_entries_and_invoice_pagination(
 
     assert cmd._fetch_line_item_total_entries("invoice_id_not_null") == 42
     assert cmd._fetch_line_item_total_entries("estimate_id_not_null") is None
-    assert cmd._fetch_invoice_line_item_count(17) == 3
+    assert cmd._fetch_invoice_line_item_ids(17) == {1, 2, 3}
     assert {"invoice_id": 17, "page": 2} in call_log
 
 
@@ -1128,16 +1136,16 @@ def test_evaluate_invoice_line_item_sample_parity_reports_mismatches(
     )
     monkeypatch.setattr(
         cmd,
-        "_fetch_invoice_line_item_count",
-        lambda invoice_id: {1: 3, 2: 1, 3: 2}[invoice_id],
+        "_fetch_invoice_line_item_ids",
+        lambda invoice_id: {1: {11, 12, 13}, 2: {21}, 3: {31, 32}}[invoice_id],
     )
 
     class FilterResult:
         def __init__(self, invoice_id: int) -> None:
             self.invoice_id = invoice_id
 
-        def count(self) -> int:
-            return {1: 3, 2: 5, 3: 2}[self.invoice_id]
+        def values_list(self, *_args, **_kwargs) -> list[int]:
+            return {1: [11, 12, 13], 2: [22], 3: [31, 32, 33]}[self.invoice_id]
 
     monkeypatch.setattr(
         command_module,
@@ -1153,7 +1161,9 @@ def test_evaluate_invoice_line_item_sample_parity_reports_mismatches(
 
     assert report["sample_size"] == 3
     assert report["mismatch_count"] == 1
-    assert report["mismatches"] == [{"invoice_id": 2, "api_count": 1, "db_count": 5}]
+    assert report["mismatches"] == [
+        {"invoice_id": 2, "api_count": 1, "db_count": 1, "missing_count": 1}
+    ]
 
 
 def test_validate_sync_completeness_handles_metadata_failure_modes(

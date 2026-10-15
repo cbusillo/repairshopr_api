@@ -16,7 +16,15 @@ from repairshopr_api.type_defs import JsonObject, JsonValue
 from repairshopr_data.management.commands import (
     import_from_repairshopr as command_module,
 )
-from repairshopr_data.models import Invoice, InvoiceLineItem, SyncStatus
+from repairshopr_data.models import (
+    Customer,
+    CustomerProperties,
+    Invoice,
+    InvoiceLineItem,
+    SyncStatus,
+    Ticket,
+    TicketProperties,
+)
 
 API_PREFIX = "/api/v1/"
 NON_FILTER_PARAMS = frozenset({"page", "sort", "since_updated_at"})
@@ -123,7 +131,7 @@ def served_line_item_pages(api: FakeRepairShoprApi, filter_key: str) -> set[obje
 @pytest.mark.parametrize(
     ("last_updated_at", "line_item_filter_key"),
     [
-        pytest.param(None, "invoice_id_not_null", id="full-sync-prefetch"),
+        pytest.param(None, "invoice_id", id="full-sync-per-invoice"),
         pytest.param(
             datetime.now(timezone.utc) - timedelta(days=1),
             "invoice_id",
@@ -224,3 +232,100 @@ def test_sync_heartbeat_advances_during_multi_page_invoice_import(
     assert first_page_status.last_heartbeat is not None
     assert status.last_heartbeat > first_page_status.last_heartbeat
     assert SyncStatus.objects.get(id=1).status == "success"
+
+
+@pytest.mark.django_db
+def test_partial_bulk_feed_does_not_hide_invoice_children(monkeypatch) -> None:
+    invoice_id = 42
+    rows = [{"id": i, "invoice_id": invoice_id} for i in range(1, 5)]
+    api = FakeRepairShoprApi({"invoices": [{"id": invoice_id}], "line_items": rows}, 2)
+    original_respond = api.respond
+
+    def respond(path, params):
+        payload = original_respond(path, params)
+        if path == "line_items" and "invoice_id_not_null" in params:
+            # Real defect: a bulk feed has some rows for a parent, so the old
+            # prefetch manufactured complete per-invoice cache metadata.
+            return {
+                "line_items": rows[:1],
+                "meta": {"total_pages": 1, "total_entries": 1},
+            }
+        return payload
+
+    monkeypatch.setattr(api, "respond", respond)
+    api.install(monkeypatch)
+    monkeypatch.setattr(settings.django, "last_updated_at", None)
+    cmd = build_command(monkeypatch)
+    cmd.client.prefetch_line_items()  # Even an explicitly populated partial cache is unsafe.
+    cmd.handle_model(
+        "repairshopr_data.models.invoice.Invoice", "repairshopr_api.models.Invoice"
+    )
+    assert set(InvoiceLineItem.objects.values_list("id", flat=True)) == {
+        row["id"] for row in rows
+    }
+
+
+@pytest.mark.django_db
+def test_sample_reads_fresh_ids_and_preserves_checkpoint_on_missing_line(
+    monkeypatch,
+) -> None:
+    checkpoint = datetime(2026, 9, 1, tzinfo=timezone.utc)
+    api = FakeRepairShoprApi(
+        {"invoices": [{"id": 42}], "line_items": [{"id": 1, "invoice_id": 42}]}, 100
+    )
+    reads = 0
+
+    def change_child_ids(request):
+        nonlocal reads
+        if request.collection == "line_items" and "invoice_id" in request.params:
+            reads += 1
+            if reads > 1:
+                # Same count, different ID: a count-only or cached check passes.
+                api.collections["line_items"] = [{"id": 2, "invoice_id": 42}]
+
+    api.before_serving = change_child_ids
+    api.install(monkeypatch)
+    monkeypatch.setattr(settings.django, "last_updated_at", checkpoint)
+    saved = []
+    monkeypatch.setattr(settings, "save", lambda: saved.append(True))
+    cmd = build_command(monkeypatch)
+    cmd.model_mapping = {"Invoice": (None, None)}
+    with pytest.raises(command_module.CommandError):
+        cmd.handle()
+    assert settings.django.last_updated_at == checkpoint
+    assert not saved
+    assert SyncStatus.objects.get(id=1).status == "failed"
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("parent_model", "properties_model", "field_name"),
+    [(Customer, CustomerProperties, "title"), (Ticket, TicketProperties, "case")],
+)
+def test_embedded_properties_reuse_the_parent_row(
+    parent_model, properties_model, field_name
+) -> None:
+    create = command_module.create_or_update_django_instance
+    first = create(parent_model, {"id": 1, "properties": {field_name: "before"}})
+    property_id = first.properties_id
+    create(parent_model, {"id": 1, "properties": {field_name: "after"}})
+    create(parent_model, {"id": 2, "properties": {field_name: "other parent"}})
+    first.refresh_from_db()
+    assert first.properties_id == property_id
+    assert getattr(first.properties, field_name) == "after"
+    assert properties_model.objects.count() == parent_model.objects.count()
+    assert parent_model.objects.get(id=2).properties_id != property_id
+
+
+@pytest.mark.django_db
+def test_invoice_payment_summary_is_retained(monkeypatch) -> None:
+    row = {"id": 42, "amount_paid": 15.0, "balance_due": 3.5, "is_recurring": True}
+    api = FakeRepairShoprApi({"invoices": [row]}, 100)
+    api.install(monkeypatch)
+    monkeypatch.setattr(settings.django, "last_updated_at", None)
+    build_command(monkeypatch).handle_model(
+        "repairshopr_data.models.invoice.Invoice", "repairshopr_api.models.Invoice"
+    )
+    invoice = Invoice.objects.get(id=row["id"])
+    for name in ("amount_paid", "balance_due", "is_recurring"):
+        assert getattr(invoice, name) == row[name]

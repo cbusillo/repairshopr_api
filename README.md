@@ -144,3 +144,12 @@ the [overall direction](https://github.com/cbusillo/direction/blob/HEAD/DIRECTIO
 and the [sync operations runbook](docs/ops/repairshopr-sync-confidence-runbook.md).
 The remaining release-routing work is tracked in
 [#103](https://github.com/cbusillo/repairshopr_api/issues/103).
+
+## Data coverage and historical recovery
+
+[The October 12 coverage report](docs/repairshopr-data-coverage.md) compares table,
+field and monthly coverage with CM's richer RepairShopr copy and explains the
+invoice-line and comment gaps. `refresh_related` prepares bounded comparisons
+and historical child recovery without resetting the incremental watermark;
+follow the [runbook](docs/ops/repairshopr-sync-confidence-runbook.md#bounded-historical-child-recovery)
+for scope, apply, interruption and release requirements.

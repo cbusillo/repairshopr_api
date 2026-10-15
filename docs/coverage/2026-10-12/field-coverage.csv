@@ -1,0 +1,1085 @@
+cm_table,cm_field,cm_type,cm_non_null,shiny_table,shiny_field,shiny_type,shiny_non_null,classification
+comments,id,int(11),1652520,repairshopr_data_ticketcomment,id,int(11),167335,persisted
+comments,created_at,datetime,1652520,repairshopr_data_ticketcomment,created_at,datetime(6),167335,persisted
+comments,updated_at,datetime,1652520,repairshopr_data_ticketcomment,updated_at,datetime(6),167335,persisted
+comments,ticket_id,int(11),1652520,repairshopr_data_ticketcomment,ticket_id,int(11),167249,persisted
+comments,subject,varchar(255),1652520,repairshopr_data_ticketcomment,subject,varchar(255),167335,persisted
+comments,body,text,1652520,repairshopr_data_ticketcomment,body,longtext,167335,persisted
+comments,tech,varchar(255),1650881,repairshopr_data_ticketcomment,tech,varchar(255),167335,persisted
+comments,hidden,tinyint(1),1652520,repairshopr_data_ticketcomment,hidden,tinyint(1),167335,persisted
+comments,user_id,int(11),1326719,repairshopr_data_ticketcomment,user_id,int(11),166933,persisted
+comments_spam_cleanup_backup_20260311,id,int(11),894,,,,,not stored; source/build semantics unverified
+comments_spam_cleanup_backup_20260311,created_at,datetime,894,,,,,not stored; source/build semantics unverified
+comments_spam_cleanup_backup_20260311,updated_at,datetime,894,,,,,not stored; source/build semantics unverified
+comments_spam_cleanup_backup_20260311,ticket_id,int(11),894,,,,,not stored; source/build semantics unverified
+comments_spam_cleanup_backup_20260311,subject,varchar(255),894,,,,,not stored; source/build semantics unverified
+comments_spam_cleanup_backup_20260311,body,text,894,,,,,not stored; source/build semantics unverified
+comments_spam_cleanup_backup_20260311,tech,varchar(255),894,,,,,not stored; source/build semantics unverified
+comments_spam_cleanup_backup_20260311,hidden,tinyint(1),894,,,,,not stored; source/build semantics unverified
+comments_spam_cleanup_backup_20260311,user_id,int(11),894,,,,,not stored; source/build semantics unverified
+contacts,id,int(11),267,repairshopr_data_customercontact,id,int(11),270,persisted
+contacts,name,varchar(255),267,repairshopr_data_customercontact,name,varchar(255),270,persisted
+contacts,address1,varchar(255),266,repairshopr_data_customercontact,address1,varchar(255),269,persisted
+contacts,address2,varchar(255),266,repairshopr_data_customercontact,address2,varchar(255),269,persisted
+contacts,city,varchar(255),266,repairshopr_data_customercontact,city,varchar(255),269,persisted
+contacts,state,varchar(255),266,repairshopr_data_customercontact,state,varchar(255),269,persisted
+contacts,zip,varchar(255),266,repairshopr_data_customercontact,zip,varchar(255),269,persisted
+contacts,email,varchar(255),267,repairshopr_data_customercontact,email,varchar(255),270,persisted
+contacts,phone,varchar(255),266,repairshopr_data_customercontact,phone,varchar(255),269,persisted
+contacts,mobile,varchar(255),266,repairshopr_data_customercontact,mobile,varchar(255),269,persisted
+contacts,latitude,float,0,repairshopr_data_customercontact,latitude,double,0,persisted
+contacts,longitude,float,0,repairshopr_data_customercontact,longitude,double,0,persisted
+contacts,customer_id,int(11),267,repairshopr_data_customercontact,parent_customer_id,int(11),261,persisted
+contacts,account_id,int(11),267,repairshopr_data_customercontact,account_id,int(11),270,persisted
+contacts,notes,text,266,repairshopr_data_customercontact,notes,longtext,269,persisted
+contacts,created_at,datetime,267,repairshopr_data_customercontact,created_at,datetime(6),270,persisted
+contacts,updated_at,datetime,267,repairshopr_data_customercontact,updated_at,datetime(6),270,persisted
+contacts,vendor_id,int(11),0,repairshopr_data_customercontact,vendor_id,int(11),0,persisted
+contacts,title,varchar(255),235,repairshopr_data_customercontact,,,,not stored; source/build semantics unverified
+contacts,opt_out,tinyint(1),267,repairshopr_data_customercontact,opt_out,tinyint(1),270,persisted
+contacts,extension,varchar(50),246,repairshopr_data_customercontact,extension,varchar(255),249,persisted
+contacts,processed_phone,varchar(255),266,repairshopr_data_customercontact,processed_phone,varchar(255),269,persisted
+contacts,processed_mobile,varchar(255),266,repairshopr_data_customercontact,processed_mobile,varchar(255),269,persisted
+contacts,ticket_matching_emails,varchar(255),231,repairshopr_data_customercontact,,,,not stored; source/build semantics unverified
+customers,id,int(11),155,repairshopr_data_customer,id,int(11),155,persisted
+customers,firstname,varchar(255),155,repairshopr_data_customer,firstname,varchar(255),155,persisted
+customers,lastname,varchar(255),154,repairshopr_data_customer,lastname,varchar(255),154,persisted
+customers,fullname,varchar(255),155,repairshopr_data_customer,fullname,varchar(255),155,persisted
+customers,business_name,varchar(255),150,repairshopr_data_customer,business_name,varchar(255),150,persisted
+customers,email,varchar(255),138,repairshopr_data_customer,email,varchar(255),138,persisted
+customers,phone,varchar(255),120,repairshopr_data_customer,phone,varchar(255),120,persisted
+customers,mobile,varchar(255),48,repairshopr_data_customer,mobile,varchar(255),48,persisted
+customers,created_at,datetime,155,repairshopr_data_customer,created_at,datetime(6),155,persisted
+customers,updated_at,datetime,155,repairshopr_data_customer,updated_at,datetime(6),155,persisted
+customers,pdf_url,text,0,repairshopr_data_customer,pdf_url,varchar(1024),15,persisted
+customers,address,varchar(255),150,repairshopr_data_customer,address,varchar(255),150,persisted
+customers,address_2,varchar(255),147,repairshopr_data_customer,address_2,varchar(255),147,persisted
+customers,city,varchar(255),150,repairshopr_data_customer,city,varchar(255),150,persisted
+customers,state,varchar(255),150,repairshopr_data_customer,state,varchar(255),150,persisted
+customers,zip,varchar(255),150,repairshopr_data_customer,zip,varchar(255),150,persisted
+customers,latitude,float,126,repairshopr_data_customer,latitude,double,126,persisted
+customers,longitude,float,126,repairshopr_data_customer,longitude,double,126,persisted
+customers,notes,text,46,repairshopr_data_customer,notes,longtext,46,persisted
+customers,get_sms,tinyint(1),155,repairshopr_data_customer,get_sms,tinyint(1),155,persisted
+customers,opt_out,tinyint(1),155,repairshopr_data_customer,opt_out,tinyint(1),155,persisted
+customers,disabled,tinyint(1),155,repairshopr_data_customer,disabled,tinyint(1),155,persisted
+customers,no_email,tinyint(1),155,repairshopr_data_customer,no_email,tinyint(1),155,persisted
+customers,location_name,varchar(255),0,repairshopr_data_customer,location_name,varchar(255),0,persisted
+customers,location_id,int(11),0,repairshopr_data_customer,location_id,int(11),0,persisted
+customers,properties,longtext,155,repairshopr_data_customer,,,,not stored; source/build semantics unverified
+customers,online_profile_url,text,0,repairshopr_data_customer,online_profile_url,varchar(1024),138,persisted
+customers,tax_rate_id,int(11),0,repairshopr_data_customer,tax_rate_id,int(11),67,persisted
+customers,notification_email,varchar(255),0,repairshopr_data_customer,notification_email,varchar(255),150,persisted
+customers,invoice_cc_emails,varchar(255),0,repairshopr_data_customer,invoice_cc_emails,varchar(255),150,persisted
+customers,invoice_term_id,int(11),0,repairshopr_data_customer,invoice_term_id,int(11),15,persisted
+customers,referred_by,varchar(255),150,repairshopr_data_customer,referred_by,varchar(255),150,persisted
+customers,ref_customer_id,int(11),0,repairshopr_data_customer,ref_customer_id,int(11),0,persisted
+customers,business_and_full_name,varchar(255),0,repairshopr_data_customer,business_and_full_name,varchar(255),155,persisted
+customers,business_then_name,varchar(255),0,repairshopr_data_customer,business_then_name,varchar(255),155,persisted
+customers,contacts,longtext,155,repairshopr_data_customer,,,,not stored; source/build semantics unverified
+custom_route_maps,route_name,varchar(25),61,,,,,not stored; source/build semantics unverified
+custom_route_maps,route_number,varchar(25),61,,,,,not stored; source/build semantics unverified
+daily_device_inventory,id,int(11),0,,,,,not stored; source/build semantics unverified
+daily_device_inventory,report_date,date,0,,,,,not stored; source/build semantics unverified
+daily_device_inventory,ticket_model_text,text,0,,,,,not stored; source/build semantics unverified
+daily_device_inventory,matched_model,varchar(100),0,,,,,not stored; source/build semantics unverified
+daily_device_inventory,device_count,int(11),0,,,,,not stored; source/build semantics unverified
+daily_device_parts,id,int(11),0,,,,,not stored; source/build semantics unverified
+daily_device_parts,report_date,date,0,,,,,not stored; source/build semantics unverified
+daily_device_parts,model,varchar(100),0,,,,,not stored; source/build semantics unverified
+daily_device_parts,part_num,varchar(100),0,,,,,not stored; source/build semantics unverified
+daily_device_parts,part_description,varchar(500),0,,,,,not stored; source/build semantics unverified
+daily_device_parts,part_type,varchar(100),0,,,,,not stored; source/build semantics unverified
+daily_device_parts,quantity_on_hand,int(11),0,,,,,not stored; source/build semantics unverified
+daily_device_parts,quantity_on_order,int(11),0,,,,,not stored; source/build semantics unverified
+daily_device_parts,usage_30_days,int(11),0,,,,,not stored; source/build semantics unverified
+deleted_comments,id,int(11),15123,,,,,not stored; source/build semantics unverified
+deleted_comments,created_at,datetime,15123,,,,,not stored; source/build semantics unverified
+deleted_comments,updated_at,datetime,15123,,,,,not stored; source/build semantics unverified
+deleted_comments,ticket_id,int(11),15123,,,,,not stored; source/build semantics unverified
+deleted_comments,subject,varchar(255),15123,,,,,not stored; source/build semantics unverified
+deleted_comments,body,text,15123,,,,,not stored; source/build semantics unverified
+deleted_comments,tech,varchar(255),15117,,,,,not stored; source/build semantics unverified
+deleted_comments,hidden,tinyint(1),15123,,,,,not stored; source/build semantics unverified
+deleted_comments,user_id,int(11),13631,,,,,not stored; source/build semantics unverified
+deleted_contacts,id,int(11),16,,,,,not stored; source/build semantics unverified
+deleted_contacts,name,varchar(255),15,,,,,not stored; source/build semantics unverified
+deleted_contacts,address1,varchar(255),15,,,,,not stored; source/build semantics unverified
+deleted_contacts,address2,varchar(255),15,,,,,not stored; source/build semantics unverified
+deleted_contacts,city,varchar(255),15,,,,,not stored; source/build semantics unverified
+deleted_contacts,state,varchar(255),15,,,,,not stored; source/build semantics unverified
+deleted_contacts,zip,varchar(255),15,,,,,not stored; source/build semantics unverified
+deleted_contacts,email,varchar(255),15,,,,,not stored; source/build semantics unverified
+deleted_contacts,phone,varchar(255),15,,,,,not stored; source/build semantics unverified
+deleted_contacts,mobile,varchar(255),15,,,,,not stored; source/build semantics unverified
+deleted_contacts,latitude,float,0,,,,,not stored; source/build semantics unverified
+deleted_contacts,longitude,float,0,,,,,not stored; source/build semantics unverified
+deleted_contacts,customer_id,int(11),16,,,,,not stored; source/build semantics unverified
+deleted_contacts,account_id,int(11),16,,,,,not stored; source/build semantics unverified
+deleted_contacts,notes,text,15,,,,,not stored; source/build semantics unverified
+deleted_contacts,created_at,datetime,16,,,,,not stored; source/build semantics unverified
+deleted_contacts,updated_at,datetime,16,,,,,not stored; source/build semantics unverified
+deleted_contacts,vendor_id,int(11),0,,,,,not stored; source/build semantics unverified
+deleted_contacts,title,varchar(255),13,,,,,not stored; source/build semantics unverified
+deleted_contacts,opt_out,tinyint(1),16,,,,,not stored; source/build semantics unverified
+deleted_contacts,extension,varchar(50),13,,,,,not stored; source/build semantics unverified
+deleted_contacts,processed_phone,varchar(255),15,,,,,not stored; source/build semantics unverified
+deleted_contacts,processed_mobile,varchar(255),15,,,,,not stored; source/build semantics unverified
+deleted_contacts,ticket_matching_emails,varchar(255),13,,,,,not stored; source/build semantics unverified
+deleted_customers,id,int(11),122,,,,,not stored; source/build semantics unverified
+deleted_customers,firstname,varchar(255),122,,,,,not stored; source/build semantics unverified
+deleted_customers,lastname,varchar(255),122,,,,,not stored; source/build semantics unverified
+deleted_customers,fullname,varchar(255),122,,,,,not stored; source/build semantics unverified
+deleted_customers,business_name,varchar(255),120,,,,,not stored; source/build semantics unverified
+deleted_customers,email,varchar(255),114,,,,,not stored; source/build semantics unverified
+deleted_customers,phone,varchar(255),102,,,,,not stored; source/build semantics unverified
+deleted_customers,mobile,varchar(255),47,,,,,not stored; source/build semantics unverified
+deleted_customers,created_at,datetime,122,,,,,not stored; source/build semantics unverified
+deleted_customers,updated_at,datetime,122,,,,,not stored; source/build semantics unverified
+deleted_customers,pdf_url,text,0,,,,,not stored; source/build semantics unverified
+deleted_customers,address,varchar(255),120,,,,,not stored; source/build semantics unverified
+deleted_customers,address_2,varchar(255),116,,,,,not stored; source/build semantics unverified
+deleted_customers,city,varchar(255),120,,,,,not stored; source/build semantics unverified
+deleted_customers,state,varchar(255),120,,,,,not stored; source/build semantics unverified
+deleted_customers,zip,varchar(255),120,,,,,not stored; source/build semantics unverified
+deleted_customers,latitude,float,99,,,,,not stored; source/build semantics unverified
+deleted_customers,longitude,float,99,,,,,not stored; source/build semantics unverified
+deleted_customers,notes,text,39,,,,,not stored; source/build semantics unverified
+deleted_customers,get_sms,tinyint(1),122,,,,,not stored; source/build semantics unverified
+deleted_customers,opt_out,tinyint(1),122,,,,,not stored; source/build semantics unverified
+deleted_customers,disabled,tinyint(1),122,,,,,not stored; source/build semantics unverified
+deleted_customers,no_email,tinyint(1),122,,,,,not stored; source/build semantics unverified
+deleted_customers,location_name,varchar(255),0,,,,,not stored; source/build semantics unverified
+deleted_customers,location_id,int(11),0,,,,,not stored; source/build semantics unverified
+deleted_customers,properties,longtext,122,,,,,not stored; source/build semantics unverified
+deleted_customers,online_profile_url,text,0,,,,,not stored; source/build semantics unverified
+deleted_customers,tax_rate_id,int(11),0,,,,,not stored; source/build semantics unverified
+deleted_customers,notification_email,varchar(255),0,,,,,not stored; source/build semantics unverified
+deleted_customers,invoice_cc_emails,varchar(255),0,,,,,not stored; source/build semantics unverified
+deleted_customers,invoice_term_id,int(11),0,,,,,not stored; source/build semantics unverified
+deleted_customers,referred_by,varchar(255),120,,,,,not stored; source/build semantics unverified
+deleted_customers,ref_customer_id,int(11),0,,,,,not stored; source/build semantics unverified
+deleted_customers,business_and_full_name,varchar(255),0,,,,,not stored; source/build semantics unverified
+deleted_customers,business_then_name,varchar(255),0,,,,,not stored; source/build semantics unverified
+deleted_customers,contacts,longtext,122,,,,,not stored; source/build semantics unverified
+deleted_estimates,id,int(11),25,,,,,not stored; source/build semantics unverified
+deleted_estimates,customer_id,int(11),25,,,,,not stored; source/build semantics unverified
+deleted_estimates,customer_business_then_name,varchar(255),25,,,,,not stored; source/build semantics unverified
+deleted_estimates,number,varchar(255),25,,,,,not stored; source/build semantics unverified
+deleted_estimates,status,varchar(255),25,,,,,not stored; source/build semantics unverified
+deleted_estimates,created_at,datetime,25,,,,,not stored; source/build semantics unverified
+deleted_estimates,updated_at,datetime,25,,,,,not stored; source/build semantics unverified
+deleted_estimates,date,date,25,,,,,not stored; source/build semantics unverified
+deleted_estimates,subtotal,"decimal(10,2)",25,,,,,not stored; source/build semantics unverified
+deleted_estimates,total,"decimal(10,2)",25,,,,,not stored; source/build semantics unverified
+deleted_estimates,tax,"decimal(10,2)",25,,,,,not stored; source/build semantics unverified
+deleted_estimates,ticket_id,int(11),22,,,,,not stored; source/build semantics unverified
+deleted_estimates,pdf_url,text,0,,,,,not stored; source/build semantics unverified
+deleted_estimates,location_id,int(11),0,,,,,not stored; source/build semantics unverified
+deleted_estimates,invoice_id,int(11),0,,,,,not stored; source/build semantics unverified
+deleted_estimates,employee,varchar(255),1,,,,,not stored; source/build semantics unverified
+deleted_estimate_line_items,id,int(11),6421,,,,,not stored; source/build semantics unverified
+deleted_estimate_line_items,created_at,datetime,5513,,,,,not stored; source/build semantics unverified
+deleted_estimate_line_items,updated_at,datetime,5513,,,,,not stored; source/build semantics unverified
+deleted_estimate_line_items,estimate_id,int(11),6421,,,,,not stored; source/build semantics unverified
+deleted_estimate_line_items,invoice_id,int(11),0,,,,,not stored; source/build semantics unverified
+deleted_estimate_line_items,item,varchar(1024),6421,,,,,not stored; source/build semantics unverified
+deleted_estimate_line_items,name,text,6421,,,,,not stored; source/build semantics unverified
+deleted_estimate_line_items,cost,"decimal(10,2)",6421,,,,,not stored; source/build semantics unverified
+deleted_estimate_line_items,price,"decimal(10,2)",6421,,,,,not stored; source/build semantics unverified
+deleted_estimate_line_items,quantity,"decimal(10,2)",6421,,,,,not stored; source/build semantics unverified
+deleted_estimate_line_items,product_id,int(11),5133,,,,,not stored; source/build semantics unverified
+deleted_estimate_line_items,taxable,tinyint(1),5513,,,,,not stored; source/build semantics unverified
+deleted_estimate_line_items,discount_percent,"decimal(5,2)",0,,,,,not stored; source/build semantics unverified
+deleted_estimate_line_items,position,int(11),5513,,,,,not stored; source/build semantics unverified
+deleted_estimate_line_items,invoice_bundle_id,int(11),0,,,,,not stored; source/build semantics unverified
+deleted_estimate_line_items,product_category,varchar(255),5513,,,,,not stored; source/build semantics unverified
+deleted_invoices,id,int(11),0,,,,,not stored; source/build semantics unverified
+deleted_invoices,customer_id,int(11),0,,,,,not stored; source/build semantics unverified
+deleted_invoices,customer_business_then_name,varchar(255),0,,,,,not stored; source/build semantics unverified
+deleted_invoices,number,varchar(255),0,,,,,not stored; source/build semantics unverified
+deleted_invoices,created_at,datetime,0,,,,,not stored; source/build semantics unverified
+deleted_invoices,updated_at,datetime,0,,,,,not stored; source/build semantics unverified
+deleted_invoices,date,date,0,,,,,not stored; source/build semantics unverified
+deleted_invoices,due_date,date,0,,,,,not stored; source/build semantics unverified
+deleted_invoices,subtotal,"decimal(10,2)",0,,,,,not stored; source/build semantics unverified
+deleted_invoices,total,"decimal(10,2)",0,,,,,not stored; source/build semantics unverified
+deleted_invoices,tax,"decimal(10,2)",0,,,,,not stored; source/build semantics unverified
+deleted_invoices,balance_due,"decimal(10,2)",0,,,,,not stored; source/build semantics unverified
+deleted_invoices,verified_paid,tinyint(1),0,,,,,not stored; source/build semantics unverified
+deleted_invoices,tech_marked_paid,tinyint(1),0,,,,,not stored; source/build semantics unverified
+deleted_invoices,ticket_id,int(11),0,,,,,not stored; source/build semantics unverified
+deleted_invoices,user_id,int(11),0,,,,,not stored; source/build semantics unverified
+deleted_invoices,pdf_url,text,0,,,,,not stored; source/build semantics unverified
+deleted_invoices,is_paid,tinyint(1),0,,,,,not stored; source/build semantics unverified
+deleted_invoices,location_id,int(11),0,,,,,not stored; source/build semantics unverified
+deleted_invoices,po_number,varchar(255),0,,,,,not stored; source/build semantics unverified
+deleted_invoices,contact_id,int(11),0,,,,,not stored; source/build semantics unverified
+deleted_invoices,note,text,0,,,,,not stored; source/build semantics unverified
+deleted_invoices,hardwarecost,"decimal(10,2)",0,,,,,not stored; source/build semantics unverified
+deleted_invoice_line_items,id,int(11),3347,,,,,not stored; source/build semantics unverified
+deleted_invoice_line_items,created_at,datetime,3347,,,,,not stored; source/build semantics unverified
+deleted_invoice_line_items,updated_at,datetime,3347,,,,,not stored; source/build semantics unverified
+deleted_invoice_line_items,invoice_id,int(11),3347,,,,,not stored; source/build semantics unverified
+deleted_invoice_line_items,item,varchar(1024),3347,,,,,not stored; source/build semantics unverified
+deleted_invoice_line_items,name,text,3347,,,,,not stored; source/build semantics unverified
+deleted_invoice_line_items,cost,"decimal(10,2)",3347,,,,,not stored; source/build semantics unverified
+deleted_invoice_line_items,price,"decimal(10,2)",3347,,,,,not stored; source/build semantics unverified
+deleted_invoice_line_items,quantity,"decimal(10,2)",3347,,,,,not stored; source/build semantics unverified
+deleted_invoice_line_items,product_id,int(11),3343,,,,,not stored; source/build semantics unverified
+deleted_invoice_line_items,taxable,tinyint(1),3347,,,,,not stored; source/build semantics unverified
+deleted_invoice_line_items,discount_percent,"decimal(5,2)",0,,,,,not stored; source/build semantics unverified
+deleted_invoice_line_items,position,int(11),3347,,,,,not stored; source/build semantics unverified
+deleted_invoice_line_items,invoice_bundle_id,int(11),0,,,,,not stored; source/build semantics unverified
+deleted_invoice_line_items,product_category,varchar(255),3297,,,,,not stored; source/build semantics unverified
+deleted_invoice_line_items,tax_note,text,0,,,,,not stored; source/build semantics unverified
+deleted_invoice_line_items,user_id,int(11),3347,,,,,not stored; source/build semantics unverified
+deleted_invoice_line_items,line_discount_percent,"decimal(5,2)",0,,,,,not stored; source/build semantics unverified
+deleted_invoice_line_items,discount_dollars,"decimal(10,2)",0,,,,,not stored; source/build semantics unverified
+deleted_payments,id,int(11),52,,,,,not stored; source/build semantics unverified
+deleted_payments,created_at,datetime,52,,,,,not stored; source/build semantics unverified
+deleted_payments,updated_at,datetime,52,,,,,not stored; source/build semantics unverified
+deleted_payments,success,tinyint(1),52,,,,,not stored; source/build semantics unverified
+deleted_payments,payment_amount,"decimal(12,2)",52,,,,,not stored; source/build semantics unverified
+deleted_payments,invoice_ids,longtext,52,,,,,not stored; source/build semantics unverified
+deleted_payments,ref_num,varchar(255),52,,,,,not stored; source/build semantics unverified
+deleted_payments,applied_at,date,52,,,,,not stored; source/build semantics unverified
+deleted_payments,payment_method,varchar(255),52,,,,,not stored; source/build semantics unverified
+deleted_payments,transaction_response,text,0,,,,,not stored; source/build semantics unverified
+deleted_payments,signature_date,date,0,,,,,not stored; source/build semantics unverified
+deleted_payments,customer,longtext,52,,,,,not stored; source/build semantics unverified
+deleted_payments,customer_id,int(11),52,,,,,not stored; source/build semantics unverified
+deleted_payments,business_and_full_name,varchar(510),52,,,,,not stored; source/build semantics unverified
+deleted_products,id,int(11),0,,,,,not stored; source/build semantics unverified
+deleted_products,price_cost,"decimal(12,4)",0,,,,,not stored; source/build semantics unverified
+deleted_products,price_retail,"decimal(12,4)",0,,,,,not stored; source/build semantics unverified
+deleted_products,condition,varchar(255),0,,,,,not stored; source/build semantics unverified
+deleted_products,description,text,0,,,,,not stored; source/build semantics unverified
+deleted_products,maintain_stock,tinyint(1),0,,,,,not stored; source/build semantics unverified
+deleted_products,name,varchar(255),0,,,,,not stored; source/build semantics unverified
+deleted_products,quantity,int(11),0,,,,,not stored; source/build semantics unverified
+deleted_products,warranty,text,0,,,,,not stored; source/build semantics unverified
+deleted_products,sort_order,int(11),0,,,,,not stored; source/build semantics unverified
+deleted_products,reorder_at,int(11),0,,,,,not stored; source/build semantics unverified
+deleted_products,disabled,tinyint(1),0,,,,,not stored; source/build semantics unverified
+deleted_products,taxable,tinyint(1),0,,,,,not stored; source/build semantics unverified
+deleted_products,product_category,varchar(255),0,,,,,not stored; source/build semantics unverified
+deleted_products,category_path,varchar(255),0,,,,,not stored; source/build semantics unverified
+deleted_products,upc_code,varchar(255),0,,,,,not stored; source/build semantics unverified
+deleted_products,discount_percent,"decimal(7,4)",0,,,,,not stored; source/build semantics unverified
+deleted_products,warranty_template_id,int(11),0,,,,,not stored; source/build semantics unverified
+deleted_products,qb_item_id,int(11),0,,,,,not stored; source/build semantics unverified
+deleted_products,desired_stock_level,int(11),0,,,,,not stored; source/build semantics unverified
+deleted_products,price_wholesale,"decimal(12,4)",0,,,,,not stored; source/build semantics unverified
+deleted_products,notes,text,0,,,,,not stored; source/build semantics unverified
+deleted_products,tax_rate_id,int(11),0,,,,,not stored; source/build semantics unverified
+deleted_products,physical_location,text,0,,,,,not stored; source/build semantics unverified
+deleted_products,serialized,tinyint(1),0,,,,,not stored; source/build semantics unverified
+deleted_products,vendor_ids,longtext,0,,,,,not stored; source/build semantics unverified
+deleted_products,long_description,text,0,,,,,not stored; source/build semantics unverified
+deleted_products,location_quantities,longtext,0,,,,,not stored; source/build semantics unverified
+deleted_products,since_updated_at,datetime,0,,,,,not stored; source/build semantics unverified
+deleted_products,photos,longtext,0,,,,,not stored; source/build semantics unverified
+deleted_products,hash,varchar(32),0,,,,,not stored; source/build semantics unverified
+deleted_tickets,id,int(11),0,,,,,not stored; source/build semantics unverified
+deleted_tickets,number,int(11),0,,,,,not stored; source/build semantics unverified
+deleted_tickets,estimate_ids,text,0,,,,,not stored; source/build semantics unverified
+deleted_tickets,subject,varchar(255),0,,,,,not stored; source/build semantics unverified
+deleted_tickets,created_at,datetime,0,,,,,not stored; source/build semantics unverified
+deleted_tickets,created_at_u,int(11),0,,,,,not stored; source/build semantics unverified
+deleted_tickets,customer_id,int(11),0,,,,,not stored; source/build semantics unverified
+deleted_tickets,customer_business_then_name,varchar(255),0,,,,,not stored; source/build semantics unverified
+deleted_tickets,due_date,int(11),0,,,,,not stored; source/build semantics unverified
+deleted_tickets,resolved_at,datetime,0,,,,,not stored; source/build semantics unverified
+deleted_tickets,resolved_at_u,int(11),0,,,,,not stored; source/build semantics unverified
+deleted_tickets,start_at,int(11),0,,,,,not stored; source/build semantics unverified
+deleted_tickets,end_at,int(11),0,,,,,not stored; source/build semantics unverified
+deleted_tickets,location_id,int(11),0,,,,,not stored; source/build semantics unverified
+deleted_tickets,problem_type,varchar(255),0,,,,,not stored; source/build semantics unverified
+deleted_tickets,status,varchar(255),0,,,,,not stored; source/build semantics unverified
+deleted_tickets,ticket_type_id,int(11),0,,,,,not stored; source/build semantics unverified
+deleted_tickets,properties,text,0,,,,,not stored; source/build semantics unverified
+deleted_tickets,user_id,int(11),0,,,,,not stored; source/build semantics unverified
+deleted_tickets,updated_at,datetime,0,,,,,not stored; source/build semantics unverified
+deleted_tickets,updated_at_u,int(11),0,,,,,not stored; source/build semantics unverified
+deleted_tickets,pdf_url,text,0,,,,,not stored; source/build semantics unverified
+deleted_tickets,priority,varchar(255),0,,,,,not stored; source/build semantics unverified
+deleted_tickets,comments,text,0,,,,,not stored; source/build semantics unverified
+deleted_tickets,num_devices,int(11),0,,,,,not stored; source/build semantics unverified
+employee_output,id,bigint(20),642013,,,,,not stored; source/build semantics unverified
+employee_output,username,varchar(255),642012,,,,,not stored; source/build semantics unverified
+employee_output,datetime,datetime,642013,,,,,not stored; source/build semantics unverified
+employee_output,employee_id,int(11),637971,,,,,not stored; source/build semantics unverified
+employee_output,ticket_id,int(11),642002,,,,,not stored; source/build semantics unverified
+employee_output,comment_id,int(11),601634,,,,,not stored; source/build semantics unverified
+employee_output,invoice_id,int(11),39253,,,,,not stored; source/build semantics unverified
+employee_output,repairs,int(11),642013,,,,,not stored; source/build semantics unverified
+employee_output,beyond_economical_repair,int(11),642013,,,,,not stored; source/build semantics unverified
+employee_output,repair_rejects,int(11),642013,,,,,not stored; source/build semantics unverified
+employee_output,board_repair_pass,int(11),642013,,,,,not stored; source/build semantics unverified
+employee_output,board_repair_fail,int(11),642013,,,,,not stored; source/build semantics unverified
+employee_output,diagnostics,int(11),642013,,,,,not stored; source/build semantics unverified
+employee_output,quality_control,int(11),642013,,,,,not stored; source/build semantics unverified
+employee_output,quality_control_rejects,int(11),642013,,,,,not stored; source/build semantics unverified
+employee_output,quality_control_rejected_person,varchar(255),486394,,,,,not stored; source/build semantics unverified
+employee_output,intake,int(11),642013,,,,,not stored; source/build semantics unverified
+employee_output,invoices,int(11),642013,,,,,not stored; source/build semantics unverified
+employee_output,reworks,int(11),642013,,,,,not stored; source/build semantics unverified
+employee_output,valid,tinyint(4),642013,,,,,not stored; source/build semantics unverified
+employee_output,reworked,tinyint(4),642013,,,,,not stored; source/build semantics unverified
+employee_output,off_site,tinyint(4),642013,,,,,not stored; source/build semantics unverified
+employee_output,production_value,"decimal(10,2)",641589,,,,,not stored; source/build semantics unverified
+employee_output,team,varchar(255),171947,,,,,not stored; source/build semantics unverified
+employee_output,original_comment,text,486394,,,,,not stored; source/build semantics unverified
+employee_output,notes,text,642013,,,,,not stored; source/build semantics unverified
+employee_output,linked_comment_id,int(11),642013,,,,,not stored; source/build semantics unverified
+employee_output,invalid_notified,tinyint(4),642013,,,,,not stored; source/build semantics unverified
+employee_output,invalid_notified_at,datetime,156,,,,,not stored; source/build semantics unverified
+employee_output_qcr_offsite_backfill_20260620,employee_output_id,bigint(20),26,,,,,not stored; source/build semantics unverified
+employee_output_qcr_offsite_backfill_20260620,old_off_site,tinyint(4),26,,,,,not stored; source/build semantics unverified
+employee_output_qcr_offsite_backfill_20260620,new_off_site,tinyint(4),26,,,,,not stored; source/build semantics unverified
+employee_output_qcr_offsite_backfill_20260620,source_employee_output_id,bigint(20),26,,,,,not stored; source/build semantics unverified
+employee_output_qcr_offsite_backfill_20260620,source_off_site,tinyint(4),26,,,,,not stored; source/build semantics unverified
+employee_output_qcr_offsite_backfill_20260620,repair_rejects,int(11),26,,,,,not stored; source/build semantics unverified
+employee_output_qcr_offsite_backfill_20260620,row_datetime,datetime,26,,,,,not stored; source/build semantics unverified
+employee_output_qcr_offsite_backfill_20260620,linked_comment_id,bigint(20),26,,,,,not stored; source/build semantics unverified
+employee_output_qcr_offsite_backfill_20260620,start_date,datetime,26,,,,,not stored; source/build semantics unverified
+employee_output_qcr_offsite_backfill_20260620,captured_at,datetime,26,,,,,not stored; source/build semantics unverified
+employee_output_qcr_offsite_backfill_20260620,note,varchar(255),26,,,,,not stored; source/build semantics unverified
+employee_output_wag_claim_correction_backup_20260717_113824,id,bigint(20),33,,,,,not stored; source/build semantics unverified
+employee_output_wag_claim_correction_backup_20260717_113824,username,varchar(255),33,,,,,not stored; source/build semantics unverified
+employee_output_wag_claim_correction_backup_20260717_113824,datetime,datetime,33,,,,,not stored; source/build semantics unverified
+employee_output_wag_claim_correction_backup_20260717_113824,employee_id,int(11),33,,,,,not stored; source/build semantics unverified
+employee_output_wag_claim_correction_backup_20260717_113824,ticket_id,int(11),33,,,,,not stored; source/build semantics unverified
+employee_output_wag_claim_correction_backup_20260717_113824,comment_id,int(11),33,,,,,not stored; source/build semantics unverified
+employee_output_wag_claim_correction_backup_20260717_113824,invoice_id,int(11),0,,,,,not stored; source/build semantics unverified
+employee_output_wag_claim_correction_backup_20260717_113824,repairs,int(11),33,,,,,not stored; source/build semantics unverified
+employee_output_wag_claim_correction_backup_20260717_113824,repair_rejects,int(11),33,,,,,not stored; source/build semantics unverified
+employee_output_wag_claim_correction_backup_20260717_113824,board_repair_pass,int(11),33,,,,,not stored; source/build semantics unverified
+employee_output_wag_claim_correction_backup_20260717_113824,board_repair_fail,int(11),33,,,,,not stored; source/build semantics unverified
+employee_output_wag_claim_correction_backup_20260717_113824,diagnostics,int(11),33,,,,,not stored; source/build semantics unverified
+employee_output_wag_claim_correction_backup_20260717_113824,quality_control,int(11),33,,,,,not stored; source/build semantics unverified
+employee_output_wag_claim_correction_backup_20260717_113824,quality_control_rejects,int(11),33,,,,,not stored; source/build semantics unverified
+employee_output_wag_claim_correction_backup_20260717_113824,quality_control_rejected_person,varchar(255),33,,,,,not stored; source/build semantics unverified
+employee_output_wag_claim_correction_backup_20260717_113824,intake,int(11),33,,,,,not stored; source/build semantics unverified
+employee_output_wag_claim_correction_backup_20260717_113824,invoices,int(11),33,,,,,not stored; source/build semantics unverified
+employee_output_wag_claim_correction_backup_20260717_113824,reworks,int(11),33,,,,,not stored; source/build semantics unverified
+employee_output_wag_claim_correction_backup_20260717_113824,valid,tinyint(4),33,,,,,not stored; source/build semantics unverified
+employee_output_wag_claim_correction_backup_20260717_113824,reworked,tinyint(4),33,,,,,not stored; source/build semantics unverified
+employee_output_wag_claim_correction_backup_20260717_113824,off_site,tinyint(4),33,,,,,not stored; source/build semantics unverified
+employee_output_wag_claim_correction_backup_20260717_113824,production_value,"decimal(10,2)",0,,,,,not stored; source/build semantics unverified
+employee_output_wag_claim_correction_backup_20260717_113824,team,varchar(255),33,,,,,not stored; source/build semantics unverified
+employee_output_wag_claim_correction_backup_20260717_113824,original_comment,text,33,,,,,not stored; source/build semantics unverified
+employee_output_wag_claim_correction_backup_20260717_113824,notes,text,33,,,,,not stored; source/build semantics unverified
+employee_output_wag_claim_correction_backup_20260717_113824,linked_comment_id,int(11),33,,,,,not stored; source/build semantics unverified
+employee_output_wag_claim_correction_backup_20260717_113824,invalid_notified,tinyint(4),33,,,,,not stored; source/build semantics unverified
+employee_output_wag_claim_correction_backup_20260717_113824,invalid_notified_at,datetime,33,,,,,not stored; source/build semantics unverified
+employee_output_wag_claim_sync_backup_20260717_114606,id,bigint(20),4,,,,,not stored; source/build semantics unverified
+employee_output_wag_claim_sync_backup_20260717_114606,username,varchar(255),4,,,,,not stored; source/build semantics unverified
+employee_output_wag_claim_sync_backup_20260717_114606,datetime,datetime,4,,,,,not stored; source/build semantics unverified
+employee_output_wag_claim_sync_backup_20260717_114606,employee_id,int(11),4,,,,,not stored; source/build semantics unverified
+employee_output_wag_claim_sync_backup_20260717_114606,ticket_id,int(11),4,,,,,not stored; source/build semantics unverified
+employee_output_wag_claim_sync_backup_20260717_114606,comment_id,int(11),4,,,,,not stored; source/build semantics unverified
+employee_output_wag_claim_sync_backup_20260717_114606,invoice_id,int(11),0,,,,,not stored; source/build semantics unverified
+employee_output_wag_claim_sync_backup_20260717_114606,repairs,int(11),4,,,,,not stored; source/build semantics unverified
+employee_output_wag_claim_sync_backup_20260717_114606,repair_rejects,int(11),4,,,,,not stored; source/build semantics unverified
+employee_output_wag_claim_sync_backup_20260717_114606,board_repair_pass,int(11),4,,,,,not stored; source/build semantics unverified
+employee_output_wag_claim_sync_backup_20260717_114606,board_repair_fail,int(11),4,,,,,not stored; source/build semantics unverified
+employee_output_wag_claim_sync_backup_20260717_114606,diagnostics,int(11),4,,,,,not stored; source/build semantics unverified
+employee_output_wag_claim_sync_backup_20260717_114606,quality_control,int(11),4,,,,,not stored; source/build semantics unverified
+employee_output_wag_claim_sync_backup_20260717_114606,quality_control_rejects,int(11),4,,,,,not stored; source/build semantics unverified
+employee_output_wag_claim_sync_backup_20260717_114606,quality_control_rejected_person,varchar(255),4,,,,,not stored; source/build semantics unverified
+employee_output_wag_claim_sync_backup_20260717_114606,intake,int(11),4,,,,,not stored; source/build semantics unverified
+employee_output_wag_claim_sync_backup_20260717_114606,invoices,int(11),4,,,,,not stored; source/build semantics unverified
+employee_output_wag_claim_sync_backup_20260717_114606,reworks,int(11),4,,,,,not stored; source/build semantics unverified
+employee_output_wag_claim_sync_backup_20260717_114606,valid,tinyint(4),4,,,,,not stored; source/build semantics unverified
+employee_output_wag_claim_sync_backup_20260717_114606,reworked,tinyint(4),4,,,,,not stored; source/build semantics unverified
+employee_output_wag_claim_sync_backup_20260717_114606,off_site,tinyint(4),4,,,,,not stored; source/build semantics unverified
+employee_output_wag_claim_sync_backup_20260717_114606,production_value,"decimal(10,2)",0,,,,,not stored; source/build semantics unverified
+employee_output_wag_claim_sync_backup_20260717_114606,team,varchar(255),4,,,,,not stored; source/build semantics unverified
+employee_output_wag_claim_sync_backup_20260717_114606,original_comment,text,4,,,,,not stored; source/build semantics unverified
+employee_output_wag_claim_sync_backup_20260717_114606,notes,text,4,,,,,not stored; source/build semantics unverified
+employee_output_wag_claim_sync_backup_20260717_114606,linked_comment_id,int(11),4,,,,,not stored; source/build semantics unverified
+employee_output_wag_claim_sync_backup_20260717_114606,invalid_notified,tinyint(4),4,,,,,not stored; source/build semantics unverified
+employee_output_wag_claim_sync_backup_20260717_114606,invalid_notified_at,datetime,4,,,,,not stored; source/build semantics unverified
+estimates,id,int(11),25217,repairshopr_data_estimate,id,int(11),25217,persisted
+estimates,customer_id,int(11),25217,repairshopr_data_estimate,customer_id,int(11),25217,persisted
+estimates,customer_business_then_name,varchar(4096),25217,repairshopr_data_estimate,customer_business_then_name,varchar(255),25217,persisted
+estimates,number,varchar(255),25217,repairshopr_data_estimate,number,varchar(255),25217,persisted
+estimates,status,varchar(255),25217,repairshopr_data_estimate,status,varchar(255),25217,persisted
+estimates,created_at,datetime,25217,repairshopr_data_estimate,created_at,datetime(6),25217,persisted
+estimates,updated_at,datetime,25217,repairshopr_data_estimate,updated_at,datetime(6),25217,persisted
+estimates,date,datetime,25217,repairshopr_data_estimate,date,datetime(6),25217,persisted
+estimates,subtotal,"decimal(10,2)",25217,repairshopr_data_estimate,subtotal,double,25217,persisted
+estimates,total,"decimal(10,2)",25217,repairshopr_data_estimate,total,double,25217,persisted
+estimates,tax,"decimal(10,2)",25217,repairshopr_data_estimate,tax,double,25217,persisted
+estimates,ticket_id,int(11),25047,repairshopr_data_estimate,ticket_id,int(11),25047,persisted
+estimates,pdf_url,text,13,repairshopr_data_estimate,pdf_url,varchar(1024),13,persisted
+estimates,location_id,int(11),0,repairshopr_data_estimate,location_id,int(11),0,persisted
+estimates,invoice_id,int(11),23855,repairshopr_data_estimate,invoice_id,int(11),20749,persisted
+estimates,employee,varchar(255),25217,repairshopr_data_estimate,employee,varchar(255),25217,persisted
+estimates_ai,id,int(11),0,,,,,not stored; source/build semantics unverified
+estimates_ai,ticket_id,int(11),0,,,,,not stored; source/build semantics unverified
+estimates_ai,estimate_id,int(11),0,,,,,not stored; source/build semantics unverified
+estimate_line_items,id,int(11),138962,repairshopr_data_estimatelineitem,id,int(11),139488,persisted
+estimate_line_items,created_at,datetime,138962,repairshopr_data_estimatelineitem,created_at,datetime(6),139488,persisted
+estimate_line_items,updated_at,datetime,138962,repairshopr_data_estimatelineitem,updated_at,datetime(6),139488,persisted
+estimate_line_items,estimate_id,int(11),138962,repairshopr_data_estimatelineitem,parent_estimate_id,int(11),139229,persisted
+estimate_line_items,invoice_id,int(11),200,repairshopr_data_estimatelineitem,,,,not stored; source/build semantics unverified
+estimate_line_items,item,varchar(1024),138962,repairshopr_data_estimatelineitem,item,varchar(255),139488,persisted
+estimate_line_items,name,text,138962,repairshopr_data_estimatelineitem,name,longtext,139488,persisted
+estimate_line_items,cost,"decimal(10,2)",138962,repairshopr_data_estimatelineitem,cost,double,139488,persisted
+estimate_line_items,price,"decimal(10,2)",138962,repairshopr_data_estimatelineitem,price,double,139488,persisted
+estimate_line_items,quantity,"decimal(10,2)",138962,repairshopr_data_estimatelineitem,quantity,double,139488,persisted
+estimate_line_items,product_id,int(11),135438,repairshopr_data_estimatelineitem,product_id,int(11),135964,persisted
+estimate_line_items,taxable,tinyint(1),138962,repairshopr_data_estimatelineitem,taxable,tinyint(1),139488,persisted
+estimate_line_items,discount_percent,"decimal(5,2)",0,repairshopr_data_estimatelineitem,discount_percent,double,0,persisted
+estimate_line_items,position,int(11),138962,repairshopr_data_estimatelineitem,position,int(11),139488,persisted
+estimate_line_items,invoice_bundle_id,int(11),0,repairshopr_data_estimatelineitem,invoice_bundle_id,int(11),0,persisted
+estimate_line_items,product_category,varchar(255),138962,repairshopr_data_estimatelineitem,product_category,varchar(255),139488,persisted
+estimate_review_notification_outbox,id,bigint(20) unsigned,205,,,,,not stored; source/build semantics unverified
+estimate_review_notification_outbox,ticket_id,bigint(20),205,,,,,not stored; source/build semantics unverified
+estimate_review_notification_outbox,source_updated_at,bigint(20),205,,,,,not stored; source/build semantics unverified
+estimate_review_notification_outbox,payload,longtext,205,,,,,not stored; source/build semantics unverified
+estimate_review_notification_outbox,status,varchar(16),205,,,,,not stored; source/build semantics unverified
+estimate_review_notification_outbox,attempt_count,int(11),205,,,,,not stored; source/build semantics unverified
+estimate_review_notification_outbox,next_attempt_at,datetime,205,,,,,not stored; source/build semantics unverified
+estimate_review_notification_outbox,last_error,varchar(64),205,,,,,not stored; source/build semantics unverified
+estimate_review_notification_outbox,message_id,varchar(32),205,,,,,not stored; source/build semantics unverified
+estimate_review_notification_outbox,created_at,datetime,205,,,,,not stored; source/build semantics unverified
+estimate_review_notification_outbox,updated_at,datetime,205,,,,,not stored; source/build semantics unverified
+estimate_review_notification_outbox,notified_at,datetime,205,,,,,not stored; source/build semantics unverified
+estimate_spacing_comment_outbox,batch_id,char(36),480,,,,,not stored; source/build semantics unverified
+estimate_spacing_comment_outbox,ticket_id,int(11),480,,,,,not stored; source/build semantics unverified
+estimate_spacing_comment_outbox,marker,varchar(96),480,,,,,not stored; source/build semantics unverified
+estimate_spacing_comment_outbox,status,varchar(32),480,,,,,not stored; source/build semantics unverified
+estimate_spacing_comment_outbox,attempt_count,int(10) unsigned,480,,,,,not stored; source/build semantics unverified
+estimate_spacing_comment_outbox,last_error,varchar(64),480,,,,,not stored; source/build semantics unverified
+estimate_spacing_comment_outbox,created_at,datetime(6),480,,,,,not stored; source/build semantics unverified
+estimate_spacing_comment_outbox,updated_at,datetime(6),480,,,,,not stored; source/build semantics unverified
+estimate_spacing_comment_outbox,commented_at,datetime(6),463,,,,,not stored; source/build semantics unverified
+estimate_spacing_corrections,id,bigint(20) unsigned,662,,,,,not stored; source/build semantics unverified
+estimate_spacing_corrections,operation_key,char(64),662,,,,,not stored; source/build semantics unverified
+estimate_spacing_corrections,batch_id,char(36),662,,,,,not stored; source/build semantics unverified
+estimate_spacing_corrections,ticket_id,int(11),662,,,,,not stored; source/build semantics unverified
+estimate_spacing_corrections,estimate_id,int(11),662,,,,,not stored; source/build semantics unverified
+estimate_spacing_corrections,line_item_id,int(11),662,,,,,not stored; source/build semantics unverified
+estimate_spacing_corrections,original_name,mediumtext,662,,,,,not stored; source/build semantics unverified
+estimate_spacing_corrections,corrected_name,mediumtext,662,,,,,not stored; source/build semantics unverified
+estimate_spacing_corrections,original_sha256,char(64),662,,,,,not stored; source/build semantics unverified
+estimate_spacing_corrections,source_updated_at,datetime(6),662,,,,,not stored; source/build semantics unverified
+estimate_spacing_corrections,rule_set_version,varchar(32),662,,,,,not stored; source/build semantics unverified
+estimate_spacing_corrections,status,varchar(32),662,,,,,not stored; source/build semantics unverified
+estimate_spacing_corrections,outcome_reason,varchar(64),662,,,,,not stored; source/build semantics unverified
+estimate_spacing_corrections,attempt_count,int(10) unsigned,662,,,,,not stored; source/build semantics unverified
+estimate_spacing_corrections,created_at,datetime(6),662,,,,,not stored; source/build semantics unverified
+estimate_spacing_corrections,updated_at,datetime(6),662,,,,,not stored; source/build semantics unverified
+estimate_spacing_corrections,applied_at,datetime(6),662,,,,,not stored; source/build semantics unverified
+estimate_spacing_corrections,verified_at,datetime(6),662,,,,,not stored; source/build semantics unverified
+estimate_spacing_notification_outbox,batch_id,char(36),459,,,,,not stored; source/build semantics unverified
+estimate_spacing_notification_outbox,ticket_id,int(11),459,,,,,not stored; source/build semantics unverified
+estimate_spacing_notification_outbox,status,varchar(32),459,,,,,not stored; source/build semantics unverified
+estimate_spacing_notification_outbox,attempt_count,int(10) unsigned,459,,,,,not stored; source/build semantics unverified
+estimate_spacing_notification_outbox,last_error,varchar(64),459,,,,,not stored; source/build semantics unverified
+estimate_spacing_notification_outbox,created_at,datetime(6),459,,,,,not stored; source/build semantics unverified
+estimate_spacing_notification_outbox,updated_at,datetime(6),459,,,,,not stored; source/build semantics unverified
+estimate_spacing_notification_outbox,notified_at,datetime(6),459,,,,,not stored; source/build semantics unverified
+estimate_sync_checkpoint,id,tinyint(4),1,,,,,not stored; source/build semantics unverified
+estimate_sync_checkpoint,covered_through,datetime(6),1,,,,,not stored; source/build semantics unverified
+fishbowl_models,model,varchar(100),578,,,,,not stored; source/build semantics unverified
+invoices,id,int(11),164570,repairshopr_data_invoice,id,int(11),176910,persisted
+invoices,customer_id,int(11),164570,repairshopr_data_invoice,customer_id,int(11),176910,persisted
+invoices,customer_business_then_name,varchar(255),164570,repairshopr_data_invoice,customer_business_then_name,varchar(255),176910,persisted
+invoices,number,varchar(255),164570,repairshopr_data_invoice,number,varchar(255),176910,persisted
+invoices,created_at,datetime,164570,repairshopr_data_invoice,created_at,datetime(6),176910,persisted
+invoices,updated_at,datetime,164570,repairshopr_data_invoice,updated_at,datetime(6),176910,persisted
+invoices,date,date,164570,repairshopr_data_invoice,date,datetime(6),176910,persisted
+invoices,due_date,date,164570,repairshopr_data_invoice,due_date,datetime(6),176910,persisted
+invoices,subtotal,"decimal(10,2)",164570,repairshopr_data_invoice,subtotal,double,176910,persisted
+invoices,total,"decimal(10,2)",164570,repairshopr_data_invoice,total,double,176910,persisted
+invoices,tax,"decimal(10,2)",164570,repairshopr_data_invoice,tax,double,176910,persisted
+invoices,balance_due,"decimal(10,2)",107035,repairshopr_data_invoice,,,,added by this change; historical values need parent refresh
+invoices,verified_paid,tinyint(1),164570,repairshopr_data_invoice,verified_paid,tinyint(1),176910,persisted
+invoices,tech_marked_paid,tinyint(1),164570,repairshopr_data_invoice,tech_marked_paid,tinyint(1),176910,persisted
+invoices,ticket_id,int(11),161851,repairshopr_data_invoice,ticket_id,int(11),174189,persisted
+invoices,user_id,int(11),59100,repairshopr_data_invoice,user_id,int(11),152843,persisted
+invoices,pdf_url,text,2646,repairshopr_data_invoice,pdf_url,varchar(1024),2646,persisted
+invoices,is_paid,tinyint(1),164570,repairshopr_data_invoice,is_paid,tinyint(1),176910,persisted
+invoices,location_id,int(11),0,repairshopr_data_invoice,location_id,int(11),0,persisted
+invoices,po_number,varchar(255),11685,repairshopr_data_invoice,po_number,varchar(255),12330,persisted
+invoices,contact_id,int(11),58,repairshopr_data_invoice,contact_id,int(11),58,persisted
+invoices,note,text,1653,repairshopr_data_invoice,note,longtext,1880,persisted
+invoices,hardwarecost,"decimal(10,2)",164539,repairshopr_data_invoice,hardwarecost,double,176874,persisted
+invoices,sent_to_wag_flag,tinyint(4),164570,repairshopr_data_invoice,,,,not stored; source/build semantics unverified
+invoices_old,id,int(11),95755,,,,,not stored; source/build semantics unverified
+invoices_old,customer_id,int(11),95755,,,,,not stored; source/build semantics unverified
+invoices_old,customer_business_then_name,varchar(255),95755,,,,,not stored; source/build semantics unverified
+invoices_old,number,varchar(255),95755,,,,,not stored; source/build semantics unverified
+invoices_old,created_at,datetime,95755,,,,,not stored; source/build semantics unverified
+invoices_old,updated_at,datetime,95755,,,,,not stored; source/build semantics unverified
+invoices_old,date,date,95755,,,,,not stored; source/build semantics unverified
+invoices_old,due_date,date,95755,,,,,not stored; source/build semantics unverified
+invoices_old,subtotal,"decimal(10,2)",95755,,,,,not stored; source/build semantics unverified
+invoices_old,total,"decimal(10,2)",95755,,,,,not stored; source/build semantics unverified
+invoices_old,tax,"decimal(10,2)",95755,,,,,not stored; source/build semantics unverified
+invoices_old,balance_due,"decimal(10,2)",38220,,,,,not stored; source/build semantics unverified
+invoices_old,verified_paid,tinyint(1),95755,,,,,not stored; source/build semantics unverified
+invoices_old,tech_marked_paid,tinyint(1),95755,,,,,not stored; source/build semantics unverified
+invoices_old,ticket_id,int(11),93103,,,,,not stored; source/build semantics unverified
+invoices_old,user_id,int(11),0,,,,,not stored; source/build semantics unverified
+invoices_old,pdf_url,text,2646,,,,,not stored; source/build semantics unverified
+invoices_old,is_paid,tinyint(1),95755,,,,,not stored; source/build semantics unverified
+invoices_old,location_id,int(11),0,,,,,not stored; source/build semantics unverified
+invoices_old,po_number,varchar(255),4651,,,,,not stored; source/build semantics unverified
+invoices_old,contact_id,int(11),47,,,,,not stored; source/build semantics unverified
+invoices_old,note,text,1059,,,,,not stored; source/build semantics unverified
+invoices_old,hardwarecost,"decimal(10,2)",95728,,,,,not stored; source/build semantics unverified
+invoices_old,sent_to_wag_flag,tinyint(4),95755,,,,,not stored; source/build semantics unverified
+invoice_line_items,id,int(11),649724,repairshopr_data_invoicelineitem,id,int(11),613162,persisted
+invoice_line_items,created_at,datetime,649724,repairshopr_data_invoicelineitem,created_at,datetime(6),613162,persisted
+invoice_line_items,updated_at,datetime,649724,repairshopr_data_invoicelineitem,updated_at,datetime(6),613162,persisted
+invoice_line_items,invoice_id,int(11),649724,repairshopr_data_invoicelineitem,parent_invoice_id,int(11),612774,persisted
+invoice_line_items,item,varchar(1024),649724,repairshopr_data_invoicelineitem,item,varchar(255),613162,persisted
+invoice_line_items,name,varchar(4096),649724,repairshopr_data_invoicelineitem,name,longtext,613162,persisted
+invoice_line_items,cost,"decimal(10,2)",649724,repairshopr_data_invoicelineitem,cost,double,613162,persisted
+invoice_line_items,price,"decimal(10,2)",649724,repairshopr_data_invoicelineitem,price,double,613162,persisted
+invoice_line_items,quantity,"decimal(10,2)",649724,repairshopr_data_invoicelineitem,quantity,double,613162,persisted
+invoice_line_items,product_id,int(11),643798,repairshopr_data_invoicelineitem,product_id,int(11),607237,persisted
+invoice_line_items,taxable,tinyint(1),649724,repairshopr_data_invoicelineitem,taxable,tinyint(1),613162,persisted
+invoice_line_items,discount_percent,"decimal(5,2)",571,repairshopr_data_invoicelineitem,discount_percent,double,571,persisted
+invoice_line_items,position,int(11),649724,repairshopr_data_invoicelineitem,position,int(11),613162,persisted
+invoice_line_items,invoice_bundle_id,int(11),0,repairshopr_data_invoicelineitem,invoice_bundle_id,int(11),0,persisted
+invoice_line_items,product_category,varchar(255),637055,repairshopr_data_invoicelineitem,product_category,varchar(255),601735,persisted
+invoice_line_items,tax_note,text,0,repairshopr_data_invoicelineitem,,,,not stored; source/build semantics unverified
+invoice_line_items,user_id,int(11),649648,repairshopr_data_invoicelineitem,,,,not stored; source/build semantics unverified
+invoice_line_items,line_discount_percent,"decimal(5,2)",329,repairshopr_data_invoicelineitem,,,,not stored; source/build semantics unverified
+invoice_line_items,discount_dollars,"decimal(10,2)",24,repairshopr_data_invoicelineitem,discount_dollars,double,23,persisted
+invoice_ready_wag_claims,id,int(11),40977,,,,,not stored; source/build semantics unverified
+invoice_ready_wag_claims,created_at,datetime,40977,,,,,not stored; source/build semantics unverified
+invoice_ready_wag_claims,email_id,varchar(255),40977,,,,,not stored; source/build semantics unverified
+invoice_ready_wag_claims,filename,varchar(255),40977,,,,,not stored; source/build semantics unverified
+invoice_ready_wag_claims,claim_number,varchar(100),40977,,,,,not stored; source/build semantics unverified
+invoice_ready_wag_claims,adjuster,varchar(255),40977,,,,,not stored; source/build semantics unverified
+invoice_ready_wag_claims,school_name,varchar(255),40977,,,,,not stored; source/build semantics unverified
+invoice_ready_wag_claims,policy_holder,varchar(255),40977,,,,,not stored; source/build semantics unverified
+invoice_ready_wag_claims,shipping_address,varchar(255),40977,,,,,not stored; source/build semantics unverified
+invoice_ready_wag_claims,shipping_city_state_zip,varchar(255),40977,,,,,not stored; source/build semantics unverified
+invoice_ready_wag_claims,policy_number,varchar(100),40977,,,,,not stored; source/build semantics unverified
+invoice_ready_wag_claims,coverage_deductible,varchar(100),40977,,,,,not stored; source/build semantics unverified
+invoice_ready_wag_claims,contact_person,varchar(255),40977,,,,,not stored; source/build semantics unverified
+invoice_ready_wag_claims,contact_email,varchar(255),40977,,,,,not stored; source/build semantics unverified
+invoice_ready_wag_claims,contact_phone,varchar(50),40977,,,,,not stored; source/build semantics unverified
+invoice_ready_wag_claims,type_of_loss,varchar(100),40977,,,,,not stored; source/build semantics unverified
+invoice_ready_wag_claims,shipping_materials,varchar(100),40977,,,,,not stored; source/build semantics unverified
+invoice_ready_wag_claims,date_of_incident,date,40977,,,,,not stored; source/build semantics unverified
+invoice_ready_wag_claims,make_model,varchar(255),40977,,,,,not stored; source/build semantics unverified
+invoice_ready_wag_claims,serial_number,varchar(100),40977,,,,,not stored; source/build semantics unverified
+invoice_ready_wag_claims,incident_description,text,40977,,,,,not stored; source/build semantics unverified
+invoice_ready_wag_claims,known_damage,text,40977,,,,,not stored; source/build semantics unverified
+invoice_ready_wag_claims,billing_remit_name,varchar(255),40977,,,,,not stored; source/build semantics unverified
+invoice_ready_wag_claims,billing_remit_email,varchar(255),40977,,,,,not stored; source/build semantics unverified
+invoice_ready_wag_claims,mailing_address,varchar(255),40977,,,,,not stored; source/build semantics unverified
+invoice_ready_wag_claims,mailing_city_state_zip,varchar(255),40977,,,,,not stored; source/build semantics unverified
+invoice_ready_wag_claims,attachment_timestamp,datetime,40977,,,,,not stored; source/build semantics unverified
+invoice_ready_wag_claims,drive_file_id,varchar(255),7925,,,,,not stored; source/build semantics unverified
+invoice_ready_wag_claims,upload_folder_id,varchar(255),7925,,,,,not stored; source/build semantics unverified
+invoice_ready_wag_claims,manual_cancel_flag,tinyint(4),40977,,,,,not stored; source/build semantics unverified
+invoice_ready_wag_claims,source_schema_version,varchar(32),40977,,,,,not stored; source/build semantics unverified
+invoice_ready_wag_claims,parser_version,varchar(64),40977,,,,,not stored; source/build semantics unverified
+invoice_ready_wag_claims,parse_status,varchar(32),40977,,,,,not stored; source/build semantics unverified
+invoice_ready_wag_claims,parse_warnings,text,40977,,,,,not stored; source/build semantics unverified
+invoice_ready_wag_claims,parsed_at,datetime,7925,,,,,not stored; source/build semantics unverified
+output_comment_revisions,comment_id,int(11),1653002,,,,,not stored; source/build semantics unverified
+output_comment_revisions,ticket_id,int(11),1653002,,,,,not stored; source/build semantics unverified
+output_comment_revisions,source_created_at,datetime,1653002,,,,,not stored; source/build semantics unverified
+output_comment_revisions,source_updated_at,datetime,1653002,,,,,not stored; source/build semantics unverified
+output_comment_revisions,source_revision,char(64),1653002,,,,,not stored; source/build semantics unverified
+output_comment_revisions,processed_at,datetime(6),1653002,,,,,not stored; source/build semantics unverified
+part_comments,id,int(11),10504,,,,,not stored; source/build semantics unverified
+part_comments,ticket_id,int(11),10504,,,,,not stored; source/build semantics unverified
+part_comments,comment_id,int(11),10504,,,,,not stored; source/build semantics unverified
+part_comments,employee_id,int(11),10504,,,,,not stored; source/build semantics unverified
+part_comments,parts,longtext,10504,,,,,not stored; source/build semantics unverified
+part_comments,notes,text,10504,,,,,not stored; source/build semantics unverified
+part_comments,datetime,datetime,10504,,,,,not stored; source/build semantics unverified
+payments,id,int(11),13464,repairshopr_data_payment,id,int(11),13471,persisted
+payments,created_at,datetime,13464,repairshopr_data_payment,created_at,datetime(6),13471,persisted
+payments,updated_at,datetime,13464,repairshopr_data_payment,updated_at,datetime(6),13471,persisted
+payments,success,tinyint(1),13464,repairshopr_data_payment,success,tinyint(1),13471,persisted
+payments,payment_amount,"decimal(12,2)",13464,repairshopr_data_payment,payment_amount,double,13471,persisted
+payments,invoice_ids,longtext,13464,repairshopr_data_payment,invoice_ids,longtext,13471,persisted
+payments,ref_num,varchar(255),13373,repairshopr_data_payment,ref_num,varchar(255),13380,persisted
+payments,applied_at,date,13464,repairshopr_data_payment,applied_at,datetime(6),13471,persisted
+payments,payment_method,varchar(255),13464,repairshopr_data_payment,payment_method,varchar(255),13471,persisted
+payments,transaction_response,text,0,repairshopr_data_payment,transaction_response,varchar(255),0,persisted
+payments,signature_date,date,18,repairshopr_data_payment,signature_date,datetime(6),18,persisted
+payments,customer,longtext,13464,repairshopr_data_payment,,,,not stored; source/build semantics unverified
+payments,customer_id,int(11),13464,repairshopr_data_payment,customer_id,int(11),0,persisted
+payments,business_and_full_name,varchar(510),13464,repairshopr_data_payment,,,,not stored; source/build semantics unverified
+printnode_mappings,printnode_id,int(11),9,,,,,not stored; source/build semantics unverified
+printnode_mappings,printer_name,varchar(50),9,,,,,not stored; source/build semantics unverified
+products,id,int(11),2371,repairshopr_data_product,id,int(11),2371,persisted
+products,price_cost,"decimal(12,4)",2371,repairshopr_data_product,price_cost,double,2371,persisted
+products,price_retail,"decimal(12,4)",2371,repairshopr_data_product,price_retail,double,2371,persisted
+products,condition,varchar(255),2055,repairshopr_data_product,condition,varchar(255),2055,persisted
+products,description,text,2371,repairshopr_data_product,description,longtext,2371,persisted
+products,maintain_stock,tinyint(1),2371,repairshopr_data_product,maintain_stock,tinyint(1),2371,persisted
+products,name,varchar(255),2371,repairshopr_data_product,name,varchar(255),2371,persisted
+products,quantity,int(11),2371,repairshopr_data_product,quantity,int(11),2371,persisted
+products,warranty,text,0,repairshopr_data_product,warranty,varchar(255),0,persisted
+products,sort_order,int(11),0,repairshopr_data_product,sort_order,varchar(255),0,persisted
+products,reorder_at,int(11),1,repairshopr_data_product,reorder_at,varchar(255),1,persisted
+products,disabled,tinyint(1),2371,repairshopr_data_product,disabled,tinyint(1),2371,persisted
+products,taxable,tinyint(1),2371,repairshopr_data_product,taxable,tinyint(1),2371,persisted
+products,product_category,varchar(255),2267,repairshopr_data_product,product_category,varchar(255),2267,persisted
+products,category_path,varchar(255),2267,repairshopr_data_product,category_path,varchar(255),2267,persisted
+products,upc_code,varchar(255),2055,repairshopr_data_product,upc_code,varchar(255),2055,persisted
+products,discount_percent,"decimal(7,4)",1,repairshopr_data_product,discount_percent,varchar(255),1,persisted
+products,warranty_template_id,int(11),321,repairshopr_data_product,warranty_template_id,varchar(255),321,persisted
+products,qb_item_id,int(11),1,repairshopr_data_product,qb_item_id,varchar(255),1,persisted
+products,desired_stock_level,int(11),1,repairshopr_data_product,desired_stock_level,varchar(255),1,persisted
+products,price_wholesale,"decimal(12,4)",2371,repairshopr_data_product,price_wholesale,double,2371,persisted
+products,notes,text,2059,repairshopr_data_product,notes,longtext,2059,persisted
+products,tax_rate_id,int(11),0,repairshopr_data_product,tax_rate_id,varchar(255),0,persisted
+products,physical_location,text,2055,repairshopr_data_product,physical_location,varchar(255),2055,persisted
+products,serialized,tinyint(1),2371,repairshopr_data_product,serialized,tinyint(1),2371,persisted
+products,vendor_ids,longtext,2371,repairshopr_data_product,vendor_ids,varchar(255),2371,persisted
+products,long_description,text,0,repairshopr_data_product,long_description,longtext,0,persisted
+products,location_quantities,longtext,2371,repairshopr_data_product,location_quantities,varchar(255),2371,persisted
+products,since_updated_at,datetime,2371,repairshopr_data_product,since_updated_at,varchar(255),2371,persisted
+products,photos,longtext,2371,repairshopr_data_product,photos,varchar(255),2371,persisted
+products,hash,varchar(32),2371,repairshopr_data_product,,,,not stored; source/build semantics unverified
+product_corrections,product_id,int(11),185,,,,,not stored; source/build semantics unverified
+product_corrections,expected,longtext,185,,,,,not stored; source/build semantics unverified
+product_corrections,desired,longtext,185,,,,,not stored; source/build semantics unverified
+product_corrections,state,varchar(16),185,,,,,not stored; source/build semantics unverified
+product_corrections,updated_at,datetime(6),185,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls,id,int(11),40978,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls,created_at,datetime,40978,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls,email_id,varchar(255),40978,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls,filename,varchar(255),40978,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls,claim_number,varchar(100),40978,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls,adjuster,varchar(255),40978,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls,school_name,varchar(255),40978,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls,policy_holder,varchar(255),40978,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls,shipping_address,varchar(255),40978,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls,shipping_city_state_zip,varchar(255),40978,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls,policy_number,varchar(100),40978,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls,coverage_deductible,varchar(100),40978,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls,contact_person,varchar(255),40978,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls,contact_email,varchar(255),40978,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls,contact_phone,varchar(50),40978,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls,type_of_loss,varchar(100),40978,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls,shipping_materials,varchar(100),40978,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls,date_of_incident,date,40978,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls,make_model,varchar(255),40978,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls,serial_number,varchar(100),40978,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls,incident_description,text,40978,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls,known_damage,text,40978,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls,billing_remit_name,varchar(255),40978,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls,billing_remit_email,varchar(255),40978,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls,mailing_address,varchar(255),40978,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls,mailing_city_state_zip,varchar(255),40978,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls,attachment_timestamp,datetime,40978,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls,drive_file_id,varchar(255),7925,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls,upload_folder_id,varchar(255),7925,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls,manual_cancel_flag,tinyint(4),40978,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls,source_schema_version,varchar(32),40978,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls,parser_version,varchar(64),40978,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls,parse_status,varchar(32),40978,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls,parse_warnings,text,40978,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls,parsed_at,datetime,7925,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_112450,id,int(11),35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_112450,created_at,datetime,35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_112450,email_id,varchar(255),35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_112450,filename,varchar(255),35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_112450,claim_number,varchar(100),35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_112450,adjuster,varchar(255),35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_112450,school_name,varchar(255),35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_112450,policy_holder,varchar(255),35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_112450,shipping_address,varchar(255),35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_112450,shipping_city_state_zip,varchar(255),35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_112450,policy_number,varchar(100),35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_112450,coverage_deductible,varchar(100),35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_112450,contact_person,varchar(255),35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_112450,contact_email,varchar(255),35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_112450,contact_phone,varchar(50),35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_112450,type_of_loss,varchar(100),35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_112450,shipping_materials,varchar(100),35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_112450,date_of_incident,date,35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_112450,make_model,varchar(255),35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_112450,serial_number,varchar(100),35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_112450,incident_description,text,35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_112450,known_damage,text,35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_112450,billing_remit_name,varchar(255),35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_112450,billing_remit_email,varchar(255),35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_112450,mailing_address,varchar(255),35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_112450,mailing_city_state_zip,varchar(255),35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_112450,attachment_timestamp,datetime,35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_112450,drive_file_id,varchar(255),100,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_112450,upload_folder_id,varchar(255),100,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_112450,manual_cancel_flag,tinyint(4),35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_112651,id,int(11),35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_112651,created_at,datetime,35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_112651,email_id,varchar(255),35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_112651,filename,varchar(255),35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_112651,claim_number,varchar(100),35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_112651,adjuster,varchar(255),35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_112651,school_name,varchar(255),35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_112651,policy_holder,varchar(255),35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_112651,shipping_address,varchar(255),35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_112651,shipping_city_state_zip,varchar(255),35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_112651,policy_number,varchar(100),35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_112651,coverage_deductible,varchar(100),35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_112651,contact_person,varchar(255),35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_112651,contact_email,varchar(255),35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_112651,contact_phone,varchar(50),35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_112651,type_of_loss,varchar(100),35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_112651,shipping_materials,varchar(100),35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_112651,date_of_incident,date,35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_112651,make_model,varchar(255),35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_112651,serial_number,varchar(100),35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_112651,incident_description,text,35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_112651,known_damage,text,35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_112651,billing_remit_name,varchar(255),35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_112651,billing_remit_email,varchar(255),35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_112651,mailing_address,varchar(255),35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_112651,mailing_city_state_zip,varchar(255),35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_112651,attachment_timestamp,datetime,35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_112651,drive_file_id,varchar(255),100,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_112651,upload_folder_id,varchar(255),100,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_112651,manual_cancel_flag,tinyint(4),35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_112651,source_schema_version,varchar(32),35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_112651,parser_version,varchar(64),35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_112651,parse_status,varchar(32),35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_112651,parse_warnings,text,35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_112651,parsed_at,datetime,0,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_141011,id,int(11),35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_141011,created_at,datetime,35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_141011,email_id,varchar(255),35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_141011,filename,varchar(255),35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_141011,claim_number,varchar(100),35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_141011,adjuster,varchar(255),35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_141011,school_name,varchar(255),35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_141011,policy_holder,varchar(255),35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_141011,shipping_address,varchar(255),35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_141011,shipping_city_state_zip,varchar(255),35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_141011,policy_number,varchar(100),35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_141011,coverage_deductible,varchar(100),35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_141011,contact_person,varchar(255),35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_141011,contact_email,varchar(255),35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_141011,contact_phone,varchar(50),35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_141011,type_of_loss,varchar(100),35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_141011,shipping_materials,varchar(100),35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_141011,date_of_incident,date,35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_141011,make_model,varchar(255),35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_141011,serial_number,varchar(100),35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_141011,incident_description,text,35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_141011,known_damage,text,35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_141011,billing_remit_name,varchar(255),35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_141011,billing_remit_email,varchar(255),35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_141011,mailing_address,varchar(255),35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_141011,mailing_city_state_zip,varchar(255),35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_141011,attachment_timestamp,datetime,35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_141011,drive_file_id,varchar(255),100,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_141011,upload_folder_id,varchar(255),100,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_141011,manual_cancel_flag,tinyint(4),35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_141011,source_schema_version,varchar(32),35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_141011,parser_version,varchar(64),35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_141011,parse_status,varchar(32),35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_141011,parse_warnings,text,35551,,,,,not stored; source/build semantics unverified
+raw_wag_claims_from_xls_backup_20260717_141011,parsed_at,datetime,100,,,,,not stored; source/build semantics unverified
+repairshopr_schema_migrations,version,int(11),12,,,,,not stored; source/build semantics unverified
+repairshopr_schema_migrations,name,varchar(128),12,,,,,not stored; source/build semantics unverified
+repairshopr_schema_migrations,applied_at,datetime(6),12,,,,,not stored; source/build semantics unverified
+serial_model_index,serial_norm,varchar(64),144655,,,,,not stored; source/build semantics unverified
+serial_model_index,model_raw,varchar(255),144655,,,,,not stored; source/build semantics unverified
+serial_model_index,model_canonical,varchar(128),144655,,,,,not stored; source/build semantics unverified
+serial_model_index,latest_visit_date,datetime,144655,,,,,not stored; source/build semantics unverified
+serial_model_index,source_type,"enum('ticket','estimate')",144655,,,,,not stored; source/build semantics unverified
+serial_model_index,source_ticket_id,bigint(20),144601,,,,,not stored; source/build semantics unverified
+serial_model_index,source_line_item_id,bigint(20),65214,,,,,not stored; source/build semantics unverified
+serial_model_index,has_conflict,tinyint(1),144655,,,,,not stored; source/build semantics unverified
+serial_model_index,conflict_models,text,1086,,,,,not stored; source/build semantics unverified
+serial_model_index,observation_count,int(11),144655,,,,,not stored; source/build semantics unverified
+serial_model_index,updated_at,datetime,144655,,,,,not stored; source/build semantics unverified
+status_actionability,id,int(11),41,,,,,not stored; source/build semantics unverified
+status_actionability,created_at,timestamp,41,,,,,not stored; source/build semantics unverified
+status_actionability,updated_at,timestamp,41,,,,,not stored; source/build semantics unverified
+status_actionability,status,varchar(100),41,,,,,not stored; source/build semantics unverified
+status_actionability,actionability,tinyint(4),41,,,,,not stored; source/build semantics unverified
+status_actionability,production_report_actionable,tinyint(4),41,,,,,not stored; source/build semantics unverified
+status_actionability,production_report_oob,tinyint(4),41,,,,,not stored; source/build semantics unverified
+status_actionability,production_report_not_actionable,tinyint(4),41,,,,,not stored; source/build semantics unverified
+status_actionability,ordered_report,tinyint(4),41,,,,,not stored; source/build semantics unverified
+status_actionability,notes,text,41,,,,,not stored; source/build semantics unverified
+testing,claim,bigint(10),717,,,,,not stored; source/build semantics unverified
+tickets,id,int(11),179832,repairshopr_data_ticket,id,int(11),179831,persisted
+tickets,number,int(11),179832,repairshopr_data_ticket,number,int(11),179831,persisted
+tickets,estimate_ids,text,24955,repairshopr_data_ticket,,,,not stored; source/build semantics unverified
+tickets,subject,varchar(255),179832,repairshopr_data_ticket,subject,varchar(255),179831,persisted
+tickets,created_at,datetime,179832,repairshopr_data_ticket,created_at,datetime(6),179831,persisted
+tickets,created_at_u,int(11),179832,repairshopr_data_ticket,,,,not stored; source/build semantics unverified
+tickets,customer_id,int(11),179832,repairshopr_data_ticket,customer_id,int(11),179831,persisted
+tickets,customer_business_then_name,varchar(255),179832,repairshopr_data_ticket,customer_business_then_name,varchar(255),179831,persisted
+tickets,due_date,int(11),179832,repairshopr_data_ticket,due_date,datetime(6),179831,persisted
+tickets,resolved_at,datetime,178452,repairshopr_data_ticket,resolved_at,datetime(6),178461,persisted
+tickets,resolved_at_u,int(11),179832,repairshopr_data_ticket,,,,not stored; source/build semantics unverified
+tickets,start_at,int(11),179832,repairshopr_data_ticket,start_at,datetime(6),0,persisted
+tickets,end_at,int(11),179832,repairshopr_data_ticket,end_at,datetime(6),0,persisted
+tickets,location_id,int(11),0,repairshopr_data_ticket,location_id,int(11),0,persisted
+tickets,problem_type,varchar(255),179832,repairshopr_data_ticket,problem_type,varchar(255),179831,persisted
+tickets,status,varchar(255),179832,repairshopr_data_ticket,status,varchar(255),179831,persisted
+tickets,ticket_type_id,int(11),177836,repairshopr_data_ticket,ticket_type_id,int(11),177835,persisted
+tickets,properties,text,179832,repairshopr_data_ticket,properties_id,int(11),179831,normalized known keys only; source JSON not retained
+tickets,user_id,int(11),37811,repairshopr_data_ticket,user_id,int(11),37811,persisted
+tickets,updated_at,datetime,179832,repairshopr_data_ticket,updated_at,varchar(255),179831,persisted
+tickets,updated_at_u,int(11),179832,repairshopr_data_ticket,,,,not stored; source/build semantics unverified
+tickets,pdf_url,text,1464,repairshopr_data_ticket,pdf_url,varchar(1024),1464,persisted
+tickets,priority,varchar(255),348,repairshopr_data_ticket,priority,varchar(255),348,persisted
+tickets,comments,text,0,repairshopr_data_ticket,,,,not stored; source/build semantics unverified
+tickets,num_devices,int(11),179832,repairshopr_data_ticket,,,,not stored; source/build semantics unverified
+ticket_field_answers,id,int(11),475,repairshopr_data_ticket_type_field_answers,id,int(11),480,persisted
+ticket_field_answers,ticket_field_id,int(11),475,repairshopr_data_ticket_type_field_answers,ticket_field_id,int(11),480,persisted
+ticket_field_answers,value,varchar(255),475,repairshopr_data_ticket_type_field_answers,value,varchar(255),480,persisted
+ticket_ready_wag_claims,id,int(11),7925,,,,,not stored; source/build semantics unverified
+ticket_ready_wag_claims,created_at,datetime,7925,,,,,not stored; source/build semantics unverified
+ticket_ready_wag_claims,email_id,varchar(255),7925,,,,,not stored; source/build semantics unverified
+ticket_ready_wag_claims,filename,varchar(255),7925,,,,,not stored; source/build semantics unverified
+ticket_ready_wag_claims,claim_number,varchar(100),7925,,,,,not stored; source/build semantics unverified
+ticket_ready_wag_claims,adjuster,varchar(255),7925,,,,,not stored; source/build semantics unverified
+ticket_ready_wag_claims,school_name,varchar(255),7925,,,,,not stored; source/build semantics unverified
+ticket_ready_wag_claims,policy_holder,varchar(255),7925,,,,,not stored; source/build semantics unverified
+ticket_ready_wag_claims,shipping_address,varchar(255),7925,,,,,not stored; source/build semantics unverified
+ticket_ready_wag_claims,shipping_city_state_zip,varchar(255),7925,,,,,not stored; source/build semantics unverified
+ticket_ready_wag_claims,policy_number,varchar(100),7925,,,,,not stored; source/build semantics unverified
+ticket_ready_wag_claims,coverage_deductible,varchar(100),7925,,,,,not stored; source/build semantics unverified
+ticket_ready_wag_claims,contact_person,varchar(255),7925,,,,,not stored; source/build semantics unverified
+ticket_ready_wag_claims,contact_email,varchar(255),7925,,,,,not stored; source/build semantics unverified
+ticket_ready_wag_claims,contact_phone,varchar(50),7925,,,,,not stored; source/build semantics unverified
+ticket_ready_wag_claims,type_of_loss,varchar(100),7925,,,,,not stored; source/build semantics unverified
+ticket_ready_wag_claims,shipping_materials,varchar(100),7925,,,,,not stored; source/build semantics unverified
+ticket_ready_wag_claims,date_of_incident,date,7925,,,,,not stored; source/build semantics unverified
+ticket_ready_wag_claims,make_model,varchar(255),7925,,,,,not stored; source/build semantics unverified
+ticket_ready_wag_claims,serial_number,varchar(100),7925,,,,,not stored; source/build semantics unverified
+ticket_ready_wag_claims,incident_description,text,7925,,,,,not stored; source/build semantics unverified
+ticket_ready_wag_claims,known_damage,text,7925,,,,,not stored; source/build semantics unverified
+ticket_ready_wag_claims,billing_remit_name,varchar(255),7925,,,,,not stored; source/build semantics unverified
+ticket_ready_wag_claims,billing_remit_email,varchar(255),7925,,,,,not stored; source/build semantics unverified
+ticket_ready_wag_claims,mailing_address,varchar(255),7925,,,,,not stored; source/build semantics unverified
+ticket_ready_wag_claims,mailing_city_state_zip,varchar(255),7925,,,,,not stored; source/build semantics unverified
+ticket_ready_wag_claims,attachment_timestamp,datetime,7925,,,,,not stored; source/build semantics unverified
+ticket_ready_wag_claims,drive_file_id,varchar(255),7925,,,,,not stored; source/build semantics unverified
+ticket_ready_wag_claims,upload_folder_id,varchar(255),7925,,,,,not stored; source/build semantics unverified
+ticket_ready_wag_claims,manual_cancel_flag,tinyint(4),7925,,,,,not stored; source/build semantics unverified
+ticket_ready_wag_claims,source_schema_version,varchar(32),7925,,,,,not stored; source/build semantics unverified
+ticket_ready_wag_claims,parser_version,varchar(64),7925,,,,,not stored; source/build semantics unverified
+ticket_ready_wag_claims,parse_status,varchar(32),7925,,,,,not stored; source/build semantics unverified
+ticket_ready_wag_claims,parse_warnings,text,7925,,,,,not stored; source/build semantics unverified
+ticket_ready_wag_claims,parsed_at,datetime,7925,,,,,not stored; source/build semantics unverified
+ticket_status_history,id,bigint(20) unsigned,238004,,,,,not stored; source/build semantics unverified
+ticket_status_history,ticket_id,bigint(20),238004,,,,,not stored; source/build semantics unverified
+ticket_status_history,ticket_number,bigint(20),238004,,,,,not stored; source/build semantics unverified
+ticket_status_history,status,varchar(255),238004,,,,,not stored; source/build semantics unverified
+ticket_status_history,updated_at,datetime(6),238004,,,,,not stored; source/build semantics unverified
+ticket_subject_dropdown_mismatches,ticket_id,bigint(20),2,,,,,not stored; source/build semantics unverified
+ticket_subject_dropdown_mismatches,ticket_number,bigint(20),2,,,,,not stored; source/build semantics unverified
+ticket_subject_dropdown_mismatches,subject,varchar(255),2,,,,,not stored; source/build semantics unverified
+ticket_subject_dropdown_mismatches,location_field,varchar(255),2,,,,,not stored; source/build semantics unverified
+ticket_subject_dropdown_mismatches,location_value,varchar(255),2,,,,,not stored; source/build semantics unverified
+ticket_subject_dropdown_mismatches,delivery_field,varchar(255),2,,,,,not stored; source/build semantics unverified
+ticket_subject_dropdown_mismatches,delivery_value,varchar(255),2,,,,,not stored; source/build semantics unverified
+ticket_subject_dropdown_mismatches,mismatch_signature,char(64),2,,,,,not stored; source/build semantics unverified
+ticket_subject_dropdown_mismatches,first_seen_at,datetime,2,,,,,not stored; source/build semantics unverified
+ticket_subject_dropdown_mismatches,last_seen_at,datetime,2,,,,,not stored; source/build semantics unverified
+ticket_subject_dropdown_mismatches,last_notified_at,datetime,2,,,,,not stored; source/build semantics unverified
+ticket_types,id,int(11),18,repairshopr_data_ticket_types,id,int(11),18,persisted
+ticket_types,name,varchar(255),18,repairshopr_data_ticket_types,name,varchar(255),18,persisted
+ticket_type_fields,id,int(11),105,repairshopr_data_ticket_type_fields,id,int(11),117,persisted
+ticket_type_fields,name,varchar(255),105,repairshopr_data_ticket_type_fields,name,varchar(255),117,persisted
+ticket_type_fields,field_type,varchar(50),105,repairshopr_data_ticket_type_fields,field_type,varchar(255),117,persisted
+ticket_type_fields,ticket_type_id,int(11),105,repairshopr_data_ticket_type_fields,ticket_type_id,int(11),117,persisted
+ticket_type_fields,position,int(11),49,repairshopr_data_ticket_type_fields,position,int(11),65,persisted
+ticket_type_fields,required,tinyint(1),105,repairshopr_data_ticket_type_fields,required,tinyint(1),117,persisted
+users,ID,int(11),86,repairshopr_data_user,,,,not stored; source/build semantics unverified
+users,name,varchar(255),86,repairshopr_data_user,,,,not stored; source/build semantics unverified
+users,active,tinyint(3) unsigned,85,repairshopr_data_user,,,,not stored; source/build semantics unverified
+users,team,varchar(255),45,repairshopr_data_user,,,,not stored; source/build semantics unverified
+volume,id,int(11),7388100,,,,,not stored; source/build semantics unverified
+volume,timestamp,int(11),7388100,,,,,not stored; source/build semantics unverified
+volume,date,datetime,7388100,,,,,not stored; source/build semantics unverified
+volume,new_contacts,int(11),7388100,,,,,not stored; source/build semantics unverified
+volume,updated_contacts,int(11),7388100,,,,,not stored; source/build semantics unverified
+volume,deleted_contacts,int(11),7388100,,,,,not stored; source/build semantics unverified
+volume,new_customers,int(11),7388100,,,,,not stored; source/build semantics unverified
+volume,updated_customers,int(11),7388100,,,,,not stored; source/build semantics unverified
+volume,deleted_customers,int(11),7388100,,,,,not stored; source/build semantics unverified
+volume,new_estimates,int(11),7388100,,,,,not stored; source/build semantics unverified
+volume,updated_estimates,int(11),7388100,,,,,not stored; source/build semantics unverified
+volume,deleted_estimates,int(11),7388100,,,,,not stored; source/build semantics unverified
+volume,new_line_items,int(11),7388100,,,,,not stored; source/build semantics unverified
+volume,updated_line_items,int(11),7388100,,,,,not stored; source/build semantics unverified
+volume,deleted_line_items,int(11),7388100,,,,,not stored; source/build semantics unverified
+volume,new_invoices,int(11),7388100,,,,,not stored; source/build semantics unverified
+volume,updated_invoices,int(11),7388100,,,,,not stored; source/build semantics unverified
+volume,deleted_invoices,int(11),7388100,,,,,not stored; source/build semantics unverified
+volume,new_payments,int(11),7388100,,,,,not stored; source/build semantics unverified
+volume,updated_payments,int(11),7388100,,,,,not stored; source/build semantics unverified
+volume,deleted_payments,int(11),7388100,,,,,not stored; source/build semantics unverified
+volume,new_tickets,int(11),7388100,,,,,not stored; source/build semantics unverified
+volume,updated_tickets,int(11),7388100,,,,,not stored; source/build semantics unverified
+volume,deleted_tickets,int(11),7388100,,,,,not stored; source/build semantics unverified
+volume,new_comments,int(11),7388100,,,,,not stored; source/build semantics unverified
+volume,updated_comments,int(11),7388100,,,,,not stored; source/build semantics unverified
+volume,deleted_comments,int(11),7388100,,,,,not stored; source/build semantics unverified
+volume,new_products,int(11),7388100,,,,,not stored; source/build semantics unverified
+volume,updated_products,int(11),7388100,,,,,not stored; source/build semantics unverified
+volume,deleted_products,int(11),7388100,,,,,not stored; source/build semantics unverified
+volume,new_users,int(11),7388100,,,,,not stored; source/build semantics unverified
+volume,updated_users,int(11),7388100,,,,,not stored; source/build semantics unverified
+volume,deleted_users,int(11),7388100,,,,,not stored; source/build semantics unverified
+volume,new_ticket_types,int(11),7388100,,,,,not stored; source/build semantics unverified
+volume,updated_ticket_types,int(11),7388100,,,,,not stored; source/build semantics unverified
+volume,deleted_ticket_types,int(11),7388100,,,,,not stored; source/build semantics unverified
+volume,new_ticket_type_fields,int(11),7388100,,,,,not stored; source/build semantics unverified
+volume,updated_ticket_type_fields,int(11),7388100,,,,,not stored; source/build semantics unverified
+volume,deleted_ticket_type_fields,int(11),7388100,,,,,not stored; source/build semantics unverified
+volume,new_ticket_field_answers,int(11),7388100,,,,,not stored; source/build semantics unverified
+volume,updated_ticket_field_answers,int(11),7388100,,,,,not stored; source/build semantics unverified
+volume,deleted_ticket_field_answers,int(11),7388100,,,,,not stored; source/build semantics unverified
+volume,new_estimate_line_items,int(11),7388100,,,,,not stored; source/build semantics unverified
+volume,updated_estimate_line_items,int(11),7388100,,,,,not stored; source/build semantics unverified
+volume,deleted_estimate_line_items,int(11),7388100,,,,,not stored; source/build semantics unverified
+volume,new_invoice_line_items,int(11),7388100,,,,,not stored; source/build semantics unverified
+volume,updated_invoice_line_items,int(11),7388100,,,,,not stored; source/build semantics unverified
+volume,deleted_invoice_line_items,int(11),7388100,,,,,not stored; source/build semantics unverified
+wag_invoice_api_sync,id,int(11),45611,,,,,not stored; source/build semantics unverified
+wag_invoice_api_sync,created_at,timestamp,45611,,,,,not stored; source/build semantics unverified
+wag_invoice_api_sync,invoice_id,int(11),45611,,,,,not stored; source/build semantics unverified
+wag_invoice_api_sync,claim_number,varchar(55),45611,,,,,not stored; source/build semantics unverified
+wag_invoice_api_sync,error_code,int(11),45611,,,,,not stored; source/build semantics unverified
+wag_invoice_api_sync,error_text,varchar(55),202,,,,,not stored; source/build semantics unverified
+wag_invoice_api_sync,message,text,45611,,,,,not stored; source/build semantics unverified
+wag_invoice_api_sync,success,tinyint(4),45611,,,,,not stored; source/build semantics unverified
+,,,,auth_group,id,int(11),0,sync-only field or normalized/internal state
+,,,,auth_group,name,varchar(150),0,sync-only field or normalized/internal state
+,,,,auth_group_permissions,id,bigint(20),0,sync-only field or normalized/internal state
+,,,,auth_group_permissions,group_id,int(11),0,sync-only field or normalized/internal state
+,,,,auth_group_permissions,permission_id,int(11),0,sync-only field or normalized/internal state
+,,,,auth_permission,id,int(11),92,sync-only field or normalized/internal state
+,,,,auth_permission,name,varchar(255),92,sync-only field or normalized/internal state
+,,,,auth_permission,content_type_id,int(11),92,sync-only field or normalized/internal state
+,,,,auth_permission,codename,varchar(100),92,sync-only field or normalized/internal state
+,,,,auth_user,id,int(11),0,sync-only field or normalized/internal state
+,,,,auth_user,password,varchar(128),0,sync-only field or normalized/internal state
+,,,,auth_user,last_login,datetime(6),0,sync-only field or normalized/internal state
+,,,,auth_user,is_superuser,tinyint(1),0,sync-only field or normalized/internal state
+,,,,auth_user,username,varchar(150),0,sync-only field or normalized/internal state
+,,,,auth_user,first_name,varchar(150),0,sync-only field or normalized/internal state
+,,,,auth_user,last_name,varchar(150),0,sync-only field or normalized/internal state
+,,,,auth_user,email,varchar(254),0,sync-only field or normalized/internal state
+,,,,auth_user,is_staff,tinyint(1),0,sync-only field or normalized/internal state
+,,,,auth_user,is_active,tinyint(1),0,sync-only field or normalized/internal state
+,,,,auth_user,date_joined,datetime(6),0,sync-only field or normalized/internal state
+,,,,auth_user_groups,id,bigint(20),0,sync-only field or normalized/internal state
+,,,,auth_user_groups,user_id,int(11),0,sync-only field or normalized/internal state
+,,,,auth_user_groups,group_id,int(11),0,sync-only field or normalized/internal state
+,,,,auth_user_user_permissions,id,bigint(20),0,sync-only field or normalized/internal state
+,,,,auth_user_user_permissions,user_id,int(11),0,sync-only field or normalized/internal state
+,,,,auth_user_user_permissions,permission_id,int(11),0,sync-only field or normalized/internal state
+,,,,django_admin_log,id,int(11),0,sync-only field or normalized/internal state
+,,,,django_admin_log,action_time,datetime(6),0,sync-only field or normalized/internal state
+,,,,django_admin_log,object_id,longtext,0,sync-only field or normalized/internal state
+,,,,django_admin_log,object_repr,varchar(200),0,sync-only field or normalized/internal state
+,,,,django_admin_log,action_flag,smallint(5) unsigned,0,sync-only field or normalized/internal state
+,,,,django_admin_log,change_message,longtext,0,sync-only field or normalized/internal state
+,,,,django_admin_log,content_type_id,int(11),0,sync-only field or normalized/internal state
+,,,,django_admin_log,user_id,int(11),0,sync-only field or normalized/internal state
+,,,,django_content_type,id,int(11),23,sync-only field or normalized/internal state
+,,,,django_content_type,app_label,varchar(100),23,sync-only field or normalized/internal state
+,,,,django_content_type,model,varchar(100),23,sync-only field or normalized/internal state
+,,,,django_migrations,id,bigint(20),34,sync-only field or normalized/internal state
+,,,,django_migrations,app,varchar(255),34,sync-only field or normalized/internal state
+,,,,django_migrations,name,varchar(255),34,sync-only field or normalized/internal state
+,,,,django_migrations,applied,datetime(6),34,sync-only field or normalized/internal state
+,,,,django_session,session_key,varchar(40),0,sync-only field or normalized/internal state
+,,,,django_session,session_data,longtext,0,sync-only field or normalized/internal state
+,,,,django_session,expire_date,datetime(6),0,sync-only field or normalized/internal state
+,,,,repairshopr_data_customer,properties_id,int(11),155,sync-only field or normalized/internal state
+,,,,repairshopr_data_customercontact,properties_id,int(11),270,sync-only field or normalized/internal state
+,,,,repairshopr_data_customerproperties,id,int(11),74240234,sync-only field or normalized/internal state
+,,,,repairshopr_data_customerproperties,type,int(11),6742164,sync-only field or normalized/internal state
+,,,,repairshopr_data_customerproperties,notification_billing,varchar(255),37842758,sync-only field or normalized/internal state
+,,,,repairshopr_data_customerproperties,notification_reports,varchar(255),28490041,sync-only field or normalized/internal state
+,,,,repairshopr_data_customerproperties,notification_marketing,varchar(255),27400074,sync-only field or normalized/internal state
+,,,,repairshopr_data_customerproperties,title,varchar(255),41983863,sync-only field or normalized/internal state
+,,,,repairshopr_data_customerproperties,li_school,varchar(255),0,sync-only field or normalized/internal state
+,,,,repairshopr_data_estimatelineitem,discount_dollars,double,4,sync-only field or normalized/internal state
+,,,,repairshopr_data_estimatelineitem,since_updated_at,varchar(255),139488,sync-only field or normalized/internal state
+,,,,repairshopr_data_invoice,external_id,bigint(20),163003,sync-only field or normalized/internal state
+,,,,repairshopr_data_invoicelineitem,since_updated_at,varchar(255),613162,sync-only field or normalized/internal state
+,,,,repairshopr_data_syncstatus,id,bigint(20),1,sync-only field or normalized/internal state
+,,,,repairshopr_data_syncstatus,cycle_id,varchar(64),1,sync-only field or normalized/internal state
+,,,,repairshopr_data_syncstatus,status,varchar(20),1,sync-only field or normalized/internal state
+,,,,repairshopr_data_syncstatus,mode,varchar(20),1,sync-only field or normalized/internal state
+,,,,repairshopr_data_syncstatus,current_model,varchar(64),1,sync-only field or normalized/internal state
+,,,,repairshopr_data_syncstatus,current_page,int(11),1,sync-only field or normalized/internal state
+,,,,repairshopr_data_syncstatus,records_processed,bigint(20),1,sync-only field or normalized/internal state
+,,,,repairshopr_data_syncstatus,cycle_started_at,datetime(6),1,sync-only field or normalized/internal state
+,,,,repairshopr_data_syncstatus,cycle_finished_at,datetime(6),1,sync-only field or normalized/internal state
+,,,,repairshopr_data_syncstatus,last_heartbeat,datetime(6),1,sync-only field or normalized/internal state
+,,,,repairshopr_data_syncstatus,last_error,longtext,0,sync-only field or normalized/internal state
+,,,,repairshopr_data_syncstatus,updated_at,datetime(6),1,sync-only field or normalized/internal state
+,,,,repairshopr_data_ticket,address_id,int(11),0,sync-only field or normalized/internal state
+,,,,repairshopr_data_ticket,billing_status,varchar(255),167007,sync-only field or normalized/internal state
+,,,,repairshopr_data_ticket,child,tinyint(1),179831,sync-only field or normalized/internal state
+,,,,repairshopr_data_ticket,contact_fullname,varchar(255),146,sync-only field or normalized/internal state
+,,,,repairshopr_data_ticket,contact_id,int(11),149,sync-only field or normalized/internal state
+,,,,repairshopr_data_ticket,contract_id,int(11),0,sync-only field or normalized/internal state
+,,,,repairshopr_data_ticket,contract_name,varchar(255),0,sync-only field or normalized/internal state
+,,,,repairshopr_data_ticket,creator_name_or_email,varchar(255),142003,sync-only field or normalized/internal state
+,,,,repairshopr_data_ticket,customer_icons,longtext,179831,sync-only field or normalized/internal state
+,,,,repairshopr_data_ticket,customer_reply,tinyint(1),179831,sync-only field or normalized/internal state
+,,,,repairshopr_data_ticket,customer_tag_list,longtext,179831,sync-only field or normalized/internal state
+,,,,repairshopr_data_ticket,location_name,varchar(255),0,sync-only field or normalized/internal state
+,,,,repairshopr_data_ticket,parent,tinyint(1),179831,sync-only field or normalized/internal state
+,,,,repairshopr_data_ticket,parent_id,int(11),0,sync-only field or normalized/internal state
+,,,,repairshopr_data_ticket,recurring,tinyint(1),179831,sync-only field or normalized/internal state
+,,,,repairshopr_data_ticket,resolution_time,int(11),178461,sync-only field or normalized/internal state
+,,,,repairshopr_data_ticket,response_time,int(11),178592,sync-only field or normalized/internal state
+,,,,repairshopr_data_ticket,sla_breached,tinyint(1),179831,sync-only field or normalized/internal state
+,,,,repairshopr_data_ticket,sla_breaching_soon,tinyint(1),179831,sync-only field or normalized/internal state
+,,,,repairshopr_data_ticket,sla_id,int(11),31,sync-only field or normalized/internal state
+,,,,repairshopr_data_ticket,sla_name,varchar(255),31,sync-only field or normalized/internal state
+,,,,repairshopr_data_ticket,tag_list,longtext,179831,sync-only field or normalized/internal state
+,,,,repairshopr_data_ticket,ticket_type_name,varchar(255),177835,sync-only field or normalized/internal state
+,,,,repairshopr_data_ticket,total_formatted_billable_time,varchar(255),179831,sync-only field or normalized/internal state
+,,,,repairshopr_data_ticket,user,longtext,37811,sync-only field or normalized/internal state
+,,,,repairshopr_data_ticketproperties,id,int(11),454537,sync-only field or normalized/internal state
+,,,,repairshopr_data_ticketproperties,day,varchar(255),421767,sync-only field or normalized/internal state
+,,,,repairshopr_data_ticketproperties,case,varchar(255),312960,sync-only field or normalized/internal state
+,,,,repairshopr_data_ticketproperties,other,varchar(255),360291,sync-only field or normalized/internal state
+,,,,repairshopr_data_ticketproperties,s_n_num,varchar(255),313157,sync-only field or normalized/internal state
+,,,,repairshopr_data_ticketproperties,tag_num,varchar(255),313678,sync-only field or normalized/internal state
+,,,,repairshopr_data_ticketproperties,claim_num,varchar(255),312624,sync-only field or normalized/internal state
+,,,,repairshopr_data_ticketproperties,location,varchar(255),365379,sync-only field or normalized/internal state
+,,,,repairshopr_data_ticketproperties,transport,varchar(255),63903,sync-only field or normalized/internal state
+,,,,repairshopr_data_ticketproperties,boces,varchar(255),49790,sync-only field or normalized/internal state
+,,,,repairshopr_data_ticketproperties,tag_num_2,varchar(255),267370,sync-only field or normalized/internal state
+,,,,repairshopr_data_ticketproperties,delivery_num,varchar(255),51244,sync-only field or normalized/internal state
+,,,,repairshopr_data_ticketproperties,transport_2,varchar(255),22511,sync-only field or normalized/internal state
+,,,,repairshopr_data_ticketproperties,po_num_2,varchar(255),72503,sync-only field or normalized/internal state
+,,,,repairshopr_data_ticketproperties,phone_num,varchar(255),735,sync-only field or normalized/internal state
+,,,,repairshopr_data_ticketproperties,p_g_name,varchar(255),735,sync-only field or normalized/internal state
+,,,,repairshopr_data_ticketproperties,student,varchar(255),1858,sync-only field or normalized/internal state
+,,,,repairshopr_data_ticketproperties,s_n,varchar(255),1858,sync-only field or normalized/internal state
+,,,,repairshopr_data_ticketproperties,drop_off_location,varchar(255),1123,sync-only field or normalized/internal state
+,,,,repairshopr_data_ticketproperties,call_num,varchar(255),1123,sync-only field or normalized/internal state
+,,,,repairshopr_data_user,id,int(11),50,sync-only field or normalized/internal state
+,,,,repairshopr_data_user,email,varchar(255),0,sync-only field or normalized/internal state
+,,,,repairshopr_data_user,full_name,varchar(255),50,sync-only field or normalized/internal state
+,,,,repairshopr_data_user,created_at,datetime(6),0,sync-only field or normalized/internal state
+,,,,repairshopr_data_user,updated_at,datetime(6),0,sync-only field or normalized/internal state
+,,,,repairshopr_data_user,group,varchar(255),0,sync-only field or normalized/internal state
+,,,,repairshopr_data_user,admin,tinyint(1),0,sync-only field or normalized/internal state
+,,,,repairshopr_data_user,color,varchar(255),0,sync-only field or normalized/internal state

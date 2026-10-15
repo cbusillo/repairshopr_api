@@ -14,7 +14,11 @@ class FakeClient:
         self.prefetch_calls = 0
 
     def fetch_from_api(
-        self, model_name: str, params: dict[str, int | None] | None = None
+        self,
+        model_name: str,
+        params: dict[str, int | None] | None = None,
+        *,
+        use_cache: bool = True,
     ) -> tuple[list[dict[str, object]], dict[str, int]]:
         normalized_params = dict(params or {})
         self.fetch_calls.append((model_name, normalized_params))
@@ -65,7 +69,7 @@ def test_related_field_fetches_all_pages_for_parent_relation() -> None:
     }
 
 
-def test_related_field_prefetches_invoice_line_items_before_parent_lookup() -> None:
+def test_related_field_reads_invoice_children_without_bulk_prefetch() -> None:
     fake_client = FakeClient()
     Invoice.set_client(fake_client)  # type: ignore[arg-type]
 
@@ -74,6 +78,6 @@ def test_related_field_prefetches_invoice_line_items_before_parent_lookup() -> N
 
     assert [line_item["id"] for line_item in line_items] == [2001]
     assert line_items[0]["updated_at"] == "2026-02-01T00:00:00+00:00"
-    assert fake_client.prefetch_calls == 1
+    assert fake_client.prefetch_calls == 0
     assert fake_client.fetch_calls == [("line_item", {"invoice_id": 77})]
     assert fake_client.fetch_by_id_calls == []

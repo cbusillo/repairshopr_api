@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from types import SimpleNamespace
 from typing import Mapping, TypeAlias, TypeGuard
 
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 from django.db import DataError, DatabaseError, OperationalError, models
 from django.utils.timezone import make_aware, now
 
@@ -165,6 +165,7 @@ def create_or_update_django_instance(
         extra_fields = {}
 
     model_fields = django_model._meta.fields
+    lookup_identifier = _normalize_identifier(_instance_get_field(api_instance, "id"))
     field_data: dict[str, FieldValue] = {}
     # noinspection PyProtectedMember
     for field in model_fields:
@@ -202,6 +203,21 @@ def create_or_update_django_instance(
                     related_identifier = _normalize_identifier(
                         _instance_get_field(related_api_instance, "id")
                     )
+                    # Embedded properties have no source ID. Reuse this parent's
+                    # local row instead of creating an orphan on every refresh.
+                    if (
+                        related_identifier is None
+                        and lookup_identifier is not None
+                        and isinstance(
+                            getattr(related_django_model._meta, "pk", None),
+                            models.AutoField,
+                        )
+                    ):
+                        related_identifier = (
+                            django_model.objects.filter(id=lookup_identifier)
+                            .values_list(field.attname, flat=True)
+                            .first()
+                        )
                     related_api_instance = _instance_with_updated_identifier(
                         related_api_instance, related_identifier
                     )
@@ -527,8 +543,8 @@ class Command(BaseCommand):
             return None
         return self._normalize_total_entries(meta_data.get("total_entries"))
 
-    def _fetch_invoice_line_item_count(self, invoice_id: int) -> int:
-        total_rows = 0
+    def _fetch_invoice_line_item_ids(self, invoice_id: int) -> set[int]:
+        identifiers: set[int] = set()
         page = 1
         while True:
             self._status_current_page = page
@@ -538,21 +554,29 @@ class Command(BaseCommand):
                 params["page"] = page
 
             response_data, meta_data = self.client.fetch_from_api(
-                "line_item", params=params
+                "line_item", params=params, use_cache=False
             )
-            total_rows += len(response_data)
+            for row in response_data:
+                if not isinstance(row, dict):
+                    raise ValueError("Invalid invoice line-item row")
+                identifier = _normalize_identifier(row.get("id"))
+                if identifier is None:
+                    raise ValueError("Missing invoice line-item ID")
+                identifiers.add(identifier)
             self._status_records_processed += len(response_data)
             self._maybe_write_sync_heartbeat()
 
             if not isinstance(meta_data, dict):
-                break
+                raise ValueError("Missing invoice line-item pagination")
 
             total_pages = self._normalize_total_entries(meta_data.get("total_pages"))
-            if total_pages is None or page >= total_pages:
+            if total_pages is None:
+                raise ValueError("Invalid invoice line-item pagination")
+            if page >= total_pages:
                 break
             page += 1
 
-        return total_rows
+        return identifiers
 
     @staticmethod
     def _pick_first_invoice_id_at_or_after(target_id: int) -> int | None:
@@ -620,16 +644,20 @@ class Command(BaseCommand):
         for sample_index, invoice_id in enumerate(sample_invoice_ids, start=1):
             self._status_current_page = sample_index
             self._maybe_write_sync_heartbeat()
-            api_line_item_count = self._fetch_invoice_line_item_count(invoice_id)
-            db_line_item_count = InvoiceLineItem.objects.filter(
-                parent_invoice_id=invoice_id
-            ).count()
-            if api_line_item_count != db_line_item_count:
+            api_ids = self._fetch_invoice_line_item_ids(invoice_id)
+            db_ids = set(
+                InvoiceLineItem.objects.filter(
+                    parent_invoice_id=invoice_id
+                ).values_list("id", flat=True)
+            )
+            missing_ids = api_ids - db_ids
+            if missing_ids:
                 mismatches.append(
                     {
                         "invoice_id": invoice_id,
-                        "api_count": api_line_item_count,
-                        "db_count": db_line_item_count,
+                        "api_count": len(api_ids),
+                        "db_count": len(db_ids),
+                        "missing_count": len(missing_ids),
                     }
                 )
             self._status_records_processed = sample_index
@@ -740,6 +768,9 @@ class Command(BaseCommand):
                     "error": str(exc),
                 },
             )
+            raise CommandError(
+                "Invoice line-item sample could not be verified; checkpoint unchanged"
+            ) from exc
         else:
             self._log_sync_check(
                 "invoice_line_item_sample",
@@ -752,13 +783,12 @@ class Command(BaseCommand):
             mismatch_count = (
                 self._normalize_total_entries(sample_report.get("mismatch_count")) or 0
             )
-            allowed_sample_mismatches = 1 if full_sync else 2
-            if mismatch_count > allowed_sample_mismatches:
+            if mismatch_count:
                 mismatch_message = (
-                    f"Invoice line-item sample mismatches={mismatch_count} "
-                    f"allowed={allowed_sample_mismatches}"
+                    f"Invoice line-item sample has {mismatch_count} invoices "
+                    "with API IDs missing from the database; checkpoint unchanged"
                 )
-                logger.warning(mismatch_message)
+                raise CommandError(mismatch_message)
 
     @staticmethod
     def dynamic_import(path: str) -> type:

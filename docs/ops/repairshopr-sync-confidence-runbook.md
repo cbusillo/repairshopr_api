@@ -193,3 +193,62 @@ For database delete/recreate scenarios:
 - `line_item meta.total_entries` global parity vs DB row count
 
 Use it as telemetry only; base decisions on forensic unique-ID metrics.
+
+## Bounded Historical Child Recovery
+
+An incremental parent watermark does not revisit old missing children. After the
+fixes and migrations in [the coverage report](../repairshopr-data-coverage.md)
+reach an isolated, qualified lane, use `refresh_related` to compare explicit
+invoice or ticket IDs. It never changes the incremental checkpoint. It defaults
+to **no database writes**; normal application configuration initialization still
+applies. It reads all pages before reporting each parent.
+
+```bash
+uv run python repairshopr_sync/manage.py refresh_related --kind invoice --id 42
+uv run python repairshopr_sync/manage.py refresh_related --kind ticket --id 42
+uv run python repairshopr_sync/manage.py refresh_related \
+  --kind invoice --id-file /path/to/reviewed-invoice-ids.txt
+```
+
+IDs above are examples. A file contains one parent ID per line. Each invocation
+accepts 1–1000 distinct positive IDs and requires every parent to exist locally.
+Store actual IDs and reports as private task evidence. Choose batches from a
+fresh comparison, review the exact scope and `missing_before` counts, and record
+the artifact, source snapshot and checkpoint before any apply. A moving API is
+not a transaction across servers.
+
+A production backfill is a separate approved data change, after Launchplane's
+gated release and backup/rollback requirements. Source merge alone authorizes
+neither promotion nor running this command against production. The current
+runtime prerequisites remain on [#103](https://github.com/cbusillo/repairshopr_api/issues/103).
+Do not use the existing testing containers until that issue proves isolation.
+
+For an approved apply, stop the continuous sync under the single-writer procedure
+above, then use **the same reviewed selector** with `--apply`. Each parent's
+child writes are one transaction: a fetch or validation error writes none of
+that parent's children; a database error rolls back that parent. Earlier
+completed parents remain committed. Upserts are replayable, so restart an
+interrupted batch with its same IDs. No child is deleted or detached, including
+local-only IDs absent from the current API. Invoice lines are linked to their
+existing invoice; comments to their existing ticket. Missing-parent recovery is
+outside this command.
+
+After apply, rerun the default comparison for the same selectors and require
+`missing_before: 0`. Compare full ID sets against fresh source evidence before
+closing a historical gap: a successful bounded batch or a green sample is not
+full coverage. Preserve the original checkpoint and resume the continuous sync;
+never move the watermark forward to conceal missing data. If rollback is needed,
+use the approved backup recovery path, not child deletion or a database reset.
+
+Normal sync now fails without advancing its checkpoint if a fresh invoice sample
+has API IDs missing locally, or cannot be verified. This exposes incompleteness
+to readiness and the existing retry loop. A retained local-only row does not fail
+this sample, because the sync does not propagate deletes. Investigate and recover
+the sampled parents through the bounded procedure; do not turn unstable global
+`meta.total_entries` parity into a hard correctness gate. Full bootstrap reads
+line items per invoice, which can take many hours; prefer scoped recovery over
+resetting production's database.
+
+Anonymous property rows are now reused per parent. Existing orphan properties
+are retained. Removing them requires a separate reviewed production cleanup
+plan; neither migration nor recovery deletes them.

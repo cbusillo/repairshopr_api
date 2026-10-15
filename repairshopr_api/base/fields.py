@@ -35,9 +35,6 @@ def related_field(
             for model_id in valid_model_ids
         ]
 
-    def is_invoice_line_item_model() -> bool:
-        return model_cls.__name__ == "LineItem" and "invoice" in model_cls.__module__
-
     def fetch_related_models_by_parent(
         instance: BaseModel, query_params: dict[str, int | None]
     ) -> list[JsonObject]:
@@ -57,9 +54,8 @@ def related_field(
 
             return normalized if is_json_object(normalized) else None
 
-        if is_invoice_line_item_model():
-            instance.rs_client.prefetch_line_items()
-
+        # A bulk feed can contain some, but not all, children of this parent.
+        # Always read the parent-filtered feed before replacing its relations.
         related_models: list[JsonObject] = []
         page = 1
         while True:
@@ -68,7 +64,9 @@ def related_field(
                 page_params["page"] = page
 
             results, meta_data = instance.rs_client.fetch_from_api(
-                snake_case(model_cls.__name__), params=page_params
+                snake_case(model_cls.__name__),
+                params=page_params,
+                use_cache="invoice_id" not in query_params,
             )
 
             for result in results:

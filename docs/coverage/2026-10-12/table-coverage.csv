@@ -1,0 +1,72 @@
+cm_table,cm_rows,shiny_table,shiny_rows,shared_ids,cm_only_ids,shiny_only_ids,classification
+comments,1652520,repairshopr_data_ticketcomment,167335,167248,1485272,87,matched source table
+comments_spam_cleanup_backup_20260311,894,,,,,,retained deleted rows or backup
+contacts,267,repairshopr_data_customercontact,270,261,6,9,matched source table
+customers,155,repairshopr_data_customer,155,155,0,0,matched source table
+custom_route_maps,61,,,,,,"custom, derived or workflow data; build provenance unverified"
+daily_device_inventory,0,,,,,,"custom, derived or workflow data; build provenance unverified"
+daily_device_parts,0,,,,,,"custom, derived or workflow data; build provenance unverified"
+deleted_comments,15123,,,,,,retained deleted rows or backup
+deleted_contacts,16,,,,,,retained deleted rows or backup
+deleted_customers,122,,,,,,retained deleted rows or backup
+deleted_estimates,25,,,,,,retained deleted rows or backup
+deleted_estimate_line_items,6421,,,,,,retained deleted rows or backup
+deleted_invoices,0,,,,,,retained deleted rows or backup
+deleted_invoice_line_items,3347,,,,,,retained deleted rows or backup
+deleted_payments,52,,,,,,retained deleted rows or backup
+deleted_products,0,,,,,,retained deleted rows or backup
+deleted_tickets,0,,,,,,retained deleted rows or backup
+employee_output,642013,,,,,,"custom, derived or workflow data; build provenance unverified"
+employee_output_qcr_offsite_backfill_20260620,26,,,,,,"custom, derived or workflow data; build provenance unverified"
+employee_output_wag_claim_correction_backup_20260717_113824,33,,,,,,retained deleted rows or backup
+employee_output_wag_claim_sync_backup_20260717_114606,4,,,,,,retained deleted rows or backup
+estimates,25217,repairshopr_data_estimate,25217,25217,0,0,matched source table
+estimates_ai,0,,,,,,"custom, derived or workflow data; build provenance unverified"
+estimate_line_items,138962,repairshopr_data_estimatelineitem,139488,138347,615,1141,matched source table
+estimate_review_notification_outbox,205,,,,,,"custom, derived or workflow data; build provenance unverified"
+estimate_spacing_comment_outbox,480,,,,,,"custom, derived or workflow data; build provenance unverified"
+estimate_spacing_corrections,662,,,,,,"custom, derived or workflow data; build provenance unverified"
+estimate_spacing_notification_outbox,459,,,,,,"custom, derived or workflow data; build provenance unverified"
+estimate_sync_checkpoint,1,,,,,,"custom, derived or workflow data; build provenance unverified"
+fishbowl_models,578,,,,,,"custom, derived or workflow data; build provenance unverified"
+invoices,164570,repairshopr_data_invoice,176910,164570,0,12340,matched source table
+invoices_old,95755,,,,,,retained deleted rows or backup
+invoice_line_items,649724,repairshopr_data_invoicelineitem,613162,612668,37056,494,matched source table
+invoice_ready_wag_claims,40977,,,,,,"custom, derived or workflow data; build provenance unverified"
+output_comment_revisions,1653002,,,,,,"custom, derived or workflow data; build provenance unverified"
+part_comments,10504,,,,,,"custom, derived or workflow data; build provenance unverified"
+payments,13464,repairshopr_data_payment,13471,13464,0,7,matched source table
+printnode_mappings,9,,,,,,"custom, derived or workflow data; build provenance unverified"
+products,2371,repairshopr_data_product,2371,2371,0,0,matched source table
+product_corrections,185,,,,,,"custom, derived or workflow data; build provenance unverified"
+raw_wag_claims_from_xls,40978,,,,,,"custom, derived or workflow data; build provenance unverified"
+raw_wag_claims_from_xls_backup_20260717_112450,35551,,,,,,retained deleted rows or backup
+raw_wag_claims_from_xls_backup_20260717_112651,35551,,,,,,retained deleted rows or backup
+raw_wag_claims_from_xls_backup_20260717_141011,35551,,,,,,retained deleted rows or backup
+repairshopr_schema_migrations,12,,,,,,"custom, derived or workflow data; build provenance unverified"
+serial_model_index,144655,,,,,,"custom, derived or workflow data; build provenance unverified"
+status_actionability,41,,,,,,"custom, derived or workflow data; build provenance unverified"
+testing,717,,,,,,"custom, derived or workflow data; build provenance unverified"
+tickets,179832,repairshopr_data_ticket,179831,179830,2,1,matched source table
+ticket_field_answers,475,repairshopr_data_ticket_type_field_answers,480,,,,matched source table
+ticket_ready_wag_claims,7925,,,,,,"custom, derived or workflow data; build provenance unverified"
+ticket_status_history,238004,,,,,,"custom, derived or workflow data; build provenance unverified"
+ticket_subject_dropdown_mismatches,2,,,,,,"custom, derived or workflow data; build provenance unverified"
+ticket_types,18,repairshopr_data_ticket_types,18,,,,matched source table
+ticket_type_fields,105,repairshopr_data_ticket_type_fields,117,,,,matched source table
+users,86,repairshopr_data_user,50,50,36,0,matched source table
+volume,7388100,,,,,,"custom, derived or workflow data; build provenance unverified"
+wag_invoice_api_sync,45611,,,,,,"custom, derived or workflow data; build provenance unverified"
+,,auth_group,0,,,,sync-only normalized/internal state
+,,auth_group_permissions,0,,,,sync-only normalized/internal state
+,,auth_permission,92,,,,sync-only normalized/internal state
+,,auth_user,0,,,,sync-only normalized/internal state
+,,auth_user_groups,0,,,,sync-only normalized/internal state
+,,auth_user_user_permissions,0,,,,sync-only normalized/internal state
+,,django_admin_log,0,,,,sync-only normalized/internal state
+,,django_content_type,23,,,,sync-only normalized/internal state
+,,django_migrations,34,,,,sync-only normalized/internal state
+,,django_session,0,,,,sync-only normalized/internal state
+,,repairshopr_data_customerproperties,74240234,,,,sync-only normalized/internal state
+,,repairshopr_data_syncstatus,1,,,,sync-only normalized/internal state
+,,repairshopr_data_ticketproperties,454537,,,,sync-only normalized/internal state
