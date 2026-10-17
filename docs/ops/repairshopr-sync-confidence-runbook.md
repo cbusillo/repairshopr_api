@@ -64,6 +64,11 @@ The MariaDB integration gate resolves its database image from
 image. Database image updates therefore exercise migrations and schema checks in
 CI before the same Compose contract is deployed.
 
+No downstream system consumes production sync data yet. CM Odoo and the CM
+website are not live; see the direction milestones `CM website live and used`
+and `CM inventory in the CM Odoo` in `cbusillo/direction`. Recheck this when
+either milestone closes.
+
 ## Launchplane Health Readiness
 
 At startup, the sync entrypoint runs the optional database flush
