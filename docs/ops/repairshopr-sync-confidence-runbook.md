@@ -224,8 +224,8 @@ the artifact, source snapshot and checkpoint before any apply. A moving API is
 not a transaction across servers.
 
 A production backfill is a separate approved data change, after Launchplane's
-gated release and backup/rollback requirements. Source merge alone authorizes
-neither promotion nor running this command against production. The current
+gated release and backup/rollback requirements. Source merge alone does not
+authorize running this command against production. The current
 runtime prerequisites remain on [#103](https://github.com/cbusillo/repairshopr_api/issues/103).
 Do not use the existing testing containers until that issue proves isolation.
 

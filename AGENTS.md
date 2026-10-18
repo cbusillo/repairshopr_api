@@ -59,8 +59,12 @@ Follow the [shared Tests rule](https://github.com/cbusillo/codex-skills/blob/HEA
   untracked; they contain plugin-specific project state.
 - Treat inspections as a hard gate: zero `error`, `warning`, and
   `weak_warning` findings on touched files.
-- Suppression comments (`# noinspection`, `# noqa`, `# type: ignore`, etc.)
+- New or changed suppression comments (`# noinspection`, `# noqa`,
+  `# type: ignore`, etc.)
   must be narrow: one line or one rule, never a whole file. Include a written
   reason on the same line and name each suppression in the PR body so the
   second-model review sees it.
+  For `# noinspection`, use one identifier-style reason token, for example
+  `# noinspection PyProtectedMember frameworkRequiresProtectedAccess`, to keep
+  the comment compatible with PyCharm's suppression parser.
 - Use the `jetbrains-inspection` skill for exact-worktree inspection routing.
