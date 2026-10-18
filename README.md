@@ -110,19 +110,22 @@ See the production runbook in
 
 Changed code is inspected in PyCharm before a PR and merge, alongside the
 pytest/coverage gates above. See [AGENTS.md — Code Quality](AGENTS.md#code-quality)
-for thresholds, suppression approval, and worktree-safe inspection routing.
+for thresholds, suppression requirements, and worktree-safe inspection routing.
 
 ## Release (PyPI)
 
 Releases are tag-driven. The GitHub Actions workflow publishes to PyPI only
 when a tag matching `v*` is pushed.
 
+For landing through the merge train and when to release, follow the
+[overall direction](https://github.com/cbusillo/direction/blob/HEAD/DIRECTION.md).
+
 1. Create a focused release branch from `main`.
 2. Bump the version in `pyproject.toml`.
 3. Refresh lockfile: `uv lock`.
 4. Confirm lockfile is clean: `./scripts/check-lockfile.sh`.
-5. Open a PR and merge the release branch through GitHub after checks pass.
-6. After explicit release approval, update local `main` to the merged commit.
+5. Open a PR and land the release branch following the direction linked above.
+6. Update local `main` to the merged commit.
 7. Create a tag `vX.Y.Z` at that commit.
 8. Push the tag only. For agent work, use the shared GitHub skill's
    `git-push-as-bot origin vX.Y.Z` helper.

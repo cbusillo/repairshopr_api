@@ -46,10 +46,10 @@ the product's `testing` lane, requested in Launchplane rather than from this
 repository. Launchplane requires the accepted release, captures and verifies a
 production backup, deploys the artifact the testing lane runs, checks health,
 writes the promotion record, and rolls production back on its own if the deploy
-or health check fails. A release needs acceptance as the product record shows
-it: the product's Client accepts it in Launchplane, or, when the Client is the
-Director, the Director's standing direction is the acceptance. Launchplane
-refuses a direct deploy that would change the artifact production runs
+or health check fails. Follow the
+[overall direction](https://github.com/cbusillo/direction/blob/HEAD/DIRECTION.md)
+for release and Client acceptance. Launchplane refuses a direct deploy that
+would change the artifact production runs
 (`promotion_required`). Deploy recovery is an admin action in Launchplane.
 
 A testing lane on the production Docker host must set its own
@@ -99,7 +99,8 @@ startup flush (when enabled) and migrations succeed, even if the database still
 holds a recent successful sync from a previous process. The default container
 wrapper creates a private temporary startup marker path, shares it with the
 health server and sync entrypoint, and removes it on normal exit. Abrupt process
-death can leave the directory behind, but each wrapper run uses a new path; `SYNC_STARTUP_COMPLETE_FILE` is internal process state and must not
+death can leave the directory behind, but each wrapper run uses a new path;
+`SYNC_STARTUP_COMPLETE_FILE` is internal process state and must not
 be set in lane configuration or stored on a persistent volume. The entrypoint
 writes the marker only after successful migrations. A standalone health server
 without the wrapper's startup signal stays non-ready; run
