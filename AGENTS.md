@@ -36,7 +36,7 @@ validation commands, GitHub signal availability, and docs routing.
 ## Release
 
 Follow [README.md — Release (PyPI)](README.md#release-pypi) for the tag-driven
-package release procedure. A source merge does not authorize a release.
+package release procedure.
 Agent-authored commits and all pushes, including release tags, use the shared
 GitHub skill's `git-commit-as-bot` and `git-push-as-bot` helpers.
 
@@ -47,16 +47,8 @@ see [README.md — Sync images and promotion](README.md#sync-images-and-promotio
 
 - Install test dependencies: `uv sync --locked --group dev`
 - Run test suite: `uv run pytest -q`
-- A test must fail when the product is broken and pass when someone makes an
-  intended change. Do not assert a literal defined elsewhere (versions, build
-  numbers, toolchain, pinned SHAs, hashes); check agreement with one source of
-  truth or leave it out.
-- Do not assert workflow, compose, dependabot, or IDE config text. Enforce
-  those rules where they execute (the workflow itself, a helper script with its
-  own unit test, or `actionlint`).
-- Verification and loading code must not depend on working-tree state (for
-  example `git ls-files` or local IDE files); check live state only on the
-  path that acts on it.
+
+Follow the [shared Tests rule](https://github.com/cbusillo/codex-skills/blob/HEAD/instructions/global.md#tests).
 
 ## Code Quality
 
@@ -67,8 +59,12 @@ see [README.md — Sync images and promotion](README.md#sync-images-and-promotio
   untracked; they contain plugin-specific project state.
 - Treat inspections as a hard gate: zero `error`, `warning`, and
   `weak_warning` findings on touched files.
-- Do not add suppression comments (`# noinspection`, `# noqa`,
-  `# type: ignore`, etc.) unless the maintainer has been notified
-  first with the exact rule, rationale, and narrowest possible suppression,
-  and has explicitly approved.
+- New or changed suppression comments (`# noinspection`, `# noqa`,
+  `# type: ignore`, etc.)
+  must be narrow: one line or one rule, never a whole file. Include a written
+  reason on the same line and name each suppression in the PR body so the
+  second-model review sees it.
+  For `# noinspection`, use one identifier-style reason token, for example
+  `# noinspection PyProtectedMember frameworkRequiresProtectedAccess`, to keep
+  the comment compatible with PyCharm's suppression parser.
 - Use the `jetbrains-inspection` skill for exact-worktree inspection routing.
