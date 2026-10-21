@@ -106,7 +106,7 @@ class Client(requests.Session):
                 "url_store_name and token must be provided in either the constructor or the config file."
             )
 
-        self.token = token or settings.repairshopr.token
+        self.token = token
         self.base_url = f"https://{url_store_name}.repairshopr.com/api/v1"
         self.headers.update({"accept": "application/json", "Authorization": self.token})
         self.updated_at: datetime | None = None
@@ -543,10 +543,3 @@ class Client(requests.Session):
 
     def get_model_by_id(self, model: type[ModelType], instance_id: int) -> ModelType:
         return model.from_dict(self.fetch_from_api_by_id(model, instance_id))
-
-
-if __name__ == "__main__":
-    client = Client()
-    tickets = client.get_model(models.Ticket)
-    for ticket in tickets:
-        print(ticket.comments)

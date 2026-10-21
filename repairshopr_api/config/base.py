@@ -1,8 +1,7 @@
 import os
 import logging
-from contextlib import contextmanager
 from pathlib import Path
-from typing import Generator, Mapping, Self
+from typing import Mapping
 
 import toml
 
@@ -14,7 +13,6 @@ logger = logging.getLogger(__name__)
 
 
 class AppSettings(Serializable):
-    _instance = None
     debug: bool = False
 
     def __init__(self) -> None:
@@ -26,12 +24,6 @@ class AppSettings(Serializable):
 
         self.load()  # Load config during instance creation
 
-    @classmethod
-    def get_instance(cls) -> Self:
-        if cls._instance is None:
-            cls._instance = cls()
-        return cls._instance
-
     @property
     def config_file_path(self) -> Path:
         configured_path = os.getenv("REPAIRSHOPR_CONFIG_FILE") or os.getenv(
@@ -42,18 +34,6 @@ class AppSettings(Serializable):
         project_name = Path(__file__).parent.parent.name.replace("_", "-")
         file_path = Path.home() / ".config" / project_name / "config.toml"
         return file_path
-
-    @property
-    def config_data(self) -> JsonObject:
-        if not self.config_file_path.exists():
-            return {}
-        with self.config_file_path.open() as file:
-            return toml.load(file)
-
-    @config_data.setter
-    def config_data(self, data: JsonObject):
-        with self.config_file_path.open("w") as file:
-            toml.dump(data, file)
 
     def load(self) -> None:
         try:
@@ -81,16 +61,6 @@ class AppSettings(Serializable):
         except (FileNotFoundError, OSError) as error:
             logger.exception(f"Error saving configuration: {str(error)}")
 
-    def update_and_save(self, **kwargs: JsonValue) -> None:
-        for key, value in kwargs.items():
-            parts = key.split("__")
-            if len(parts) > 1 and hasattr(self, parts[0]):
-                obj = getattr(self, parts[0])
-                setattr(obj, parts[1], value)
-            else:
-                setattr(self, key, value)
-        self.save()
-
     def sort_dict(self, d: Mapping[str, JsonValue]) -> JsonObject:
         sorted_dict: JsonObject = {}
         for key in sorted(d.keys()):
@@ -100,10 +70,3 @@ class AppSettings(Serializable):
             else:
                 sorted_dict[key] = value
         return sorted_dict
-
-    @contextmanager
-    def debug_on(self) -> Generator[None, None, None]:
-        original_value = self.debug
-        self.debug = True
-        yield
-        self.debug = original_value
