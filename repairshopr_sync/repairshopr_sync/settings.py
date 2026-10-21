@@ -1,9 +1,6 @@
 import os
-from pathlib import Path
 
 from repairshopr_api.config import settings
-
-BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = settings.django.secret_key
 
@@ -37,7 +34,7 @@ ROOT_URLCONF = "repairshopr_sync.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [BASE_DIR / "templates"],
+        "DIRS": [],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
