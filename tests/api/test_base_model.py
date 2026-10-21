@@ -1,13 +1,9 @@
 from __future__ import annotations
 
-from collections.abc import Generator
 from datetime import datetime, timezone
 
 import pytest
 
-from repairshopr_api.base.model import BaseModel
-from repairshopr_api.client import Client
-from repairshopr_api.type_defs import QueryParams
 from repairshopr_api.models.invoice import Invoice
 from repairshopr_api.models.ticket import Comment, Properties, Ticket
 
@@ -80,68 +76,6 @@ def test_clean_key_variants() -> None:
     assert Ticket.clean_key("drop off/location") == "drop_off_location"
     assert Ticket.clean_key("-") == "transport"
     assert Ticket.clean_key("po_") == "po_2"
-
-
-def test_get_field_names_requires_client() -> None:
-    original_client = Ticket.rs_client
-    Ticket.rs_client = None
-    try:
-        with pytest.raises(AttributeError, match="rs_client"):
-            Ticket._get_field_names()
-    finally:
-        Ticket.rs_client = original_client
-
-
-def test_get_field_names_and_properties_fields() -> None:
-    original_client = Ticket.rs_client
-
-    ticket_one = Ticket.from_dict(
-        {
-            "id": 1,
-            "subject": "A",
-            "properties": {
-                "tag #": "X",
-                "drop off/location": "Front",
-            },
-        }
-    )
-    ticket_two = Ticket.from_dict(
-        {
-            "id": 2,
-            "subject": "B",
-            "properties": {
-                "call #": "42",
-            },
-        }
-    )
-
-    class StubClient(Client):
-        def __init__(self) -> None:
-            super().__init__(token="token", url_store_name="store")
-            self._tickets = [ticket_one, ticket_two]
-
-        def get_model(
-            self,
-            _model: type[BaseModel],
-            updated_at: datetime | None = None,
-            num_last_pages: int | None = None,
-            params: QueryParams | None = None,
-        ) -> Generator[Ticket, None, None]:
-            _ = updated_at, num_last_pages, params
-            for ticket in self._tickets:
-                yield ticket
-
-    Ticket.rs_client = StubClient()
-    try:
-        names = set(Ticket.get_fields())
-        properties = set(Ticket.get_properties_fields())
-    finally:
-        Ticket.rs_client = original_client
-
-    assert "subject" in names
-    assert "id" in names
-    assert "tag_num" in properties
-    assert "call_num" in properties
 
 
 def test_base_from_list_raises_not_implemented() -> None:

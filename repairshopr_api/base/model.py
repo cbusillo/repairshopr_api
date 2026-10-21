@@ -1,13 +1,11 @@
-import logging
 import re
 from collections.abc import Mapping
 from abc import ABC
 from dataclasses import dataclass, field, fields
 from datetime import datetime
 from types import UnionType
-from typing import Self, TYPE_CHECKING, TypeVar, Union, get_args, get_origin
+from typing import TYPE_CHECKING, TypeVar, Union, get_args, get_origin
 
-from repairshopr_api.config import settings
 from repairshopr_api.type_defs import is_json_object, JsonValue
 from repairshopr_api.utils import parse_datetime
 
@@ -16,7 +14,6 @@ if TYPE_CHECKING:
 
 
 ModelType = TypeVar("ModelType", bound="BaseModel")
-logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -54,7 +51,7 @@ class BaseModel(ABC):
                 if isinstance(value, str) and cls._field_accepts_datetime(
                     current_field.type
                 ):
-                    parsed_value = cls._parse_datetime(value)
+                    parsed_value = parse_datetime(value)
                     if parsed_value is not None:
                         value = parsed_value
 
@@ -78,55 +75,6 @@ class BaseModel(ABC):
                 setattr(instance, current_field.name, value)
 
         return instance
-
-    @classmethod
-    def _get_field_names(cls, attribute: str | None = None) -> set[str]:
-        field_names = set()
-        if not cls.rs_client:
-            raise AttributeError("The rs_client attribute is not set.")
-        for model_item in cls.rs_client.get_model(cls):
-            target = model_item
-            if attribute:
-                target = getattr(model_item, attribute)
-            if target:
-                target_keys = set(target.__dict__.keys())
-                target_keys.discard("rs_client")
-                field_names.update(target_keys)
-        return field_names
-
-    @classmethod
-    def _log_field_info(cls, field_names: set[str], model_type: type[Self]) -> None:
-        existing_attributes = set(f.name for f in fields(model_type))
-        existing_attributes.discard("rs_client")
-        logging.info(f"Found {len(field_names)} fields for {model_type.__name__}")
-        logging.info(f"Fields: {field_names}")
-        logging.warning(
-            f"Missing fields: {(existing_attributes - field_names) or 'None'}"
-        )
-        logging.warning(
-            f"Extra fields: {(field_names - existing_attributes) or 'None'}"
-        )
-
-    @classmethod
-    def get_properties_fields(cls) -> list[str]:
-        with settings.debug_on():
-            properties_field_names = cls._get_field_names(attribute="properties")
-            properties_model_type = next(
-                (f.type for f in fields(cls) if f.name == "properties"), None
-            )
-            if properties_model_type is None:
-                raise AttributeError(
-                    f"{cls.__name__} does not have a 'properties' attribute."
-                )
-            cls._log_field_info(properties_field_names, properties_model_type)
-        return list(properties_field_names)
-
-    @classmethod
-    def get_fields(cls) -> list[str]:
-        with settings.debug_on():
-            field_names = cls._get_field_names()
-            cls._log_field_info(field_names, cls)
-        return list(field_names)
 
     @classmethod
     def from_list(
@@ -180,7 +128,3 @@ class BaseModel(ABC):
                     return resolved
 
         return None
-
-    @staticmethod
-    def _parse_datetime(value: str) -> datetime | None:
-        return parse_datetime(value)
