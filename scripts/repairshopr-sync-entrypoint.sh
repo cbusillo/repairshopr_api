@@ -9,31 +9,6 @@ if [[ -n "${SYNC_STARTUP_COMPLETE_FILE:-}" ]]; then
   rm -f "${SYNC_STARTUP_COMPLETE_FILE}"
 fi
 
-if [[ -z "${REPAIRSHOPR_TOKEN:-}" ]]; then
-  echo "Missing REPAIRSHOPR_TOKEN" >&2
-  exit 1
-fi
-
-if [[ -z "${REPAIRSHOPR_URL_STORE_NAME:-}" ]]; then
-  echo "Missing REPAIRSHOPR_URL_STORE_NAME" >&2
-  exit 1
-fi
-
-if [[ -z "${SYNC_DB_HOST:-}" ]]; then
-  echo "Missing SYNC_DB_HOST" >&2
-  exit 1
-fi
-
-if [[ -z "${SYNC_DB_PASSWORD:-}" ]]; then
-  echo "Missing SYNC_DB_PASSWORD" >&2
-  exit 1
-fi
-
-if [[ -z "${DJANGO_SECRET_KEY:-}" ]]; then
-  echo "Missing DJANGO_SECRET_KEY" >&2
-  exit 1
-fi
-
 SYNC_DB_NAME="${SYNC_DB_NAME:-repairshopr}"
 SYNC_DB_USER="${SYNC_DB_USER:-repairshopr_api}"
 SYNC_INTERVAL_SECONDS="${SYNC_INTERVAL_SECONDS:-900}"
