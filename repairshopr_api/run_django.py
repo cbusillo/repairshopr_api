@@ -18,10 +18,6 @@ def _run_manage(args: Sequence[str]) -> int:
 
 
 def runserver() -> int:
-    exit_code = makemigrations()
-    if exit_code != 0:
-        return exit_code
-
     exit_code = migrate()
     if exit_code != 0:
         return exit_code
@@ -38,10 +34,6 @@ def migrate() -> int:
 
 
 def import_from_repairshopr() -> int:
-    exit_code = makemigrations()
-    if exit_code != 0:
-        return exit_code
-
     exit_code = migrate()
     if exit_code != 0:
         return exit_code

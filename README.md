@@ -3,7 +3,7 @@
 Python client and sync utilities for RepairShopr.
 
 - `repairshopr_api`: API models and helpers
-- `repairshopr_sync`: Django-based sync service (optional)
+- `repairshopr_sync`: Django-based sync service (optional; install the `sync` extra, which brings Django and `mysqlclient`)
 
 ## Project direction
 
