@@ -119,20 +119,16 @@ def _install_foreign_key_stub(monkeypatch: pytest.MonkeyPatch) -> type:
     return FakeForeignKey
 
 
-def set_simple_dynamic_import(
-    monkeypatch: pytest.MonkeyPatch,
-    cmd: command_module.Command,
-    api_model: type[BaseModel] = DummyApiModel,
-) -> None:
-    django_model = type(
-        "DjangoModel",
-        (),
-        {"_meta": SimpleNamespace(related_objects=[]), "objects": SimpleNamespace()},
-    )
-    monkeypatch.setattr(
-        cmd,
-        "dynamic_import",
-        lambda path: django_model if path.startswith("repairshopr_data") else api_model,
+def simple_django_model() -> type[models.Model]:
+    return as_django_model_type(
+        type(
+            "DjangoModel",
+            (),
+            {
+                "_meta": SimpleNamespace(related_objects=[]),
+                "objects": SimpleNamespace(),
+            },
+        )
     )
 
 
@@ -168,22 +164,6 @@ def set_line_item_parity_counts(
     )
 
 
-def set_handle_model_imports_for_submodels(
-    monkeypatch: pytest.MonkeyPatch,
-    cmd: command_module.Command,
-    django_model: type,
-    api_model: type[BaseModel],
-) -> None:
-    monkeypatch.setattr(
-        cmd,
-        "dynamic_import",
-        lambda path: django_model if path.startswith("repairshopr_data") else api_model,
-    )
-    monkeypatch.setattr(
-        cmd, "get_submodel_class", lambda *_args, **_kwargs: type("SubModel", (), {})
-    )
-
-
 def setup_handle_model_test_state(
     command: CommandFixture,
     relation_name: str,
@@ -215,7 +195,9 @@ def build_invoice_line_items_models() -> tuple[type, type[BaseModel]]:
         _meta = SimpleNamespace(
             related_objects=[
                 SimpleNamespace(
-                    name="line_items", field=SimpleNamespace(name="parent_invoice")
+                    name="line_items",
+                    field=SimpleNamespace(name="parent_invoice"),
+                    related_model=type("SubModel", (), {}),
                 )
             ]
         )
@@ -337,11 +319,9 @@ def test_handle_model_coerces_naive_last_updated_at(
     cmd, fake_client = command
     settings.django.last_updated_at = datetime(2026, 1, 1)
 
-    set_simple_dynamic_import(monkeypatch, cmd)
-
     cmd.handle_model(
-        "repairshopr_data.models.user.User",
-        "repairshopr_api.models.User",
+        simple_django_model(),
+        DummyApiModel,
         num_last_pages=3,
     )
 
@@ -358,11 +338,9 @@ def test_handle_model_uses_baseline_when_last_updated_is_too_old(
     cmd, fake_client = command
     settings.django.last_updated_at = datetime(2000, 1, 1, tzinfo=timezone.utc)
 
-    set_simple_dynamic_import(monkeypatch, cmd)
-
     cmd.handle_model(
-        "repairshopr_data.models.user.User",
-        "repairshopr_api.models.User",
+        simple_django_model(),
+        DummyApiModel,
         num_last_pages=8,
     )
 
@@ -401,7 +379,7 @@ def test_handle_logs_timing_and_updates_last_updated_at(
 
     monkeypatch.setattr(settings, "save", fake_save)
 
-    cmd.model_mapping = {"User": (None, None)}
+    cmd.model_mapping = {"User": cmd.model_mapping["User"]}
     caplog.set_level(logging.INFO)
 
     cmd.handle()
@@ -743,34 +721,6 @@ def test_create_or_update_django_instance_surfaces_operational_errors(
         )
 
 
-def test_get_submodel_class_and_dynamic_import(
-    command: CommandFixture, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    cmd, _ = command
-    seen_paths: list[str] = []
-
-    def fake_import(path: str) -> type:
-        seen_paths.append(path)
-        return type(
-            "FakeSubModel",
-            (),
-            {
-                "_meta": SimpleNamespace(related_objects=[]),
-                "objects": SimpleNamespace(),
-            },
-        )
-
-    monkeypatch.setattr(cmd, "dynamic_import", fake_import)
-    cmd.get_submodel_class("Ticket", "comments")
-    cmd.get_submodel_class("Ticket", "properties")
-
-    assert seen_paths[0].endswith("repairshopr_data.models.ticket.TicketComment")
-    assert seen_paths[1].endswith("repairshopr_data.models.ticket.TicketProperties")
-
-    imported = command_module.Command.dynamic_import("repairshopr_api.models.user.User")
-    assert imported.__name__ == "User"
-
-
 def test_handle_model_processes_related_submodels(
     command: CommandFixture, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -804,7 +754,9 @@ def test_handle_model_processes_related_submodels(
         _meta = SimpleNamespace(
             related_objects=[
                 SimpleNamespace(
-                    name="ticketcomments", field=SimpleNamespace(name="ticket")
+                    name="ticketcomments",
+                    field=SimpleNamespace(name="ticket"),
+                    related_model=type("SubModel", (), {}),
                 )
             ]
         )
@@ -818,11 +770,7 @@ def test_handle_model_processes_related_submodels(
         SimpleNamespace(id=1, ticketcomments=child_api_items)
     ]
 
-    set_handle_model_imports_for_submodels(monkeypatch, cmd, DjangoModel, ApiModel)
-
-    cmd.handle_model(
-        "repairshopr_data.models.ticket.Ticket", "repairshopr_api.models.Ticket"
-    )
+    cmd.handle_model(as_django_model_type(DjangoModel), ApiModel)
 
     assert saved_children == [11, 12]
     assert len(set_calls) == 1
@@ -862,13 +810,7 @@ def test_handle_model_processes_line_items_from_property(
 
     fake_client.get_model = lambda *_args, **_kwargs: [api_model_cls(id=1)]
 
-    set_handle_model_imports_for_submodels(
-        monkeypatch, cmd, django_model_cls, api_model_cls
-    )
-
-    cmd.handle_model(
-        "repairshopr_data.models.invoice.Invoice", "repairshopr_api.models.Invoice"
-    )
+    cmd.handle_model(as_django_model_type(django_model_cls), api_model_cls)
 
     assert saved_children == [21, 22]
     assert len(set_calls) == 1
@@ -905,14 +847,9 @@ def test_handle_model_skips_relation_reset_when_child_imports_are_skipped(
         command_module, "create_or_update_django_instance", fake_create_or_update
     )
     fake_client.get_model = lambda *_args, **_kwargs: [api_model_cls(id=1)]
-    set_handle_model_imports_for_submodels(
-        monkeypatch, cmd, django_model_cls, api_model_cls
-    )
 
     caplog.set_level(logging.WARNING)
-    cmd.handle_model(
-        "repairshopr_data.models.invoice.Invoice", "repairshopr_api.models.Invoice"
-    )
+    cmd.handle_model(as_django_model_type(django_model_cls), api_model_cls)
 
     assert len(set_calls) == 0
     assert "Skipping relation reset for DjangoModel.line_items" in caplog.text
@@ -931,7 +868,9 @@ def test_handle_model_resets_non_line_item_relations_even_with_skipped_children(
         _meta = SimpleNamespace(
             related_objects=[
                 SimpleNamespace(
-                    name="ticketcomments", field=SimpleNamespace(name="ticket")
+                    name="ticketcomments",
+                    field=SimpleNamespace(name="ticket"),
+                    related_model=type("SubModel", (), {}),
                 )
             ]
         )
@@ -963,11 +902,7 @@ def test_handle_model_resets_non_line_item_relations_even_with_skipped_children(
             id=1, ticketcomments=[SimpleNamespace(id=11), SimpleNamespace(id=12)]
         )
     ]
-    set_handle_model_imports_for_submodels(monkeypatch, cmd, DjangoModel, ApiModel)
-
-    cmd.handle_model(
-        "repairshopr_data.models.ticket.Ticket", "repairshopr_api.models.Ticket"
-    )
+    cmd.handle_model(as_django_model_type(DjangoModel), ApiModel)
 
     assert len(set_calls) == 1
     assert [item.id for item in set_calls[0]] == [11]

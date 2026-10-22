@@ -5,18 +5,20 @@ import requests
 from uuid import uuid4
 from datetime import datetime, timezone
 from types import SimpleNamespace
-from typing import Mapping, TypeAlias, TypeGuard
+from typing import Mapping, NamedTuple, TypeAlias, TypeGuard
 
 from django.core.management.base import BaseCommand, CommandError
 from django.db import DataError, DatabaseError, OperationalError, models
 from django.utils.timezone import make_aware, now
 
+from repairshopr_api import models as api_models
 from repairshopr_api.config import settings
 from repairshopr_api.client import Client, ModelType
 from repairshopr_api.base.model import BaseModel
 from repairshopr_api.models.ticket import Ticket as ApiTicket
 from repairshopr_api.type_defs import JsonValue, QueryParams
 from repairshopr_api.utils import coerce_datetime, parse_datetime
+from repairshopr_data import models as sync_models
 from repairshopr_data.models import (
     Invoice,
     InvoiceLineItem,
@@ -40,6 +42,13 @@ INCREMENTAL_INVOICE_SAMPLE_SIZE = 4
 HEARTBEAT_PAGE_INTERVAL = 10
 HEARTBEAT_RECORD_INTERVAL = 100
 HEARTBEAT_SECONDS_INTERVAL = 30
+
+
+class ModelSyncPlan(NamedTuple):
+    django_model: type[models.Model]
+    api_model: type[BaseModel]
+    num_last_pages: int | None
+    params: QueryParams | None
 
 
 def _instance_values(api_instance: object) -> Mapping[str, object] | None:
@@ -98,10 +107,6 @@ def _instance_with_updated_identifier(
     return api_instance
 
 
-def _is_base_model_type(candidate: type) -> TypeGuard[type[BaseModel]]:
-    return issubclass(candidate, BaseModel)
-
-
 def _is_django_model_like(candidate: type) -> TypeGuard[type[models.Model]]:
     return hasattr(candidate, "_meta") and hasattr(candidate, "objects")
 
@@ -120,20 +125,21 @@ def _coerce_datetime(value: object, *, field_name: str) -> datetime | None:
     return coerced
 
 
-def _normalize_identifier(raw_identifier: object) -> int | None:
-    if raw_identifier is None:
-        return None
-    if isinstance(raw_identifier, int):
-        return None if raw_identifier == 0 else raw_identifier
-    if isinstance(raw_identifier, str):
-        stripped_value = raw_identifier.strip()
-        if stripped_value in {"", "0"}:
-            return None
-        if stripped_value.isdigit() or (
-            stripped_value.startswith("-") and stripped_value[1:].isdigit()
-        ):
-            return int(stripped_value)
+def _parse_signed_integer(value: str) -> int | None:
+    stripped_value = value.strip()
+    if stripped_value.isdigit() or (
+        stripped_value.startswith("-") and stripped_value[1:].isdigit()
+    ):
+        return int(stripped_value)
     return None
+
+
+def _normalize_identifier(raw_identifier: object) -> int | None:
+    if isinstance(raw_identifier, str):
+        raw_identifier = _parse_signed_integer(raw_identifier)
+    if not isinstance(raw_identifier, int) or raw_identifier == 0:
+        return None
+    return raw_identifier
 
 
 def _coerce_integer_value(value: object, *, field_name: str) -> object:
@@ -144,15 +150,12 @@ def _coerce_integer_value(value: object, *, field_name: str) -> object:
     if isinstance(value, int):
         return value
     if isinstance(value, str):
-        stripped_value = value.strip()
-        if stripped_value == "":
+        if not value.strip():
             return None
-        if stripped_value.isdigit() or (
-            stripped_value.startswith("-") and stripped_value[1:].isdigit()
-        ):
-            return int(stripped_value)
-        logger.warning("Unable to parse integer for %s: %r", field_name, value)
-        return None
+        parsed_value = _parse_signed_integer(value)
+        if parsed_value is None:
+            logger.warning("Unable to parse integer for %s: %r", field_name, value)
+        return parsed_value
     return value
 
 
@@ -281,16 +284,29 @@ class Command(BaseCommand):
         self._status_last_written_page: int = 0
         self._status_last_written_records: int = 0
         reverse_sort_on_updated_at = {"sort": "updated_at ASC"}
+        # Endpoint windows and their evidence: docs/incremental-pagination.md.
         self.model_mapping = {
-            # Django model name: (num_last_pages, params)
-            # Endpoint windows and their evidence: docs/incremental-pagination.md.
-            "Customer": (10, reverse_sort_on_updated_at),
-            "Estimate": (None, None),
-            "Invoice": (None, None),
-            "Payment": (2, None),
-            "Product": (2, reverse_sort_on_updated_at),
-            "Ticket": (None, None),
-            "User": (None, None),
+            "Customer": ModelSyncPlan(
+                sync_models.Customer,
+                api_models.Customer,
+                10,
+                reverse_sort_on_updated_at,
+            ),
+            "Estimate": ModelSyncPlan(
+                sync_models.Estimate, api_models.Estimate, None, None
+            ),
+            "Invoice": ModelSyncPlan(
+                sync_models.Invoice, api_models.Invoice, None, None
+            ),
+            "Payment": ModelSyncPlan(sync_models.Payment, api_models.Payment, 2, None),
+            "Product": ModelSyncPlan(
+                sync_models.Product,
+                api_models.Product,
+                2,
+                reverse_sort_on_updated_at,
+            ),
+            "Ticket": ModelSyncPlan(sync_models.Ticket, api_models.Ticket, None, None),
+            "User": ModelSyncPlan(sync_models.User, api_models.User, None, None),
         }
 
     def _upsert_sync_status(self, **updates: object) -> None:
@@ -386,26 +402,10 @@ class Command(BaseCommand):
             last_heartbeat=now(),
         )
 
-    def get_submodel_class(
-        self, parent_model_name: str, sub_model_suffix: str
-    ) -> type[models.Model]:
-        if sub_model_suffix.lower() != "properties" and sub_model_suffix.endswith("s"):
-            sub_model_suffix = sub_model_suffix[:-1]
-
-        formatted_sub_model_suffix = sub_model_suffix.title()
-        imported = self.dynamic_import(
-            f"repairshopr_data.models.{parent_model_name.lower()}.{parent_model_name}{formatted_sub_model_suffix}"
-        )
-        if not _is_django_model_like(imported):
-            raise TypeError(
-                f"Expected Django model class for submodel, got {imported!r}"
-            )
-        return imported
-
     def handle_model(
         self,
-        django_model_path: str,
-        api_model_path: str,
+        django_model: type[models.Model],
+        api_model: type[BaseModel],
         num_last_pages: int | None = None,
         params: QueryParams | None = None,
     ) -> None:
@@ -414,18 +414,6 @@ class Command(BaseCommand):
             last_updated_at = make_aware(last_updated_at)
         if not last_updated_at or last_updated_at < BASELINE_UPDATED_AT:
             num_last_pages = None
-
-        django_model_candidate = self.dynamic_import(django_model_path)
-        if not _is_django_model_like(django_model_candidate):
-            raise TypeError(
-                f"Expected Django model class, got {django_model_candidate!r}"
-            )
-        django_model = django_model_candidate
-
-        api_model_candidate = self.dynamic_import(api_model_path)
-        if not _is_base_model_type(api_model_candidate):
-            raise TypeError(f"Expected BaseModel subclass, got {api_model_candidate!r}")
-        api_model = api_model_candidate
 
         self._set_model_sync_progress(api_model.__name__.lower())
 
@@ -448,12 +436,7 @@ class Command(BaseCommand):
 
             # noinspection PyProtectedMember
             for related_obj in django_model._meta.related_objects:
-                sub_model_suffix = related_obj.name.replace(
-                    parent_model_name.lower(), ""
-                )
-                sub_django_model = self.get_submodel_class(
-                    parent_model_name, sub_model_suffix
-                )
+                sub_django_model = related_obj.related_model
 
                 sub_api_instances = _resolve_related_collection(
                     api_instance, related_obj.name
@@ -790,12 +773,6 @@ class Command(BaseCommand):
                 )
                 raise CommandError(mismatch_message)
 
-    @staticmethod
-    def dynamic_import(path: str) -> type:
-        module_path, class_name = path.rsplit(".", 1)
-        module = __import__(module_path, fromlist=[class_name])
-        return getattr(module, class_name.replace("_", ""))
-
     def handle(self, *_args, **_kwargs) -> None:
         last_updated_at = settings.django.last_updated_at
         full_sync = self._is_full_sync_run(last_updated_at)
@@ -810,14 +787,8 @@ class Command(BaseCommand):
             self.client.set_progress_callback(self._on_page_progress)
 
         try:
-            for model_name, (num_last_pages, params) in self.model_mapping.items():
-                django_model_path = (
-                    f"repairshopr_data.models.{model_name.lower()}.{model_name}"
-                )
-                api_model_path = f"repairshopr_api.models.{model_name}"
-                self.handle_model(
-                    django_model_path, api_model_path, num_last_pages, params
-                )
+            for model_sync_plan in self.model_mapping.values():
+                self.handle_model(*model_sync_plan)
 
             self.sync_ticket_settings()
             self.validate_sync_completeness(full_sync=full_sync)
