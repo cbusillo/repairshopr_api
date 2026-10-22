@@ -56,49 +56,21 @@ def test_direct_entrypoints_delegate_to_manage_script(
 
 @pytest.mark.scripts
 @pytest.mark.parametrize(
-    ("entrypoint", "failed_command", "exit_code", "expected_commands"),
+    ("entrypoint", "exit_code"),
     [
-        pytest.param(
-            run_django.runserver,
-            "makemigrations",
-            5,
-            ("makemigrations",),
-            id="runserver-makemigrations",
-        ),
-        pytest.param(
-            run_django.runserver,
-            "migrate",
-            2,
-            ("makemigrations", "migrate"),
-            id="runserver-migrate",
-        ),
-        pytest.param(
-            run_django.import_from_repairshopr,
-            "makemigrations",
-            3,
-            ("makemigrations",),
-            id="import-makemigrations",
-        ),
-        pytest.param(
-            run_django.import_from_repairshopr,
-            "migrate",
-            4,
-            ("makemigrations", "migrate"),
-            id="import-migrate",
-        ),
+        pytest.param(run_django.runserver, 2, id="runserver"),
+        pytest.param(run_django.import_from_repairshopr, 4, id="import"),
     ],
 )
-def test_sequenced_entrypoints_stop_on_failure(
+def test_sequenced_entrypoints_stop_when_migrate_fails(
     monkeypatch: pytest.MonkeyPatch,
     entrypoint: Callable[[], int],
-    failed_command: str,
     exit_code: int,
-    expected_commands: tuple[str, ...],
 ) -> None:
-    calls = _install_manage_runner(monkeypatch, {failed_command: exit_code})
+    calls = _install_manage_runner(monkeypatch, {"migrate": exit_code})
 
     assert entrypoint() == exit_code
-    assert calls == _expected_calls(*expected_commands)
+    assert calls == _expected_calls("migrate")
 
 
 @pytest.mark.scripts
@@ -130,7 +102,7 @@ def test_sequenced_entrypoints_run_full_sequence_and_propagate_terminal_exit_cod
     calls = _install_manage_runner(monkeypatch, {terminal_command: exit_code})
 
     assert entrypoint() == exit_code
-    assert calls == _expected_calls("makemigrations", "migrate", terminal_command)
+    assert calls == _expected_calls("migrate", terminal_command)
 
 
 @pytest.mark.scripts
