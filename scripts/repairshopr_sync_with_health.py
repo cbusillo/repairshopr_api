@@ -13,24 +13,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 MANAGE_PY = PROJECT_ROOT / "repairshopr_sync" / "manage.py"
 SYNC_ENTRYPOINT = PROJECT_ROOT / "scripts" / "repairshopr-sync-entrypoint.sh"
 BOOTSTRAP_CONFIG_PY = PROJECT_ROOT / "scripts" / "bootstrap_repairshopr_sync_config.py"
-DEFAULT_STALE_THRESHOLD_SECONDS = 900
 DEFAULT_HEALTH_PORT = 8000
-
-
-def _stale_threshold_seconds() -> int:
-    for env_name in (
-        "SYNC_HEALTH_STALE_THRESHOLD_SECONDS",
-        "SYNC_STALE_HEARTBEAT_SECONDS",
-    ):
-        value = os.getenv(env_name)
-        if value is None or not value.strip():
-            continue
-        try:
-            return max(0, int(value))
-        except ValueError:
-            continue
-
-    return DEFAULT_STALE_THRESHOLD_SECONDS
 
 
 def _health_port() -> int:
@@ -60,8 +43,6 @@ def _health_command() -> list[str]:
         os.getenv("SYNC_HEALTH_BIND_ADDRESS", "0.0.0.0"),
         "--port",
         str(_health_port()),
-        "--stale-threshold-seconds",
-        str(_stale_threshold_seconds()),
     ]
 
 

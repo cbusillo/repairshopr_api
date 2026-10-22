@@ -1,8 +1,6 @@
 import os
 
-from repairshopr_api.config import settings
-
-SECRET_KEY = settings.django.secret_key
+SECRET_KEY = os.environ["DJANGO_SECRET_KEY"]
 
 DEBUG = True
 
@@ -51,11 +49,11 @@ WSGI_APPLICATION = "repairshopr_sync.wsgi.application"
 
 DATABASES = {
     "default": {
-        "ENGINE": f"django.db.backends.{os.getenv('SYNC_DB_ENGINE') or settings.django.db_engine}",
-        "HOST": os.getenv("SYNC_DB_HOST") or settings.django.db_host,
-        "NAME": os.getenv("SYNC_DB_NAME") or settings.django.db_name,
-        "USER": os.getenv("SYNC_DB_USER") or settings.django.db_user,
-        "PASSWORD": os.getenv("SYNC_DB_PASSWORD") or settings.django.db_password,
+        "ENGINE": f"django.db.backends.{os.getenv('SYNC_DB_ENGINE') or 'mysql'}",
+        "HOST": os.getenv("SYNC_DB_HOST") or "localhost",
+        "NAME": os.getenv("SYNC_DB_NAME") or "repairshopr",
+        "USER": os.getenv("SYNC_DB_USER") or "repairshopr_api",
+        "PASSWORD": os.getenv("SYNC_DB_PASSWORD", ""),
     }
 }
 

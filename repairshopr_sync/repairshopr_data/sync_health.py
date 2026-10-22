@@ -16,6 +16,22 @@ SERVICE_NAME = "repairshopr-sync"
 PACKAGE_NAME = "repairshopr-api"
 DEFAULT_STALE_THRESHOLD_SECONDS = 900
 DEFAULT_SYNC_INTERVAL_SECONDS = 900
+STALE_THRESHOLD_ENV_VARS = (
+    "SYNC_HEALTH_STALE_THRESHOLD_SECONDS",
+    "SYNC_STALE_HEARTBEAT_SECONDS",
+)
+
+
+def configured_stale_threshold_seconds() -> int:
+    for env_name in STALE_THRESHOLD_ENV_VARS:
+        value = os.getenv(env_name, "").strip()
+        if not value:
+            continue
+        try:
+            return max(0, int(value))
+        except ValueError:
+            continue
+    return DEFAULT_STALE_THRESHOLD_SECONDS
 
 
 def isoformat_or_none(value: datetime | None) -> str | None:

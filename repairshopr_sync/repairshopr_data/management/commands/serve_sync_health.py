@@ -10,6 +10,7 @@ from django.core.management.base import BaseCommand
 from repairshopr_data.sync_health import (
     DEFAULT_STALE_THRESHOLD_SECONDS,
     build_health_payload,
+    configured_stale_threshold_seconds,
 )
 
 
@@ -42,7 +43,7 @@ class Command(BaseCommand):
         parser.add_argument(
             "--stale-threshold-seconds",
             type=int,
-            default=DEFAULT_STALE_THRESHOLD_SECONDS,
+            default=configured_stale_threshold_seconds(),
         )
 
     def handle(self, *args, **options) -> None:

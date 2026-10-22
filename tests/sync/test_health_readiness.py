@@ -7,7 +7,10 @@ from pathlib import Path
 import pytest
 
 from repairshopr_data.models import SyncStatus
-from repairshopr_data.views import health
+from repairshopr_data.sync_health import (
+    DEFAULT_STALE_THRESHOLD_SECONDS,
+    build_health_payload,
+)
 
 
 @pytest.fixture(autouse=True)
@@ -27,24 +30,16 @@ def health_env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         "LAUNCHPLANE_PRODUCT",
         "LAUNCHPLANE_RUNTIME_IDENTITY_JSON",
         "LAUNCHPLANE_SOURCE_GIT_REF",
-        "SYNC_HEALTH_STALE_THRESHOLD_SECONDS",
         "SYNC_INTERVAL_SECONDS",
-        "SYNC_STALE_HEARTBEAT_SECONDS",
     ):
         monkeypatch.delenv(env_name, raising=False)
 
 
-def _payload(response) -> dict[str, object]:  # type: ignore[no-untyped-def]
-    return json.loads(response.content.decode())
-
-
 @pytest.mark.django_db
 def test_health_ready_payload_includes_sync_and_runtime_identity(
-    rf,
     monkeypatch: pytest.MonkeyPatch,
-) -> None:  # type: ignore[no-untyped-def]
+) -> None:
     current_time = datetime(2026, 2, 12, 18, tzinfo=timezone.utc)
-    monkeypatch.setenv("SYNC_HEALTH_STALE_THRESHOLD_SECONDS", "60")
     monkeypatch.setenv(
         "LAUNCHPLANE_RUNTIME_IDENTITY_JSON",
         json.dumps(
@@ -75,10 +70,9 @@ def test_health_ready_payload_includes_sync_and_runtime_identity(
         last_error=None,
     )
 
-    response = health(rf.get("/readyz"))
+    payload, status_code = build_health_payload(60)
 
-    assert response.status_code == 200
-    payload = _payload(response)
+    assert status_code == 200
     assert payload["service"] == "repairshopr-sync"
     assert payload["status"] == "ok"
     assert payload["source_git_ref"] == "abc123"
@@ -101,11 +95,9 @@ def test_health_ready_payload_includes_sync_and_runtime_identity(
 
 @pytest.mark.django_db
 def test_health_not_ready_when_running_sync_is_stale(
-    rf,
     monkeypatch: pytest.MonkeyPatch,
-) -> None:  # type: ignore[no-untyped-def]
+) -> None:
     current_time = datetime(2026, 2, 12, 18, tzinfo=timezone.utc)
-    monkeypatch.setenv("SYNC_HEALTH_STALE_THRESHOLD_SECONDS", "30")
     monkeypatch.setattr("repairshopr_data.sync_health.now", lambda: current_time)
     SyncStatus.objects.create(
         id=1,
@@ -121,10 +113,9 @@ def test_health_not_ready_when_running_sync_is_stale(
         last_error=None,
     )
 
-    response = health(rf.get("/readyz"))
+    payload, status_code = build_health_payload(30)
 
-    assert response.status_code == 503
-    payload = _payload(response)
+    assert status_code == 503
     assert payload["status"] == "not_ready"
     assert "sync_stale" in payload["not_ready_reasons"]
     sync = payload["sync"]
@@ -135,11 +126,9 @@ def test_health_not_ready_when_running_sync_is_stale(
 
 @pytest.mark.django_db
 def test_health_not_ready_when_next_cycle_never_starts(
-    rf,
     monkeypatch: pytest.MonkeyPatch,
-) -> None:  # type: ignore[no-untyped-def]
+) -> None:
     current_time = datetime(2026, 2, 12, 18, tzinfo=timezone.utc)
-    monkeypatch.setenv("SYNC_HEALTH_STALE_THRESHOLD_SECONDS", "60")
     monkeypatch.setenv("SYNC_INTERVAL_SECONDS", "300")
     monkeypatch.setattr("repairshopr_data.sync_health.now", lambda: current_time)
     SyncStatus.objects.create(
@@ -156,10 +145,9 @@ def test_health_not_ready_when_next_cycle_never_starts(
         last_error=None,
     )
 
-    response = health(rf.get("/readyz"))
+    payload, status_code = build_health_payload(60)
 
-    assert response.status_code == 503
-    payload = _payload(response)
+    assert status_code == 503
     assert "sync_overdue" in payload["not_ready_reasons"]
     sync = payload["sync"]
     assert isinstance(sync, dict)
@@ -169,11 +157,9 @@ def test_health_not_ready_when_next_cycle_never_starts(
 
 @pytest.mark.django_db
 def test_health_ready_while_waiting_for_next_cycle(
-    rf,
     monkeypatch: pytest.MonkeyPatch,
-) -> None:  # type: ignore[no-untyped-def]
+) -> None:
     current_time = datetime(2026, 2, 12, 18, tzinfo=timezone.utc)
-    monkeypatch.setenv("SYNC_HEALTH_STALE_THRESHOLD_SECONDS", "60")
     monkeypatch.setenv("SYNC_INTERVAL_SECONDS", "300")
     monkeypatch.setattr("repairshopr_data.sync_health.now", lambda: current_time)
     SyncStatus.objects.create(
@@ -190,10 +176,10 @@ def test_health_ready_while_waiting_for_next_cycle(
         last_error=None,
     )
 
-    response = health(rf.get("/readyz"))
+    payload, status_code = build_health_payload(60)
 
-    assert response.status_code == 200
-    sync = _payload(response)["sync"]
+    assert status_code == 200
+    sync = payload["sync"]
     assert isinstance(sync, dict)
     assert sync["next_cycle_overdue"] is False
     assert sync["freshness_status"] == "fresh"
@@ -201,9 +187,8 @@ def test_health_ready_while_waiting_for_next_cycle(
 
 @pytest.mark.django_db
 def test_health_not_ready_when_last_cycle_failed(
-    rf,
     monkeypatch: pytest.MonkeyPatch,
-) -> None:  # type: ignore[no-untyped-def]
+) -> None:
     current_time = datetime(2026, 2, 12, 18, tzinfo=timezone.utc)
     monkeypatch.setattr("repairshopr_data.sync_health.now", lambda: current_time)
     SyncStatus.objects.create(
@@ -220,10 +205,9 @@ def test_health_not_ready_when_last_cycle_failed(
         last_error="boom",
     )
 
-    response = health(rf.get("/readyz"))
+    payload, status_code = build_health_payload(DEFAULT_STALE_THRESHOLD_SECONDS)
 
-    assert response.status_code == 503
-    payload = _payload(response)
+    assert status_code == 503
     assert "sync_failed" in payload["not_ready_reasons"]
     sync = payload["sync"]
     assert isinstance(sync, dict)
@@ -232,11 +216,10 @@ def test_health_not_ready_when_last_cycle_failed(
 
 
 @pytest.mark.django_db
-def test_health_not_ready_when_sync_status_row_missing(rf) -> None:  # type: ignore[no-untyped-def]
-    response = health(rf.get("/readyz"))
+def test_health_not_ready_when_sync_status_row_missing() -> None:
+    payload, status_code = build_health_payload(DEFAULT_STALE_THRESHOLD_SECONDS)
 
-    assert response.status_code == 503
-    payload = _payload(response)
+    assert status_code == 503
     assert "sync_unknown" in payload["not_ready_reasons"]
     sync = payload["sync"]
     assert isinstance(sync, dict)
@@ -246,9 +229,8 @@ def test_health_not_ready_when_sync_status_row_missing(rf) -> None:  # type: ign
 
 @pytest.mark.django_db
 def test_health_not_ready_for_malformed_runtime_identity(
-    rf,
     monkeypatch: pytest.MonkeyPatch,
-) -> None:  # type: ignore[no-untyped-def]
+) -> None:
     current_time = datetime(2026, 2, 12, 18, tzinfo=timezone.utc)
     monkeypatch.setenv("LAUNCHPLANE_RUNTIME_IDENTITY_JSON", "not-json")
     monkeypatch.setenv("LAUNCHPLANE_DEPLOYMENT_RECORD_ID", "deploy-fallback")
@@ -267,10 +249,9 @@ def test_health_not_ready_for_malformed_runtime_identity(
         last_error=None,
     )
 
-    response = health(rf.get("/readyz"))
+    payload, status_code = build_health_payload(DEFAULT_STALE_THRESHOLD_SECONDS)
 
-    assert response.status_code == 503
-    payload = _payload(response)
+    assert status_code == 503
     assert "malformed_runtime_identity" in payload["not_ready_reasons"]
     runtime_identity = payload["runtime_identity"]
     assert isinstance(runtime_identity, dict)

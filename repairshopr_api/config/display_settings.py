@@ -20,11 +20,7 @@ def display_settings() -> list[dict[str, str | JsonObject]]:
 def main() -> None:
     sections = (
         ("Repairshopr", settings.repairshopr, {"url_store_name"}),
-        (
-            "Django",
-            settings.django,
-            {"last_updated_at", "db_engine", "db_host", "db_name", "db_user"},
-        ),
+        ("Django", settings.django, {"last_updated_at"}),
     )
     output = [
         {

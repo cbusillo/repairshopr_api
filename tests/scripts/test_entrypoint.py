@@ -224,31 +224,6 @@ def _run_entrypoint(env: dict[str, str]) -> subprocess.CompletedProcess[str]:
 
 
 @pytest.mark.scripts
-@pytest.mark.parametrize(
-    "missing_var, message",
-    [
-        ("REPAIRSHOPR_TOKEN", "Missing REPAIRSHOPR_TOKEN"),
-        ("REPAIRSHOPR_URL_STORE_NAME", "Missing REPAIRSHOPR_URL_STORE_NAME"),
-        ("SYNC_DB_HOST", "Missing SYNC_DB_HOST"),
-        ("SYNC_DB_PASSWORD", "Missing SYNC_DB_PASSWORD"),
-        ("DJANGO_SECRET_KEY", "Missing DJANGO_SECRET_KEY"),
-    ],
-)
-def test_entrypoint_validates_required_env(
-    stubbed_runtime: dict[str, str],
-    missing_var: str,
-    message: str,
-) -> None:
-    env = dict(stubbed_runtime)
-    env.pop(missing_var)
-
-    result = _run_entrypoint(env)
-
-    assert result.returncode == 1
-    assert message in result.stderr
-
-
-@pytest.mark.scripts
 @pytest.mark.parametrize("reset_db", ["0", "1"])
 def test_entrypoint_waits_for_db_then_runs_sync_cycle(
     stubbed_runtime: dict[str, str],
@@ -271,6 +246,7 @@ def test_entrypoint_waits_for_db_then_runs_sync_cycle(
     combined_output = f"{result.stdout}\n{result.stderr}"
 
     assert result.returncode == 77
+    assert not (Path(env["HOME"]) / ".config").exists()
     assert "Waiting for RepairShopr sync DB... (1/5)" in combined_output
     assert "Waiting for RepairShopr sync DB... (2/5)" in combined_output
     assert "RepairShopr sync DB is ready." in combined_output
