@@ -14,9 +14,9 @@ permissions:
 
 jobs:
   launchplane-config-authority:
-    uses: cbusillo/launchplane/.github/workflows/reusable-product-repo-config-authority.yml@e10ba7fcf7c1f4293db5648de20bd37d52980807
+    uses: cbusillo/launchplane/.github/workflows/reusable-product-repo-config-authority.yml@9d2864a1a908d6d6d57400499355591d1190367f
     with:
-      launchplane-revision: e10ba7fcf7c1f4293db5648de20bd37d52980807
+      launchplane-revision: 9d2864a1a908d6d6d57400499355591d1190367f
       python-version: "3.14"
 
   test:
