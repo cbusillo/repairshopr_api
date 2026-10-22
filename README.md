@@ -125,10 +125,9 @@ For landing through the merge train and when to release, follow the
 3. Refresh lockfile: `uv lock`.
 4. Confirm lockfile is clean: `./scripts/check-lockfile.sh`.
 5. Open a PR and land the release branch following the direction linked above.
-6. Update local `main` to the merged commit.
-7. Create a tag `vX.Y.Z` at that commit.
-8. Push the tag only. For agent work, use the shared GitHub skill's
-   `git-push-as-bot origin vX.Y.Z` helper.
+6. Create a tag `vX.Y.Z` at the merged commit and push the tag only. Agents
+   push it with the shared GitHub skill's
+   [push helper](https://github.com/cbusillo/codex-skills/blob/main/skills/github/references/cli-reference.md#primary-app-and-contributor-identity).
 
 Do not commit or push release changes directly to `main`.
 
