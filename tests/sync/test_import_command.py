@@ -119,11 +119,16 @@ def _install_foreign_key_stub(monkeypatch: pytest.MonkeyPatch) -> type:
     return FakeForeignKey
 
 
-def simple_django_model() -> type:
-    return type(
-        "DjangoModel",
-        (),
-        {"_meta": SimpleNamespace(related_objects=[]), "objects": SimpleNamespace()},
+def simple_django_model() -> type[models.Model]:
+    return as_django_model_type(
+        type(
+            "DjangoModel",
+            (),
+            {
+                "_meta": SimpleNamespace(related_objects=[]),
+                "objects": SimpleNamespace(),
+            },
+        )
     )
 
 
@@ -765,7 +770,7 @@ def test_handle_model_processes_related_submodels(
         SimpleNamespace(id=1, ticketcomments=child_api_items)
     ]
 
-    cmd.handle_model(DjangoModel, ApiModel)
+    cmd.handle_model(as_django_model_type(DjangoModel), ApiModel)
 
     assert saved_children == [11, 12]
     assert len(set_calls) == 1
@@ -805,7 +810,7 @@ def test_handle_model_processes_line_items_from_property(
 
     fake_client.get_model = lambda *_args, **_kwargs: [api_model_cls(id=1)]
 
-    cmd.handle_model(django_model_cls, api_model_cls)
+    cmd.handle_model(as_django_model_type(django_model_cls), api_model_cls)
 
     assert saved_children == [21, 22]
     assert len(set_calls) == 1
@@ -844,7 +849,7 @@ def test_handle_model_skips_relation_reset_when_child_imports_are_skipped(
     fake_client.get_model = lambda *_args, **_kwargs: [api_model_cls(id=1)]
 
     caplog.set_level(logging.WARNING)
-    cmd.handle_model(django_model_cls, api_model_cls)
+    cmd.handle_model(as_django_model_type(django_model_cls), api_model_cls)
 
     assert len(set_calls) == 0
     assert "Skipping relation reset for DjangoModel.line_items" in caplog.text
@@ -897,7 +902,7 @@ def test_handle_model_resets_non_line_item_relations_even_with_skipped_children(
             id=1, ticketcomments=[SimpleNamespace(id=11), SimpleNamespace(id=12)]
         )
     ]
-    cmd.handle_model(DjangoModel, ApiModel)
+    cmd.handle_model(as_django_model_type(DjangoModel), ApiModel)
 
     assert len(set_calls) == 1
     assert [item.id for item in set_calls[0]] == [11]
