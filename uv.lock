@@ -424,7 +424,6 @@ name = "repairshopr-api"
 version = "0.4.5"
 source = { editable = "." }
 dependencies = [
-    { name = "mysqlclient" },
     { name = "pytz" },
     { name = "requests" },
     { name = "tenacity" },
@@ -457,7 +456,6 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "django", marker = "extra == 'sync'", specifier = ">=6.1.2" },
-    { name = "mysqlclient", specifier = ">=2.3.0" },
     { name = "mysqlclient", marker = "extra == 'mysql'", specifier = ">=2.3.0" },
     { name = "mysqlclient", marker = "extra == 'sync'", specifier = ">=2.3.0" },
     { name = "pytz", specifier = ">=2026.5" },
