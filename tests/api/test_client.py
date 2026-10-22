@@ -10,6 +10,7 @@ from unittest.mock import Mock
 
 import pytest
 import requests
+from requests.adapters import HTTPAdapter
 from tenacity import stop_after_attempt, wait_none
 
 from repairshopr_api.base.model import BaseModel
@@ -306,32 +307,46 @@ def test_request_raises_value_error_for_not_found() -> None:
         requests.Session.request = original_request  # type: ignore[method-assign]
 
 
-def test_fetch_ticket_settings_validates_payload(
+def _send_ticket_settings_payload(
+    monkeypatch: pytest.MonkeyPatch, payload: bytes
+) -> list[requests.PreparedRequest]:
+    sent: list[requests.PreparedRequest] = []
+
+    def send(
+        _adapter: HTTPAdapter,
+        request: requests.PreparedRequest,
+        **_kwargs: object,
+    ) -> requests.Response:
+        sent.append(request)
+        response = requests.Response()
+        response.status_code = HTTPStatus.OK
+        response._content = payload
+        response.request = request
+        return response
+
+    monkeypatch.setattr(HTTPAdapter, "send", send)
+    return sent
+
+
+def test_fetch_ticket_settings_authenticates_with_session_header(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     client = _make_client()
+    sent = _send_ticket_settings_payload(monkeypatch, b'{"a": 1}')
 
-    class FakeResponse:
-        def __init__(self, payload: object) -> None:
-            self._payload = payload
-
-        @staticmethod
-        def raise_for_status() -> None:
-            return None
-
-        def json(self) -> object:
-            return self._payload
-
-    monkeypatch.setattr(
-        "repairshopr_api.client.requests.get",
-        lambda *_args, **_kwargs: FakeResponse({"a": 1}),
-    )
     assert client.fetch_ticket_settings() == {"a": 1}
 
-    monkeypatch.setattr(
-        "repairshopr_api.client.requests.get",
-        lambda *_args, **_kwargs: FakeResponse([1, 2]),
-    )
+    [request] = sent
+    assert request.headers["Authorization"] == client.token
+    assert client.token not in str(request.url)
+
+
+def test_fetch_ticket_settings_rejects_non_object_payload(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    client = _make_client()
+    _send_ticket_settings_payload(monkeypatch, b"[1, 2]")
+
     with pytest.raises(
         ValueError, match="Unexpected RepairShopr ticket settings payload"
     ):
