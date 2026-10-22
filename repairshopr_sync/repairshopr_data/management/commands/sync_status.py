@@ -4,7 +4,10 @@ from django.core.management.base import BaseCommand
 from django.utils.timezone import now
 
 from repairshopr_data.models import SyncStatus
-from repairshopr_data.sync_health import build_sync_status_payload
+from repairshopr_data.sync_health import (
+    build_sync_status_payload,
+    configured_stale_threshold_seconds,
+)
 
 
 class Command(BaseCommand):
@@ -14,7 +17,7 @@ class Command(BaseCommand):
         parser.add_argument(
             "--stale-threshold-seconds",
             type=int,
-            default=0,
+            default=configured_stale_threshold_seconds(),
             help="Mark running sync stale when last heartbeat is older than this threshold.",
         )
         parser.add_argument(

@@ -15,7 +15,6 @@ from scripts import repairshopr_sync_with_health as wrapper
 def test_health_command_uses_runtime_env(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("SYNC_HEALTH_BIND_ADDRESS", "127.0.0.1")
     monkeypatch.setenv("SYNC_HEALTH_PORT", "9080")
-    monkeypatch.setenv("SYNC_HEALTH_STALE_THRESHOLD_SECONDS", "45")
 
     command = wrapper._health_command()
 
@@ -26,8 +25,6 @@ def test_health_command_uses_runtime_env(monkeypatch: pytest.MonkeyPatch) -> Non
         "127.0.0.1",
         "--port",
         "9080",
-        "--stale-threshold-seconds",
-        "45",
     ]
 
 
@@ -181,8 +178,6 @@ def test_wrapper_waits_for_health_before_launching_sync(
             "127.0.0.1",
             "--port",
             "9080",
-            "--stale-threshold-seconds",
-            "900",
         ]
     ]
     assert sync_processes == [["bash", str(wrapper.SYNC_ENTRYPOINT)]]
@@ -258,29 +253,6 @@ def test_wrapper_fails_before_children_when_bootstrap_fails(
 
     assert wrapper.main() == 4
     assert popen_calls == []
-
-
-@pytest.mark.parametrize(
-    ("env_name", "env_value"),
-    [
-        ("SYNC_HEALTH_STALE_THRESHOLD_SECONDS", ""),
-        ("SYNC_HEALTH_STALE_THRESHOLD_SECONDS", "banana"),
-        ("SYNC_STALE_HEARTBEAT_SECONDS", ""),
-        ("SYNC_STALE_HEARTBEAT_SECONDS", "banana"),
-    ],
-)
-def test_health_command_falls_back_for_malformed_threshold_env(
-    monkeypatch: pytest.MonkeyPatch,
-    env_name: str,
-    env_value: str,
-) -> None:
-    monkeypatch.delenv("SYNC_HEALTH_STALE_THRESHOLD_SECONDS", raising=False)
-    monkeypatch.delenv("SYNC_STALE_HEARTBEAT_SECONDS", raising=False)
-    monkeypatch.setenv(env_name, env_value)
-
-    command = wrapper._health_command()
-
-    assert command[-1] == "900"
 
 
 @pytest.mark.django_db
