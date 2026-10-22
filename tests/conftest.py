@@ -23,6 +23,7 @@ PATH_ARGUMENT_COUNTS_BY_AUDIT_EVENT = {
     "os.mkdir": 1,
     "os.remove": 1,
     "os.rename": 2,
+    "os.rmdir": 1,
 }
 
 
