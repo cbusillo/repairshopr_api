@@ -29,8 +29,6 @@ def synthetic_settings(monkeypatch: pytest.MonkeyPatch) -> SimpleNamespace:
     settings = SimpleNamespace(repairshopr=Repairshopr(), django=Django())
     settings.repairshopr.token = "synthetic-api-token"
     settings.repairshopr.url_store_name = "example-store"
-    settings.django.secret_key = "synthetic-django-secret"
-    settings.django.db_password = "synthetic-database-password"
     settings.django.last_updated_at = datetime(2026, 10, 4, tzinfo=timezone.utc)
 
     initializer = ModuleType("repairshopr_api.config.initialize")
@@ -52,18 +50,11 @@ def test_direct_execution_displays_settings_without_credentials(
     stdout = capsys.readouterr().out
     sections = {entry["section"]: entry["fields"] for entry in json.loads(stdout)}
     assert sections["Repairshopr"]["url_store_name"] == "example-store"
-    assert sections["Django"]["db_host"] == synthetic_settings.django.db_host
-    assert sections["Django"]["db_engine"] == synthetic_settings.django.db_engine
     assert sections["Django"]["last_updated_at"] == str(
         synthetic_settings.django.last_updated_at
     )
-    for section, key in (
-        ("Repairshopr", "token"),
-        ("Django", "secret_key"),
-        ("Django", "db_password"),
-    ):
-        assert sections[section][key] == "[REDACTED]"
-        assert before[section][key] not in stdout
+    assert sections["Repairshopr"]["token"] == "[REDACTED]"
+    assert before["Repairshopr"]["token"] not in stdout
     assert synthetic_settings.repairshopr.to_dict() == before["Repairshopr"]
     assert synthetic_settings.django.to_dict() == before["Django"]
 

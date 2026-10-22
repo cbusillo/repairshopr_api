@@ -12,13 +12,16 @@ REQUIRED_ENV_VARS = (
     "SYNC_DB_PASSWORD",
     "DJANGO_SECRET_KEY",
 )
+SECRET_CONFIG_KEYS = (
+    ("repairshopr", "token"),
+    ("django", "secret_key"),
+    ("django", "db_password"),
+)
 
 
-def require_env(name: str) -> str:
-    value = os.getenv(name, "")
-    if not value.strip():
+def require_env(name: str) -> None:
+    if not os.getenv(name, "").strip():
         raise SystemExit(f"Missing {name}")
-    return value
 
 
 def truthy(value: str) -> bool:
@@ -39,8 +42,6 @@ def bootstrap_config() -> Path:
     for env_var in REQUIRED_ENV_VARS:
         require_env(env_var)
 
-    sync_db_name = os.getenv("SYNC_DB_NAME", "repairshopr")
-    sync_db_user = os.getenv("SYNC_DB_USER", "repairshopr_api")
     config_file = config_file_path()
     config_file.parent.mkdir(parents=True, exist_ok=True)
 
@@ -51,18 +52,9 @@ def bootstrap_config() -> Path:
         except toml.TomlDecodeError:
             data = {}
 
-    data.setdefault("repairshopr", {})
-    data.setdefault("django", {})
-
     data["debug"] = truthy(os.getenv("REPAIRSHOPR_DEBUG", "false"))
-    data["repairshopr"]["token"] = require_env("REPAIRSHOPR_TOKEN")
-    data["repairshopr"]["url_store_name"] = require_env("REPAIRSHOPR_URL_STORE_NAME")
-    data["django"]["secret_key"] = require_env("DJANGO_SECRET_KEY")
-    data["django"]["db_engine"] = "mysql"
-    data["django"]["db_host"] = require_env("SYNC_DB_HOST")
-    data["django"]["db_name"] = sync_db_name
-    data["django"]["db_user"] = sync_db_user
-    data["django"]["db_password"] = require_env("SYNC_DB_PASSWORD")
+    for section, key in SECRET_CONFIG_KEYS:
+        data.get(section, {}).pop(key, None)
 
     with config_file.open("w") as handle:
         toml.dump(data, handle)

@@ -71,6 +71,11 @@ either milestone closes.
 
 ## Launchplane Health Readiness
 
+The container reads the RepairShopr token, sync database credentials and
+Django secret from its environment only. The wrapper validates them once at
+start and removes any secret left in the config volume's TOML file, which keeps
+only sync state such as the `last_updated_at` checkpoint.
+
 At startup, the sync entrypoint runs the optional database flush
 (`SYNC_DB_RESET=1`) and then migrations before importing. If either command
 fails, it waits `SYNC_FAILURE_SLEEP_SECONDS` (default 60 seconds) and exits
@@ -92,7 +97,8 @@ deploy.
 - Compose exposure: `SYNC_HEALTH_HOST_PORT` publishes to `SYNC_HEALTH_PORT`,
   both defaulting to `8000`
 - Freshness threshold: `SYNC_HEALTH_STALE_THRESHOLD_SECONDS`, falling back to
-  `SYNC_STALE_HEARTBEAT_SECONDS`, then 900 seconds
+  `SYNC_STALE_HEARTBEAT_SECONDS`, then 900 seconds. The health server, the
+  entrypoint watchdog and a manual `sync_status` all use this threshold.
 
 Readiness returns HTTP 503 with `startup_incomplete` until this container's
 startup flush (when enabled) and migrations succeed, even if the database still

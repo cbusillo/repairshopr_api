@@ -1,78 +1,69 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
+import pytest
 import toml
 
 from scripts import bootstrap_repairshopr_sync_config as bootstrap
 
+RUNTIME_SECRETS = {
+    "REPAIRSHOPR_TOKEN": "env-repairshopr-token",
+    "SYNC_DB_PASSWORD": "env-sync-password",
+    "DJANGO_SECRET_KEY": "env-django-secret",
+}
 
-def test_bootstrap_config_writes_runtime_env_values(tmp_path, monkeypatch) -> None:
-    config_file = tmp_path / "config.toml"
-    monkeypatch.setenv("CONFIG_FILE", str(config_file))
-    monkeypatch.setenv("REPAIRSHOPR_TOKEN", "repairshopr-token")
+
+@pytest.fixture
+def runtime_env(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("CONFIG_FILE", str(tmp_path / "config.toml"))
     monkeypatch.setenv("REPAIRSHOPR_URL_STORE_NAME", "store-name")
     monkeypatch.setenv("SYNC_DB_HOST", "mysql")
-    monkeypatch.setenv("SYNC_DB_PASSWORD", "sync-password")
-    monkeypatch.setenv("DJANGO_SECRET_KEY", "django-secret")
-    monkeypatch.setenv("SYNC_DB_NAME", "sync-db")
-    monkeypatch.setenv("SYNC_DB_USER", "sync-user")
-    monkeypatch.setenv("REPAIRSHOPR_DEBUG", "true")
+    for name, value in RUNTIME_SECRETS.items():
+        monkeypatch.setenv(name, value)
+
+
+@pytest.mark.usefixtures("runtime_env")
+def test_bootstrap_config_leaves_no_secret_in_config_file(tmp_path) -> None:
+    config_file = tmp_path / "config.toml"
+    checkpoint = datetime(2026, 10, 1, 12, tzinfo=timezone.utc)
+    previous_secrets = ("old-token", "old-django-secret", "old-db-password")
+    config_file.write_text(
+        toml.dumps(
+            {
+                "repairshopr": {"token": "old-token", "url_store_name": "store"},
+                "django": {
+                    "secret_key": "old-django-secret",
+                    "db_password": "old-db-password",
+                    "last_updated_at": checkpoint,
+                },
+            }
+        )
+    )
 
     assert bootstrap.bootstrap_config() == config_file
 
-    data = toml.load(config_file)
-    assert data["debug"] is True
-    assert data["repairshopr"] == {
-        "token": "repairshopr-token",
-        "url_store_name": "store-name",
-    }
-    assert data["django"] == {
-        "secret_key": "django-secret",
-        "db_engine": "mysql",
-        "db_host": "mysql",
-        "db_name": "sync-db",
-        "db_user": "sync-user",
-        "db_password": "sync-password",
-    }
+    config_text = config_file.read_text()
+    for secret in (*RUNTIME_SECRETS.values(), *previous_secrets):
+        assert secret not in config_text
+    assert toml.loads(config_text)["django"]["last_updated_at"] == checkpoint
 
 
-def test_bootstrap_config_preserves_runtime_secret_whitespace(
-    tmp_path,
-    monkeypatch,
-) -> None:
-    config_file = tmp_path / "config.toml"
-    monkeypatch.setenv("CONFIG_FILE", str(config_file))
-    monkeypatch.setenv("REPAIRSHOPR_TOKEN", " token-with-space ")
-    monkeypatch.setenv("REPAIRSHOPR_URL_STORE_NAME", " store-name ")
-    monkeypatch.setenv("SYNC_DB_HOST", " mysql ")
-    monkeypatch.setenv("SYNC_DB_PASSWORD", " password-with-space ")
-    monkeypatch.setenv("DJANGO_SECRET_KEY", " secret-with-space ")
+@pytest.mark.usefixtures("runtime_env")
+def test_bootstrap_config_records_debug_flag(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("REPAIRSHOPR_DEBUG", "true")
 
     bootstrap.bootstrap_config()
 
-    data = toml.load(config_file)
-    assert data["repairshopr"]["token"] == " token-with-space "
-    assert data["repairshopr"]["url_store_name"] == " store-name "
-    assert data["django"]["secret_key"] == " secret-with-space "
-    assert data["django"]["db_host"] == " mysql "
-    assert data["django"]["db_password"] == " password-with-space "
+    assert toml.load(tmp_path / "config.toml")["debug"] is True
 
 
+@pytest.mark.usefixtures("runtime_env")
+@pytest.mark.parametrize("missing_var", bootstrap.REQUIRED_ENV_VARS)
 def test_bootstrap_config_fails_closed_when_required_env_missing(
-    tmp_path,
-    monkeypatch,
+    monkeypatch, missing_var: str
 ) -> None:
-    monkeypatch.setenv("CONFIG_FILE", str(tmp_path / "config.toml"))
-    monkeypatch.setenv("REPAIRSHOPR_TOKEN", "repairshopr-token")
-    monkeypatch.setenv("REPAIRSHOPR_URL_STORE_NAME", "store-name")
-    monkeypatch.setenv("SYNC_DB_HOST", "mysql")
-    monkeypatch.setenv("SYNC_DB_PASSWORD", "sync-password")
-    monkeypatch.delenv("DJANGO_SECRET_KEY", raising=False)
+    monkeypatch.delenv(missing_var)
 
-    try:
+    with pytest.raises(SystemExit, match=missing_var):
         bootstrap.bootstrap_config()
-    except SystemExit as error:
-        assert str(error) == "Missing DJANGO_SECRET_KEY"
-    else:
-        raise AssertionError(
-            "bootstrap_config should fail when required env is missing"
-        )
