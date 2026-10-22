@@ -73,7 +73,7 @@ Notes:
 - A dedicated CI job runs MariaDB-backed integration checks for
   schema/migrations using the database image declared by the production Compose
   contract.
-- Dependabot opens Django-stack updates separately from other Python dependency
+- Renovate opens Django-stack updates separately from other Python dependency
   updates and monitors the production Compose database image directly.
 
 ## Sync coverage

@@ -1,0 +1,12 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["github>cbusillo/odoo-devkit//renovate/default"],
+  "packageRules": [
+    {
+      "description": "The Django stack moves together in its own pull request.",
+      "matchPackageNames": ["django", "django-stubs*", "pytest-django"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "django stack"
+    }
+  ]
+}
