@@ -272,18 +272,7 @@ class Client(requests.Session):
             page += 1
 
     def fetch_ticket_settings(self) -> JsonObject:
-        url = f"{self.base_url}/tickets/settings"
-        response = requests.get(
-            url,
-            params={"api_key": self.token},
-            headers={
-                "Accept": "application/json",
-                "User-Agent": "repairshopr-api",
-            },
-            timeout=30,
-        )
-        response.raise_for_status()
-        payload = response.json()
+        payload = self.get(f"{self.base_url}/tickets/settings").json()
         if not is_json_object(payload):
             raise ValueError("Unexpected RepairShopr ticket settings payload.")
         return payload
