@@ -17,7 +17,7 @@ RUNTIME_SECRETS = {
 
 @pytest.fixture
 def runtime_env(tmp_path, monkeypatch) -> None:
-    monkeypatch.setenv("CONFIG_FILE", str(tmp_path / "config.toml"))
+    monkeypatch.setenv("REPAIRSHOPR_CONFIG_FILE", str(tmp_path / "config.toml"))
     monkeypatch.setenv("REPAIRSHOPR_URL_STORE_NAME", "store-name")
     monkeypatch.setenv("SYNC_DB_HOST", "mysql")
     for name, value in RUNTIME_SECRETS.items():
@@ -84,8 +84,8 @@ def test_bootstrap_config_cleans_the_file_app_settings_reads(
     tmp_path, monkeypatch, path_env_vars: tuple[str, ...]
 ) -> None:
     monkeypatch.setenv("HOME", str(tmp_path / "home"))
-    monkeypatch.delenv("CONFIG_FILE")
-    monkeypatch.delenv("REPAIRSHOPR_CONFIG_FILE", raising=False)
+    monkeypatch.delenv("REPAIRSHOPR_CONFIG_FILE")
+    monkeypatch.delenv("CONFIG_FILE", raising=False)
     for name in path_env_vars:
         monkeypatch.setenv(name, str(tmp_path / f"{name}.toml"))
 
