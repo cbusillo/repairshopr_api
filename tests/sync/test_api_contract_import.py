@@ -61,13 +61,7 @@ def test_estimate_incremental_import_reads_every_filtered_page(
         return response({"line_items": [], "meta": {"total_pages": 1}})
 
     monkeypatch.setattr(requests.Session, "request", request)
-    window, params = command.model_mapping["Estimate"]
-    command.handle_model(
-        "repairshopr_data.models.estimate.Estimate",
-        "repairshopr_api.models.Estimate",
-        window,
-        params,
-    )
+    command.handle_model(*command.model_mapping["Estimate"])
 
     assert requested_pages == [1, 2, 3, 4]
     assert set(Estimate.objects.values_list("id", flat=True)) == {1, 2, 3, 4}

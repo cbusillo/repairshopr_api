@@ -171,9 +171,7 @@ def test_invoice_line_items_spanning_two_pages_are_imported(
     monkeypatch.setattr(settings.django, "last_updated_at", last_updated_at)
 
     cmd = build_command(monkeypatch)
-    cmd.handle_model(
-        "repairshopr_data.models.invoice.Invoice", "repairshopr_api.models.Invoice"
-    )
+    cmd.handle_model(*cmd.model_mapping["Invoice"])
 
     assert served_line_item_pages(api, line_item_filter_key) == {1, 2}
     invoice = Invoice.objects.get(id=invoice_id)
@@ -257,9 +255,7 @@ def test_partial_bulk_feed_does_not_hide_invoice_children(monkeypatch) -> None:
     monkeypatch.setattr(settings.django, "last_updated_at", None)
     cmd = build_command(monkeypatch)
     cmd.client.prefetch_line_items()  # Even an explicitly populated partial cache is unsafe.
-    cmd.handle_model(
-        "repairshopr_data.models.invoice.Invoice", "repairshopr_api.models.Invoice"
-    )
+    cmd.handle_model(*cmd.model_mapping["Invoice"])
     assert set(InvoiceLineItem.objects.values_list("id", flat=True)) == {
         row["id"] for row in rows
     }
@@ -289,7 +285,7 @@ def test_sample_reads_fresh_ids_and_preserves_checkpoint_on_missing_line(
     saved = []
     monkeypatch.setattr(settings, "save", lambda: saved.append(True))
     cmd = build_command(monkeypatch)
-    cmd.model_mapping = {"Invoice": (None, None)}
+    cmd.model_mapping = {"Invoice": cmd.model_mapping["Invoice"]}
     with pytest.raises(command_module.CommandError):
         cmd.handle()
     assert settings.django.last_updated_at == checkpoint
@@ -323,9 +319,8 @@ def test_invoice_payment_summary_is_retained(monkeypatch) -> None:
     api = FakeRepairShoprApi({"invoices": [row]}, 100)
     api.install(monkeypatch)
     monkeypatch.setattr(settings.django, "last_updated_at", None)
-    build_command(monkeypatch).handle_model(
-        "repairshopr_data.models.invoice.Invoice", "repairshopr_api.models.Invoice"
-    )
+    cmd = build_command(monkeypatch)
+    cmd.handle_model(*cmd.model_mapping["Invoice"])
     invoice = Invoice.objects.get(id=row["id"])
     for name in ("amount_paid", "balance_due", "is_recurring"):
         assert getattr(invoice, name) == row[name]
