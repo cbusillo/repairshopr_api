@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 import pytest
 import toml
 
+from repairshopr_api.config.base import AppSettings
 from scripts import bootstrap_repairshopr_sync_config as bootstrap
 
 RUNTIME_SECRETS = {
@@ -67,3 +68,27 @@ def test_bootstrap_config_fails_closed_when_required_env_missing(
 
     with pytest.raises(SystemExit, match=missing_var):
         bootstrap.bootstrap_config()
+
+
+@pytest.mark.usefixtures("runtime_env")
+@pytest.mark.parametrize(
+    "path_env_vars",
+    [
+        ("REPAIRSHOPR_CONFIG_FILE",),
+        ("CONFIG_FILE",),
+        ("REPAIRSHOPR_CONFIG_FILE", "CONFIG_FILE"),
+        (),
+    ],
+)
+def test_bootstrap_config_cleans_the_file_app_settings_reads(
+    tmp_path, monkeypatch, path_env_vars: tuple[str, ...]
+) -> None:
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    monkeypatch.delenv("CONFIG_FILE")
+    monkeypatch.delenv("REPAIRSHOPR_CONFIG_FILE", raising=False)
+    for name in path_env_vars:
+        monkeypatch.setenv(name, str(tmp_path / f"{name}.toml"))
+
+    config_file = bootstrap.bootstrap_config()
+
+    assert config_file == AppSettings().config_file_path

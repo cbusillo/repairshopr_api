@@ -29,13 +29,10 @@ def truthy(value: str) -> bool:
 
 
 def config_file_path() -> Path:
-    configured_path = os.getenv("CONFIG_FILE", "").strip()
+    configured_path = os.getenv("REPAIRSHOPR_CONFIG_FILE") or os.getenv("CONFIG_FILE")
     if configured_path:
         return Path(configured_path).expanduser()
-    config_root = (
-        Path(os.getenv("HOME", "/var/lib/repairshopr")) / ".config" / "repairshopr-api"
-    )
-    return config_root / "config.toml"
+    return Path.home() / ".config" / "repairshopr-api" / "config.toml"
 
 
 def bootstrap_config() -> Path:
