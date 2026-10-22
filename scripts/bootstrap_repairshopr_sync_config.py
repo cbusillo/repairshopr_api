@@ -12,7 +12,7 @@ REQUIRED_ENV_VARS = (
     "SYNC_DB_PASSWORD",
     "DJANGO_SECRET_KEY",
 )
-SECRET_CONFIG_KEYS = (
+CREDENTIAL_FIELDS = (
     ("repairshopr", "token"),
     ("django", "secret_key"),
     ("django", "db_password"),
@@ -50,7 +50,7 @@ def bootstrap_config() -> Path:
             data = {}
 
     data["debug"] = truthy(os.getenv("REPAIRSHOPR_DEBUG", "false"))
-    for section, key in SECRET_CONFIG_KEYS:
+    for section, key in CREDENTIAL_FIELDS:
         data.get(section, {}).pop(key, None)
 
     with config_file.open("w") as handle:
