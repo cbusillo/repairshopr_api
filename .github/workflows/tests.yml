@@ -47,7 +47,10 @@ jobs:
         run: uv run black --check .
 
       - name: Run tests with coverage gate
-        run: uv run pytest -q
+        run: |
+          set -euo pipefail
+          test_command="$(jq -er '.qualityGate.test.ci | select(type == "string" and length > 0)' .github/github.json)"
+          bash -euo pipefail -c "$test_command"
 
   mysql-integration:
     runs-on: ubuntu-latest

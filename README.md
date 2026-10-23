@@ -46,10 +46,11 @@ consistency with local checks and CI.
 The repository uses `pytest` with coverage gates.
 
 - Install test dependencies: `uv sync --locked --group dev`
-- Run the full suite: `uv run pytest -q`
-- Run with explicit coverage output: `uv run pytest --cov --cov-report=term-missing`
-- Run MariaDB integration tests against a local database initialized with the
-  CI defaults:
+- Select focused local tests through [AGENTS.md — Tests](AGENTS.md#tests) and
+  the canonical commands in `.github/github.json`.
+- CI runs the complete pytest suite with its configured coverage threshold.
+- For schema/migration changes, run the MariaDB integration module against a
+  disposable local test database initialized with the CI defaults:
 
   ```bash
   uv sync --locked --group dev --extra sync
@@ -69,7 +70,7 @@ Notes:
 
 - Tests do not call the live RepairShopr API.
 - Shell tests for `scripts/repairshopr-sync-entrypoint.sh` run with command stubs.
-- The default coverage threshold is enforced at `80%`.
+- Whole-project coverage is enforced in CI; focused local runs use `--no-cov`.
 - A dedicated CI job runs MariaDB-backed integration checks for
   schema/migrations using the database image declared by the production Compose
   contract.
