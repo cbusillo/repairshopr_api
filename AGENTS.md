@@ -46,7 +46,13 @@ see [README.md — Sync images and promotion](README.md#sync-images-and-promotio
 ## Tests
 
 - Install test dependencies: `uv sync --locked --group dev`
-- Run test suite: `uv run pytest -q`
+- Follow the [local/CI test command contract](https://github.com/cbusillo/codex-skills/blob/HEAD/skills/github/references/config-schema.md#workflow-metadata).
+  Replace `{test_paths}` in `qualityGate.test.local` with a nonempty selection.
+  Select whole safety modules for affected flush/recovery commands (`tests/sync`),
+  bootstrap/entrypoint/health wrappers (`tests/scripts`), or home-config isolation
+  (`tests/test_home_config_isolation.py`); trace callers for other affected modules.
+  Focused local runs omit whole-project coverage; CI requires the complete
+  `test.ci` coverage gate and the existing MariaDB integration job before ready or merge.
 
 Follow the [shared Tests rule](https://github.com/cbusillo/codex-skills/blob/HEAD/instructions/global.md#tests).
 
