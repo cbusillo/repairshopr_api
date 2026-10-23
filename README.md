@@ -48,29 +48,13 @@ The repository uses `pytest` with coverage gates.
 - Install test dependencies: `uv sync --locked --group dev`
 - Select focused local tests through [AGENTS.md — Tests](AGENTS.md#tests) and
   the canonical commands in `.github/github.json`.
-- CI runs the complete pytest suite with its configured coverage threshold.
-- For schema/migration changes, run the MariaDB integration module against a
-  disposable local test database initialized with the CI defaults:
-
-  ```bash
-  uv sync --locked --group dev --extra sync
-  export RUN_MARIADB_INTEGRATION=1
-  export MARIADB_DATABASE=repairshopr_test
-  export MARIADB_USER=repairshopr_api
-  export MARIADB_PASSWORD=root
-  uv run python -m django migrate --noinput \
-    --settings=tests.django_settings_mariadb
-  uv run python -m django makemigrations --check --dry-run \
-    --settings=tests.django_settings_mariadb
-  uv run pytest -q -m integration \
-    --ds=tests.django_settings_mariadb --no-cov
-  ```
+- For schema/migration changes, use `qualityGate.test.mariadbIntegration` against
+  a disposable local test database initialized with its declared CI defaults.
 
 Notes:
 
 - Tests do not call the live RepairShopr API.
 - Shell tests for `scripts/repairshopr-sync-entrypoint.sh` run with command stubs.
-- Whole-project coverage is enforced in CI; focused local runs use `--no-cov`.
 - A dedicated CI job runs MariaDB-backed integration checks for
   schema/migrations using the database image declared by the production Compose
   contract.
