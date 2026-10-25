@@ -20,7 +20,7 @@ validation commands, GitHub signal availability, and docs routing.
 ## What RepairShopr API does
 
 RepairShopr API is a Python client for RepairShopr, with models and API helpers.
-Its optional Django sync service keeps a local database copy of supported RepairShopr records.
+Its optional Django sync service stores supported RepairShopr records in a database.
 Evidence: [README.md](README.md#sync-coverage).
 
 ## Setup
