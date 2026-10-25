@@ -6,6 +6,11 @@ x-launchplane-image: &launchplane-image "${DOCKER_IMAGE_REFERENCE:?DOCKER_IMAGE_
 services:
   sync:
     image: *launchplane-image
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 2g
     environment:
       HOME: /var/lib/repairshopr
       REPAIRSHOPR_TOKEN: ${REPAIRSHOPR_TOKEN}
@@ -40,6 +45,14 @@ services:
 
   db:
     image: mariadb:13.0
+    command:
+      - --innodb-buffer-pool-size=512M
+      - --innodb-buffer-pool-size-max=512M
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 2g
     restart: unless-stopped
     ports:
       - "${SYNC_DB_HOST_PORT:-3307}:3306"

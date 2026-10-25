@@ -69,6 +69,19 @@ website are not live; see the direction milestones `CM website live and used`
 and `CM inventory in the CM Odoo` in `cbusillo/direction`. Recheck this when
 either milestone closes.
 
+## Resource Budget
+
+The [add-on Compose contract](../../addons/repairshopr-sync/compose.yml) defines
+each service's CPU and memory ceilings and MariaDB's initial and maximum InnoDB
+buffer pool sizes. The provider entrypoint includes this same contract. Other
+server allocations share the database container's remaining memory budget.
+
+These are container limits, not reservations or disk I/O limits. Before a host
+move or bootstrap, the infrastructure operator must verify the actual Docker
+CPU and memory limits, MariaDB's running pool size and maximum, storage pressure
+and the other applications' health through the gated deployment path. A source
+merge does not apply these settings to production.
+
 ## Launchplane Health Readiness
 
 The container reads the RepairShopr token, sync database credentials and
