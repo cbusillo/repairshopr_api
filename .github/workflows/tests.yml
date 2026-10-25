@@ -101,10 +101,12 @@ jobs:
 
       - name: Start MariaDB from production compose
         run: |
-          image="$(
+          compose_config="$(
             docker compose -f addons/repairshopr-sync/compose.yml \
-              config --format json | jq -er '.services.db.image'
+              config --format json
           )"
+          image="$(jq -er '.services.db.image' <<< "$compose_config")"
+          mapfile -t db_command < <(jq -r '.services.db.command[]?' <<< "$compose_config")
           case "$image" in
             mariadb:* | mariadb@* | */mariadb:* | */mariadb@*) ;;
             *)
@@ -118,7 +120,7 @@ jobs:
             --env MARIADB_USER \
             --env MARIADB_PASSWORD \
             --publish "$MARIADB_PORT:3306" \
-            "$image"
+            "$image" "${db_command[@]}"
 
       - name: Set up Python
         uses: actions/setup-python@v7

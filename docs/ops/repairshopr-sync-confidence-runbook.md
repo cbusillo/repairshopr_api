@@ -71,22 +71,10 @@ either milestone closes.
 
 ## Resource Budget
 
-The add-on Compose contract caps each service at 1 CPU and 2 GiB RAM: a
-combined ceiling of 2 CPUs and 4 GiB, including fresh bootstrap. MariaDB starts
-with a 512 MiB InnoDB buffer pool and a matching startup maximum; connection
-buffers, temporary tables and other server memory share the remaining 1.5 GiB.
-The provider entrypoint includes this same contract.
-
-Read-only production measurements on October 25, 2026, around 1:21 AM ET found
-cgroup memory peaks of 137 MiB for sync and 270 MiB for MariaDB over roughly
-23 hours. The initial Docker sample used 0.151 CPU for sync and 0.037 CPU for
-MariaDB. The database's existing buffer pool was 128 MiB. The chosen CPU limits
-leave about 6.6 times and 27 times that sampled CPU use; the memory limits leave
-about 15 times and 7.6 times the observed peaks. The larger pool gives a fresh
-resync four times the existing cache while retaining space for other server
-allocations. These observations cover incremental operation, not a measured
-full resync, so the approved ceilings preserve bootstrap headroom while bounding
-competition with other applications on a shared host.
+The [add-on Compose contract](../../addons/repairshopr-sync/compose.yml) defines
+each service's CPU and memory ceilings and MariaDB's initial and maximum InnoDB
+buffer pool sizes. The provider entrypoint includes this same contract. Other
+server allocations share the database container's remaining memory budget.
 
 These are container limits, not reservations or disk I/O limits. Before a host
 move or bootstrap, the infrastructure operator must verify the actual Docker
