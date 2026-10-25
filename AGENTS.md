@@ -17,6 +17,12 @@ This repo is managed with uv and publishes to PyPI via GitHub Actions.
 Use `.github/github.json` for non-secret repo workflow facts,
 validation commands, GitHub signal availability, and docs routing.
 
+## What RepairShopr API does
+
+RepairShopr API is a Python client for RepairShopr, with models and API helpers.
+Its optional Django sync service stores supported RepairShopr records in a database.
+Evidence: [README.md](README.md#sync-coverage).
+
 ## Setup
 
 - Python version: `3.14`
