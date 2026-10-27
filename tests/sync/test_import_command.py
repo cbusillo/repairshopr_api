@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Mapping
-from datetime import UTC, date, datetime, timezone
+from datetime import UTC, date, datetime
 from types import SimpleNamespace
 from typing import Any, TypedDict, TypeGuard
 
@@ -47,7 +47,7 @@ class FakeClient:
     def clear_cache(self) -> None:
         self.cleared = True
 
-    def set_progress_callback(self, callback: ProgressCallback) -> None:  # type: ignore[no-untyped-def]
+    def set_progress_callback(self, callback: ProgressCallback) -> None:
         self.progress_callback = callback
 
     @staticmethod

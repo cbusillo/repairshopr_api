@@ -84,8 +84,6 @@ class Command(BaseCommand):
                 local_ids = set(child_model.objects.filter(**{f"{relation}_id": parent_id}).values_list("id", flat=True))
                 missing = by_id.keys() - local_ids
                 if options["apply"]:
-                    # Fetch every page before writes; rollback this entire parent
-                    # on an import failure. Previously completed parents can be replayed.
                     with transaction.atomic():
                         for row in by_id.values():
                             imported = create_or_update_django_instance(child_model, row, {relation: parents[parent_id]})

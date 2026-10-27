@@ -1,0 +1,19 @@
+{
+  "squash": "0001_squashed_0014_alter_ticketcomment_body_collation_portable",
+  "replaced": [
+    "0001_initial",
+    "0002_alter_customer_pdf_url",
+    "0003_alter_customer_pdf_url",
+    "0004_alter_customer_online_profile_url_and_more",
+    "0005_alter_estimatelineitem_name",
+    "0006_alter_invoicelineitem_name",
+    "0007_alter_payment_invoice_ids",
+    "0008_alter_ticketcomment_body",
+    "0009_alter_ticketcomment_body",
+    "0010_alter_ticketcomment_body",
+    "0011_alter_customer_online_profile_url_and_more",
+    "0012_add_ticket_settings_tables",
+    "0013_add_api_fields",
+    "0014_alter_ticketcomment_body_collation_portable"
+  ]
+}

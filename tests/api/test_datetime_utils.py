@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import UTC, date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 
 from repairshopr_api.utils import coerce_datetime, parse_datetime, relative_cutoff
 

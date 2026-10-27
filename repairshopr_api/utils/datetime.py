@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import re
-from datetime import UTC, date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 
 _TZ_WITHOUT_COLON_RE = re.compile(r"([+-]\d{2})(\d{2})$")
 _EXCESS_MICROS_RE = re.compile(r"(\.\d{6})\d+")

@@ -1,7 +1,7 @@
 """Current vendor API contracts exercised through HTTP and the Django importer."""
 
 from collections.abc import Mapping
-from datetime import UTC, datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from urllib.parse import urlparse
 
 import pytest

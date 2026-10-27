@@ -2,7 +2,7 @@ import json
 import logging
 import pprint
 from collections.abc import Mapping
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime
 from types import SimpleNamespace
 from typing import Any, NamedTuple, TypeGuard
 from uuid import uuid4
@@ -24,7 +24,7 @@ from repairshopr_data.models.estimate import EstimateLineItem
 
 from repairshopr_api import models as api_models
 from repairshopr_api.base.model import BaseModel
-from repairshopr_api.client import Client, ModelType
+from repairshopr_api.client import Client
 from repairshopr_api.config import settings
 from repairshopr_api.models.ticket import Ticket as ApiTicket
 from repairshopr_api.type_defs import JsonValue, QueryParams
@@ -32,7 +32,6 @@ from repairshopr_api.utils import coerce_datetime, parse_datetime
 
 logger = logging.getLogger(__name__)
 
-type ApiInstance = ModelType | SimpleNamespace
 type FieldValue = JsonValue | datetime | models.Model
 RELATED_PROPERTY_COLLECTIONS = frozenset({"line_items"})
 BASELINE_UPDATED_AT = datetime(2010, 1, 1, tzinfo=UTC)
@@ -53,8 +52,6 @@ class ModelSyncPlan(NamedTuple):
 
 
 def _instance_values(api_instance: object) -> Mapping[str, object] | None:
-    """Return instance values without triggering computed properties when possible."""
-
     if isinstance(api_instance, Mapping):
         return api_instance
     try:
@@ -158,7 +155,7 @@ def _coerce_integer_value(value: object, *, field_name: str) -> object:
 
 def create_or_update_django_instance(
     django_model: type[models.Model],
-    api_instance: ApiInstance | Mapping[str, object],
+    api_instance: object,
     extra_fields: Mapping[str, FieldValue] | None = None,
 ) -> models.Model | None:
     if extra_fields is None:

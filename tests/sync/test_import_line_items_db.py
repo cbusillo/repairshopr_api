@@ -2,8 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta, timezone
-from typing import Any
+from datetime import UTC, datetime, timedelta
 from urllib.parse import urlparse
 
 import pytest
