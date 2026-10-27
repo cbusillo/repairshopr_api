@@ -50,7 +50,6 @@ packages = ["repairshopr_api", "repairshopr_sync"]
 
 [tool.ruff]
 line-length = 133
-target-version = "py314"
 
 [tool.ruff.lint]
 select = ["ANN", "UP", "B", "I", "G", "BLE", "S608"]
