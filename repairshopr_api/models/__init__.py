@@ -1,7 +1,7 @@
-from .product import Product
-from .ticket import Ticket, Comment
-from .user import User
-from .invoice import Invoice, LineItem
-from .customer import Customer, Contact
+from .customer import Contact, Customer
 from .estimate import Estimate
+from .invoice import Invoice, LineItem
 from .payment import Payment
+from .product import Product
+from .ticket import Comment, Ticket
+from .user import User

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 
 from repairshopr_api.client import Client
 from repairshopr_api.models.user import User
@@ -31,7 +31,7 @@ def test_user_post_init_skips_refresh_when_recent_sync() -> None:
 
 
 def test_user_post_init_fetches_when_sync_is_old() -> None:
-    client = StubClient(updated_at=datetime.now(tz=timezone.utc) - timedelta(days=3))
+    client = StubClient(updated_at=datetime.now(tz=UTC) - timedelta(days=3))
     User.rs_client = client
 
     user = User(id=42)
@@ -42,7 +42,7 @@ def test_user_post_init_fetches_when_sync_is_old() -> None:
 
 
 def test_user_post_init_aware_vs_naive_regression() -> None:
-    client = StubClient(updated_at=datetime.now(tz=timezone.utc) - timedelta(days=2))
+    client = StubClient(updated_at=datetime.now(tz=UTC) - timedelta(days=2))
     User.rs_client = client
 
     user = User(id=99)

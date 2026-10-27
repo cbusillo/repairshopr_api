@@ -4,16 +4,13 @@ import json
 from types import SimpleNamespace
 
 import pytest
-
 from repairshopr_data.management.commands import (
     reconcile_invoice_line_items as command_module,
 )
 
 
 class _FilterResult:
-    def __init__(
-        self, *, ids: set[int] | None = None, count_value: int | None = None
-    ) -> None:
+    def __init__(self, *, ids: set[int] | None = None, count_value: int | None = None) -> None:
         self._ids = ids or set()
         self._count_value = count_value
 
@@ -27,15 +24,11 @@ class _FilterResult:
         return self._count_value
 
 
-def _build_invoice_line_item_manager(
-    db_line_item_ids: set[int], *, include_values_list: bool = False
-) -> object:
+def _build_invoice_line_item_manager(db_line_item_ids: set[int], *, include_values_list: bool = False) -> object:
     def filter_fn(**kwargs: object) -> _FilterResult:
         id_in = kwargs.get("id__in")
         if isinstance(id_in, (list, set)):
-            return _FilterResult(
-                ids={item for item in id_in if item in db_line_item_ids}
-            )
+            return _FilterResult(ids={item for item in id_in if item in db_line_item_ids})
 
         if kwargs.get("parent_invoice_id__isnull"):
             return _FilterResult(count_value=0)
@@ -65,9 +58,7 @@ def _build_invoice_manager() -> object:
     def filter_fn(**kwargs: object) -> _FilterResult:
         id_in = kwargs.get("id__in")
         assert isinstance(id_in, set)
-        return _FilterResult(
-            ids={invoice_id for invoice_id in id_in if invoice_id == 30}
-        )
+        return _FilterResult(ids={invoice_id for invoice_id in id_in if invoice_id == 30})
 
     return SimpleNamespace(filter=filter_fn)
 
@@ -81,7 +72,7 @@ def test_reconcile_scan_reports_duplicates_and_missing(
 
     class FakeClient:
         @staticmethod
-        def fetch_from_api(model_name: str, params: dict[str, object] | None = None):
+        def fetch_from_api(model_name: str, params: dict[str, object] | None = None) -> tuple[list[dict[str, int]], dict[str, int]]:
             assert model_name == "line_item"
             page = (params or {}).get("page", 1)
             assert isinstance(page, int)
@@ -139,7 +130,7 @@ def test_reconcile_compute_db_not_in_api_unique(
 
     class FakeClient:
         @staticmethod
-        def fetch_from_api(model_name: str, params: dict[str, object] | None = None):
+        def fetch_from_api(model_name: str, params: dict[str, object] | None = None) -> tuple[list[dict[str, int]], dict[str, int]]:
             assert model_name == "line_item"
             assert params is not None
             page = params.get("page", 1)
@@ -159,11 +150,7 @@ def test_reconcile_compute_db_not_in_api_unique(
     monkeypatch.setattr(
         command_module,
         "InvoiceLineItem",
-        SimpleNamespace(
-            objects=_build_invoice_line_item_manager(
-                db_line_item_ids, include_values_list=True
-            )
-        ),
+        SimpleNamespace(objects=_build_invoice_line_item_manager(db_line_item_ids, include_values_list=True)),
     )
     monkeypatch.setattr(
         command_module,

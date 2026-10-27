@@ -5,12 +5,7 @@ from pathlib import Path
 
 import pytest
 
-SYNC_SETTINGS = (
-    Path(__file__).resolve().parents[2]
-    / "repairshopr_sync"
-    / "repairshopr_sync"
-    / "settings.py"
-)
+SYNC_SETTINGS = Path(__file__).resolve().parents[2] / "repairshopr_sync" / "repairshopr_sync" / "settings.py"
 
 
 def test_sync_settings_read_secrets_from_environment(

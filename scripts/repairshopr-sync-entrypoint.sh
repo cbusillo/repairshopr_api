@@ -49,7 +49,7 @@ try:
         db=os.environ["SYNC_DB_NAME"],
         connect_timeout=5,
     ).close()
-except Exception:
+except MySQLdb.Error:
     sys.exit(1)
 sys.exit(0)
 PY

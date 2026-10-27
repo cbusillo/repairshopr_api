@@ -1,18 +1,14 @@
-"""End-to-end import tests against real Django models with only HTTP faked."""
-
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
+from typing import Any
 from urllib.parse import urlparse
 
 import pytest
 import requests
-
-from repairshopr_api.base.model import BaseModel
-from repairshopr_api.config import settings
-from repairshopr_api.type_defs import JsonObject, JsonValue
+from django.db import models
 from repairshopr_data.management.commands import (
     import_from_repairshopr as command_module,
 )
@@ -25,6 +21,10 @@ from repairshopr_data.models import (
     Ticket,
     TicketProperties,
 )
+
+from repairshopr_api.base.model import BaseModel
+from repairshopr_api.config import settings
+from repairshopr_api.type_defs import JsonObject, JsonValue
 
 API_PREFIX = "/api/v1/"
 NON_FILTER_PARAMS = frozenset({"page", "sort", "since_updated_at"})
@@ -79,9 +79,7 @@ class FakeRepairShoprApi:
             self.before_serving(served)
         self.served.append(served)
 
-        rows = [
-            row for row in self.collections.get(path, []) if self._matches(row, params)
-        ]
+        rows = [row for row in self.collections.get(path, []) if self._matches(row, params)]
         page_value = params.get("page", 1)
         page = page_value if isinstance(page_value, int) else int(str(page_value))
         total_pages = max(1, -(-len(rows) // self.per_page))
@@ -133,7 +131,7 @@ def served_line_item_pages(api: FakeRepairShoprApi, filter_key: str) -> set[obje
     [
         pytest.param(None, "invoice_id", id="full-sync-per-invoice"),
         pytest.param(
-            datetime.now(timezone.utc) - timedelta(days=1),
+            datetime.now(UTC) - timedelta(days=1),
             "invoice_id",
             id="incremental-per-invoice",
         ),
@@ -146,9 +144,7 @@ def test_invoice_line_items_spanning_two_pages_are_imported(
 ) -> None:
     per_page = 100
     invoice_id = 4242
-    line_item_ids = [
-        90_000 + position for position in range(1, per_page + per_page // 2 + 1)
-    ]
+    line_item_ids = [90_000 + position for position in range(1, per_page + per_page // 2 + 1)]
     line_items: list[JsonObject] = [
         {
             "id": line_item_id,
@@ -175,11 +171,7 @@ def test_invoice_line_items_spanning_two_pages_are_imported(
 
     assert served_line_item_pages(api, line_item_filter_key) == {1, 2}
     invoice = Invoice.objects.get(id=invoice_id)
-    imported_ids = set(
-        InvoiceLineItem.objects.filter(parent_invoice=invoice).values_list(
-            "id", flat=True
-        )
-    )
+    imported_ids = set(InvoiceLineItem.objects.filter(parent_invoice=invoice).values_list("id", flat=True))
     assert imported_ids == set(line_item_ids)
     assert InvoiceLineItem.objects.count() == len(line_items)
 
@@ -191,13 +183,12 @@ def test_sync_heartbeat_advances_during_multi_page_invoice_import(
     per_page = 2
     page_count = 3
     invoices: list[JsonObject] = [
-        {"id": invoice_id, "number": f"INV-{invoice_id}"}
-        for invoice_id in range(1, per_page * page_count + 1)
+        {"id": invoice_id, "number": f"INV-{invoice_id}"} for invoice_id in range(1, per_page * page_count + 1)
     ]
     api = FakeRepairShoprApi({"invoices": invoices}, per_page=per_page)
     api.install(monkeypatch)
 
-    clock = [datetime(2026, 3, 1, tzinfo=timezone.utc)]
+    clock = [datetime(2026, 3, 1, tzinfo=UTC)]
 
     def advancing_now() -> datetime:
         # Every heartbeat check sees a full time interval elapse, as in a slow import.
@@ -212,9 +203,7 @@ def test_sync_heartbeat_advances_during_multi_page_invoice_import(
 
     def snapshot_status(request: ServedRequest) -> None:
         if request.collection == "invoices":
-            status_before_invoice_page[request.params["page"]] = SyncStatus.objects.get(
-                id=1
-            )
+            status_before_invoice_page[request.params["page"]] = SyncStatus.objects.get(id=1)
 
     api.before_serving = snapshot_status
 
@@ -233,13 +222,13 @@ def test_sync_heartbeat_advances_during_multi_page_invoice_import(
 
 
 @pytest.mark.django_db
-def test_partial_bulk_feed_does_not_hide_invoice_children(monkeypatch) -> None:
+def test_partial_bulk_feed_does_not_hide_invoice_children(monkeypatch: pytest.MonkeyPatch) -> None:
     invoice_id = 42
     rows = [{"id": i, "invoice_id": invoice_id} for i in range(1, 5)]
     api = FakeRepairShoprApi({"invoices": [{"id": invoice_id}], "line_items": rows}, 2)
     original_respond = api.respond
 
-    def respond(path, params):
+    def respond(path: str, params: Mapping[str, object]) -> JsonObject:
         payload = original_respond(path, params)
         if path == "line_items" and "invoice_id_not_null" in params:
             # Real defect: a bulk feed has some rows for a parent, so the old
@@ -256,22 +245,18 @@ def test_partial_bulk_feed_does_not_hide_invoice_children(monkeypatch) -> None:
     cmd = build_command(monkeypatch)
     cmd.client.prefetch_line_items()  # Even an explicitly populated partial cache is unsafe.
     cmd.handle_model(*cmd.model_mapping["Invoice"])
-    assert set(InvoiceLineItem.objects.values_list("id", flat=True)) == {
-        row["id"] for row in rows
-    }
+    assert set(InvoiceLineItem.objects.values_list("id", flat=True)) == {row["id"] for row in rows}
 
 
 @pytest.mark.django_db
 def test_sample_reads_fresh_ids_and_preserves_checkpoint_on_missing_line(
-    monkeypatch,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    checkpoint = datetime(2026, 9, 1, tzinfo=timezone.utc)
-    api = FakeRepairShoprApi(
-        {"invoices": [{"id": 42}], "line_items": [{"id": 1, "invoice_id": 42}]}, 100
-    )
+    checkpoint = datetime(2026, 9, 1, tzinfo=UTC)
+    api = FakeRepairShoprApi({"invoices": [{"id": 42}], "line_items": [{"id": 1, "invoice_id": 42}]}, 100)
     reads = 0
 
-    def change_child_ids(request):
+    def change_child_ids(request: ServedRequest) -> None:
         nonlocal reads
         if request.collection == "line_items" and "invoice_id" in request.params:
             reads += 1
@@ -299,7 +284,7 @@ def test_sample_reads_fresh_ids_and_preserves_checkpoint_on_missing_line(
     [(Customer, CustomerProperties, "title"), (Ticket, TicketProperties, "case")],
 )
 def test_embedded_properties_reuse_the_parent_row(
-    parent_model, properties_model, field_name
+    parent_model: type[models.Model], properties_model: type[models.Model], field_name: str
 ) -> None:
     create = command_module.create_or_update_django_instance
     first = create(parent_model, {"id": 1, "properties": {field_name: "before"}})
@@ -314,7 +299,7 @@ def test_embedded_properties_reuse_the_parent_row(
 
 
 @pytest.mark.django_db
-def test_invoice_payment_summary_is_retained(monkeypatch) -> None:
+def test_invoice_payment_summary_is_retained(monkeypatch: pytest.MonkeyPatch) -> None:
     row = {"id": 42, "amount_paid": 15.0, "balance_due": 3.5, "is_recurring": True}
     api = FakeRepairShoprApi({"invoices": [row]}, 100)
     api.install(monkeypatch)

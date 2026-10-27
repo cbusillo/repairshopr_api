@@ -1,36 +1,36 @@
 from __future__ import annotations
 
 import logging
-from datetime import date, datetime, timezone
+from collections.abc import Mapping
+from datetime import UTC, date, datetime, timezone
 from types import SimpleNamespace
-from typing import Mapping, TypedDict, TypeAlias, TypeGuard
+from typing import Any, TypedDict, TypeGuard
 
 import pytest
 import requests
 from django.db import models
-
-from repairshopr_api.base.model import BaseModel
-from repairshopr_api.config import settings
 from repairshopr_data.management.commands import (
     import_from_repairshopr as command_module,
 )
 from repairshopr_data.management.commands.import_from_repairshopr import (
     _coerce_datetime,
+    _coerce_integer_value,
     _instance_get_field,
     _instance_has_field,
     _normalize_identifier,
-    _coerce_integer_value,
     _parse_datetime,
     _resolve_related_collection,
     create_or_update_django_instance,
 )
 
+from repairshopr_api.base.model import BaseModel
+from repairshopr_api.client import ProgressCallback
+from repairshopr_api.config import settings
+
 
 class FakeClient:
     def __init__(self) -> None:
-        self.calls: list[
-            tuple[type, datetime | None, int | None, dict[str, object] | None]
-        ] = []
+        self.calls: list[tuple[type, datetime | None, int | None, dict[str, object] | None]] = []
         self.cleared = False
         self.progress_callback = None
 
@@ -47,7 +47,7 @@ class FakeClient:
     def clear_cache(self) -> None:
         self.cleared = True
 
-    def set_progress_callback(self, callback) -> None:  # type: ignore[no-untyped-def]
+    def set_progress_callback(self, callback: ProgressCallback) -> None:  # type: ignore[no-untyped-def]
         self.progress_callback = callback
 
     @staticmethod
@@ -66,7 +66,7 @@ class FakeClient:
         return {}
 
 
-CommandFixture: TypeAlias = tuple[command_module.Command, FakeClient]
+type CommandFixture = tuple[command_module.Command, FakeClient]
 
 
 class DummyApiModel(BaseModel):
@@ -77,9 +77,7 @@ class StoringManager:
     def __init__(self) -> None:
         self.store: dict[int, SimpleNamespace] = {}
 
-    def update_or_create(
-        self, defaults: dict[str, object], **lookup: object
-    ) -> tuple[SimpleNamespace, bool]:
+    def update_or_create(self, defaults: dict[str, object], **lookup: object) -> tuple[SimpleNamespace, bool]:
         instance_id = lookup.get("id")
         assert isinstance(instance_id, int)
         obj = self.store.get(instance_id, SimpleNamespace(id=instance_id))
@@ -99,9 +97,7 @@ class ForeignKeyTestManager:
     def __init__(self) -> None:
         self.calls: list[ForeignKeyUpdateCall] = []
 
-    def update_or_create(
-        self, defaults: dict[str, object], **lookup: object
-    ) -> tuple[SimpleNamespace, bool]:
+    def update_or_create(self, defaults: dict[str, object], **lookup: object) -> tuple[SimpleNamespace, bool]:
         lookup_id = lookup.get("id")
         assert lookup_id is None or isinstance(lookup_id, int)
         self.calls.append({"id": lookup_id, "defaults": defaults})
@@ -149,9 +145,7 @@ def set_line_item_parity_counts(
     invoice_count: int,
     estimate_count: int,
 ) -> None:
-    monkeypatch.setattr(
-        cmd, "_fetch_line_item_total_entries", lambda _key: expected_total
-    )
+    monkeypatch.setattr(cmd, "_fetch_line_item_total_entries", lambda _key: expected_total)
     monkeypatch.setattr(
         command_module,
         "InvoiceLineItem",
@@ -175,7 +169,7 @@ def setup_handle_model_test_state(
     SimpleNamespace,
 ]:
     cmd, fake_client = command
-    settings.django.last_updated_at = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    settings.django.last_updated_at = datetime(2026, 1, 1, tzinfo=UTC)
 
     set_calls: list[list[SimpleNamespace]] = []
     saved_children: list[int] = []
@@ -218,11 +212,7 @@ def command(monkeypatch: pytest.MonkeyPatch) -> CommandFixture:
     monkeypatch.setattr(
         command_module,
         "SyncStatus",
-        SimpleNamespace(
-            objects=SimpleNamespace(
-                update_or_create=lambda **_kwargs: (SimpleNamespace(id=1), True)
-            )
-        ),
+        SimpleNamespace(objects=SimpleNamespace(update_or_create=lambda **_kwargs: (SimpleNamespace(id=1), True))),
     )
     cmd = command_module.Command()
     return cmd, fake_client
@@ -230,7 +220,7 @@ def command(monkeypatch: pytest.MonkeyPatch) -> CommandFixture:
 
 def test_parse_datetime_and_coerce_datetime(caplog: pytest.LogCaptureFixture) -> None:
     parsed = _parse_datetime("2026-01-01T00:00:00Z", field_name="x")
-    assert parsed == datetime(2026, 1, 1, tzinfo=timezone.utc)
+    assert parsed == datetime(2026, 1, 1, tzinfo=UTC)
 
     caplog.set_level(logging.WARNING)
     invalid = _parse_datetime("nope", field_name="x")
@@ -238,12 +228,8 @@ def test_parse_datetime_and_coerce_datetime(caplog: pytest.LogCaptureFixture) ->
     assert "Unable to parse datetime" in caplog.text
 
     assert _coerce_datetime(date(2026, 1, 2), field_name="x") == datetime(2026, 1, 2)
-    assert _coerce_datetime("2026-01-03T00:00:00+00:00", field_name="x") == datetime(
-        2026, 1, 3, tzinfo=timezone.utc
-    )
-    assert _coerce_datetime(1_704_067_200, field_name="x") == datetime(
-        2024, 1, 1, tzinfo=timezone.utc
-    )
+    assert _coerce_datetime("2026-01-03T00:00:00+00:00", field_name="x") == datetime(2026, 1, 3, tzinfo=UTC)
+    assert _coerce_datetime(1_704_067_200, field_name="x") == datetime(2024, 1, 1, tzinfo=UTC)
     assert _coerce_datetime(object(), field_name="x") is None
 
 
@@ -304,18 +290,12 @@ def test_resolve_related_collection_allows_line_items_property() -> None:
             calls["count"] += 1
             return [{"id": 6}]
 
-    assert _resolve_related_collection(ApiInstanceWithLineItems(), "line_items") == [
-        {"id": 5}
-    ]
-    assert (
-        _resolve_related_collection(ApiInstanceWithOtherProperty(), "comments") is None
-    )
+    assert _resolve_related_collection(ApiInstanceWithLineItems(), "line_items") == [{"id": 5}]
+    assert _resolve_related_collection(ApiInstanceWithOtherProperty(), "comments") is None
     assert calls["count"] == 1
 
 
-def test_handle_model_coerces_naive_last_updated_at(
-    command: CommandFixture, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_handle_model_coerces_naive_last_updated_at(command: CommandFixture, monkeypatch: pytest.MonkeyPatch) -> None:
     cmd, fake_client = command
     settings.django.last_updated_at = datetime(2026, 1, 1)
 
@@ -336,7 +316,7 @@ def test_handle_model_uses_baseline_when_last_updated_is_too_old(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     cmd, fake_client = command
-    settings.django.last_updated_at = datetime(2000, 1, 1, tzinfo=timezone.utc)
+    settings.django.last_updated_at = datetime(2000, 1, 1, tzinfo=UTC)
 
     cmd.handle_model(
         simple_django_model(),
@@ -354,8 +334,8 @@ def test_handle_logs_timing_and_updates_last_updated_at(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     cmd, fake_client = command
-    start = datetime(2026, 2, 1, 12, tzinfo=timezone.utc)
-    end = datetime(2026, 2, 1, 12, 1, 5, tzinfo=timezone.utc)
+    start = datetime(2026, 2, 1, 12, tzinfo=UTC)
+    end = datetime(2026, 2, 1, 12, 1, 5, tzinfo=UTC)
     monkeypatch.setattr(command_module, "now", lambda: end)
     monkeypatch.setattr(cmd, "handle_model", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(cmd, "sync_ticket_settings", lambda: None)
@@ -445,9 +425,7 @@ def test_validate_sync_completeness_fails_for_unverified_incremental_sample(
     monkeypatch.setattr(
         cmd,
         "_evaluate_invoice_line_item_sample_parity",
-        lambda *_args, **_kwargs: (_ for _ in ()).throw(
-            requests.RequestException("sample broke")
-        ),
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(requests.RequestException("sample broke")),
     )
 
     with pytest.raises(command_module.CommandError) as failure:
@@ -493,9 +471,7 @@ def test_create_or_update_django_instance_is_idempotent(
         "FakeDjangoModel",
         (),
         {
-            "_meta": SimpleNamespace(
-                fields=[full_name_field, created_at_field, color_field]
-            ),
+            "_meta": SimpleNamespace(fields=[full_name_field, created_at_field, color_field]),
             "objects": fake_manager,
         },
     )
@@ -506,26 +482,20 @@ def test_create_or_update_django_instance_is_idempotent(
         created_at=datetime(2026, 2, 1, 10),
         color="blue",
     )
-    create_or_update_django_instance(
-        as_django_model_type(fake_django_model_cls), api_instance
-    )
+    create_or_update_django_instance(as_django_model_type(fake_django_model_cls), api_instance)
 
     api_instance.full_name = "Updated"
     api_instance.color = "green"
-    create_or_update_django_instance(
-        as_django_model_type(fake_django_model_cls), api_instance
-    )
+    create_or_update_django_instance(as_django_model_type(fake_django_model_cls), api_instance)
 
     assert len(fake_manager.store) == 1
     stored = fake_manager.store[501]
     assert stored.full_name == "Updated"
     assert stored.color == "green"
-    assert stored.created_at == datetime(2026, 2, 1, 10, tzinfo=timezone.utc)
+    assert stored.created_at == datetime(2026, 2, 1, 10, tzinfo=UTC)
 
 
-def test_create_or_update_django_instance_coerces_blank_integer_fields_to_none() -> (
-    None
-):
+def test_create_or_update_django_instance_coerces_blank_integer_fields_to_none() -> None:
     fake_manager = StoringManager()
 
     type_field = models.IntegerField(null=True)
@@ -541,9 +511,7 @@ def test_create_or_update_django_instance_coerces_blank_integer_fields_to_none()
         },
     )
 
-    create_or_update_django_instance(
-        as_django_model_type(model_cls), SimpleNamespace(id=42, type="")
-    )
+    create_or_update_django_instance(as_django_model_type(model_cls), SimpleNamespace(id=42, type=""))
 
     assert fake_manager.store[42].type is None
 
@@ -561,9 +529,7 @@ def test_create_or_update_django_instance_accepts_mapping_payload() -> None:
         },
     )
 
-    create_or_update_django_instance(
-        as_django_model_type(model_cls), {"id": "77", "full_name": "Mapped Name"}
-    )
+    create_or_update_django_instance(as_django_model_type(model_cls), {"id": "77", "full_name": "Mapped Name"})
 
     assert fake_manager.store[77].full_name == "Mapped Name"
 
@@ -578,9 +544,7 @@ def test_create_or_update_django_instance_handles_foreign_keys(
         "RelatedModel",
         (),
         {
-            "_meta": SimpleNamespace(
-                fields=[SimpleNamespace(name="name", auto_created=False)]
-            ),
+            "_meta": SimpleNamespace(fields=[SimpleNamespace(name="name", auto_created=False)]),
             "objects": related_manager,
         },
     )
@@ -631,9 +595,7 @@ def test_create_or_update_django_instance_handles_mapping_foreign_keys(
         "RelatedModel",
         (),
         {
-            "_meta": SimpleNamespace(
-                fields=[SimpleNamespace(name="name", auto_created=False)]
-            ),
+            "_meta": SimpleNamespace(fields=[SimpleNamespace(name="name", auto_created=False)]),
             "objects": related_manager,
         },
     )
@@ -644,9 +606,7 @@ def test_create_or_update_django_instance_handles_mapping_foreign_keys(
         "ParentModel",
         (),
         {
-            "_meta": SimpleNamespace(
-                fields=[SimpleNamespace(name="status", auto_created=False), owner_field]
-            ),
+            "_meta": SimpleNamespace(fields=[SimpleNamespace(name="status", auto_created=False), owner_field]),
             "objects": parent_manager,
         },
     )
@@ -657,9 +617,7 @@ def test_create_or_update_django_instance_handles_mapping_foreign_keys(
         "owner": {"id": "9", "name": "Owner"},
     }
 
-    result = create_or_update_django_instance(
-        as_django_model_type(parent_model_cls), parent_payload
-    )
+    result = create_or_update_django_instance(as_django_model_type(parent_model_cls), parent_payload)
 
     assert getattr(result, "id", None) == 101
     assert related_manager.calls[0]["id"] == 9
@@ -670,9 +628,7 @@ def test_create_or_update_django_instance_surfaces_data_errors(
 ) -> None:
     class ErrorManager:
         @staticmethod
-        def update_or_create(
-            defaults: dict[str, object], **_lookup: object
-        ) -> tuple[SimpleNamespace, bool]:
+        def update_or_create(defaults: dict[str, object], **_lookup: object) -> tuple[SimpleNamespace, bool]:
             _ = defaults
             raise command_module.DataError("bad data")
 
@@ -680,17 +636,13 @@ def test_create_or_update_django_instance_surfaces_data_errors(
         "ErrorModel",
         (),
         {
-            "_meta": SimpleNamespace(
-                fields=[SimpleNamespace(name="name", auto_created=False)]
-            ),
+            "_meta": SimpleNamespace(fields=[SimpleNamespace(name="name", auto_created=False)]),
             "objects": ErrorManager(),
         },
     )
 
     with pytest.raises(command_module.DataError):
-        create_or_update_django_instance(
-            as_django_model_type(model_cls), SimpleNamespace(id=1, name="x")
-        )
+        create_or_update_django_instance(as_django_model_type(model_cls), SimpleNamespace(id=1, name="x"))
 
 
 def test_create_or_update_django_instance_surfaces_operational_errors(
@@ -698,9 +650,7 @@ def test_create_or_update_django_instance_surfaces_operational_errors(
 ) -> None:
     class ErrorManager:
         @staticmethod
-        def update_or_create(
-            defaults: dict[str, object], **_lookup: object
-        ) -> tuple[SimpleNamespace, bool]:
+        def update_or_create(defaults: dict[str, object], **_lookup: object) -> tuple[SimpleNamespace, bool]:
             _ = defaults
             raise command_module.OperationalError("db down")
 
@@ -708,25 +658,17 @@ def test_create_or_update_django_instance_surfaces_operational_errors(
         "ErrorModel",
         (),
         {
-            "_meta": SimpleNamespace(
-                fields=[SimpleNamespace(name="name", auto_created=False)]
-            ),
+            "_meta": SimpleNamespace(fields=[SimpleNamespace(name="name", auto_created=False)]),
             "objects": ErrorManager(),
         },
     )
 
     with pytest.raises(command_module.OperationalError):
-        create_or_update_django_instance(
-            as_django_model_type(model_cls), SimpleNamespace(id=1, name="x")
-        )
+        create_or_update_django_instance(as_django_model_type(model_cls), SimpleNamespace(id=1, name="x"))
 
 
-def test_handle_model_processes_related_submodels(
-    command: CommandFixture, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    cmd, fake_client, set_calls, saved_children, parent_instance = (
-        setup_handle_model_test_state(command, "ticketcomments")
-    )
+def test_handle_model_processes_related_submodels(command: CommandFixture, monkeypatch: pytest.MonkeyPatch) -> None:
+    cmd, fake_client, set_calls, saved_children, parent_instance = setup_handle_model_test_state(command, "ticketcomments")
 
     def fake_create_or_update(
         model_cls: type[models.Model],
@@ -745,9 +687,7 @@ def test_handle_model_processes_related_submodels(
         child.save = fake_save
         return child
 
-    monkeypatch.setattr(
-        command_module, "create_or_update_django_instance", fake_create_or_update
-    )
+    monkeypatch.setattr(command_module, "create_or_update_django_instance", fake_create_or_update)
 
     class DjangoModel:
         __name__ = "Ticket"
@@ -766,9 +706,7 @@ def test_handle_model_processes_related_submodels(
         pass
 
     child_api_items = [SimpleNamespace(id=11), SimpleNamespace(id=12)]
-    fake_client.get_model = lambda *_args, **_kwargs: [
-        SimpleNamespace(id=1, ticketcomments=child_api_items)
-    ]
+    fake_client.get_model = lambda *_args, **_kwargs: [SimpleNamespace(id=1, ticketcomments=child_api_items)]
 
     cmd.handle_model(as_django_model_type(DjangoModel), ApiModel)
 
@@ -777,12 +715,8 @@ def test_handle_model_processes_related_submodels(
     assert [item.id for item in set_calls[0]] == [11, 12]
 
 
-def test_handle_model_processes_line_items_from_property(
-    command: CommandFixture, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    cmd, fake_client, set_calls, saved_children, parent_instance = (
-        setup_handle_model_test_state(command, "line_items")
-    )
+def test_handle_model_processes_line_items_from_property(command: CommandFixture, monkeypatch: pytest.MonkeyPatch) -> None:
+    cmd, fake_client, set_calls, saved_children, parent_instance = setup_handle_model_test_state(command, "line_items")
 
     def fake_create_or_update(
         model_cls: type[models.Model],
@@ -802,9 +736,7 @@ def test_handle_model_processes_line_items_from_property(
         child.save = fake_save
         return child
 
-    monkeypatch.setattr(
-        command_module, "create_or_update_django_instance", fake_create_or_update
-    )
+    monkeypatch.setattr(command_module, "create_or_update_django_instance", fake_create_or_update)
 
     django_model_cls, api_model_cls = build_invoice_line_items_models()
 
@@ -822,9 +754,7 @@ def test_handle_model_skips_relation_reset_when_child_imports_are_skipped(
     monkeypatch: pytest.MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    cmd, fake_client, set_calls, _saved_children, parent_instance = (
-        setup_handle_model_test_state(command, "line_items")
-    )
+    cmd, fake_client, set_calls, _saved_children, parent_instance = setup_handle_model_test_state(command, "line_items")
 
     django_model_cls, api_model_cls = build_invoice_line_items_models()
 
@@ -843,9 +773,7 @@ def test_handle_model_skips_relation_reset_when_child_imports_are_skipped(
         child.save = lambda: None
         return child
 
-    monkeypatch.setattr(
-        command_module, "create_or_update_django_instance", fake_create_or_update
-    )
+    monkeypatch.setattr(command_module, "create_or_update_django_instance", fake_create_or_update)
     fake_client.get_model = lambda *_args, **_kwargs: [api_model_cls(id=1)]
 
     caplog.set_level(logging.WARNING)
@@ -859,9 +787,7 @@ def test_handle_model_resets_non_line_item_relations_even_with_skipped_children(
     command: CommandFixture,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    cmd, fake_client, set_calls, _saved_children, parent_instance = (
-        setup_handle_model_test_state(command, "ticketcomments")
-    )
+    cmd, fake_client, set_calls, _saved_children, parent_instance = setup_handle_model_test_state(command, "ticketcomments")
 
     class DjangoModel:
         __name__ = "Ticket"
@@ -894,13 +820,9 @@ def test_handle_model_resets_non_line_item_relations_even_with_skipped_children(
         child.save = lambda: None
         return child
 
-    monkeypatch.setattr(
-        command_module, "create_or_update_django_instance", fake_create_or_update
-    )
+    monkeypatch.setattr(command_module, "create_or_update_django_instance", fake_create_or_update)
     fake_client.get_model = lambda *_args, **_kwargs: [
-        SimpleNamespace(
-            id=1, ticketcomments=[SimpleNamespace(id=11), SimpleNamespace(id=12)]
-        )
+        SimpleNamespace(id=1, ticketcomments=[SimpleNamespace(id=11), SimpleNamespace(id=12)])
     ]
     cmd.handle_model(as_django_model_type(DjangoModel), ApiModel)
 
@@ -967,15 +889,9 @@ def test_sync_ticket_settings_success_and_failure_paths(
     field_manager = CaptureManager()
     answer_manager = CaptureManager()
 
-    monkeypatch.setattr(
-        command_module, "TicketType", SimpleNamespace(objects=type_manager)
-    )
-    monkeypatch.setattr(
-        command_module, "TicketTypeField", SimpleNamespace(objects=field_manager)
-    )
-    monkeypatch.setattr(
-        command_module, "TicketTypeFieldAnswer", SimpleNamespace(objects=answer_manager)
-    )
+    monkeypatch.setattr(command_module, "TicketType", SimpleNamespace(objects=type_manager))
+    monkeypatch.setattr(command_module, "TicketTypeField", SimpleNamespace(objects=field_manager))
+    monkeypatch.setattr(command_module, "TicketTypeFieldAnswer", SimpleNamespace(objects=answer_manager))
 
     cmd.client.fetch_ticket_settings = lambda: {
         "ticket_types": [{"id": 1, "name": "Repair"}],
@@ -989,9 +905,7 @@ def test_sync_ticket_settings_success_and_failure_paths(
                 "required": True,
             }
         ],
-        "ticket_type_field_answers": [
-            {"id": 3, "ticket_field_id": 2, "value": "Laptop"}
-        ],
+        "ticket_type_field_answers": [{"id": 3, "ticket_field_id": 2, "value": "Laptop"}],
     }
     cmd.sync_ticket_settings()
 
@@ -1001,9 +915,7 @@ def test_sync_ticket_settings_success_and_failure_paths(
     assert heartbeat_calls
 
     caplog.set_level(logging.WARNING)
-    cmd.client.fetch_ticket_settings = lambda: (_ for _ in ()).throw(
-        ValueError("api down")
-    )
+    cmd.client.fetch_ticket_settings = lambda: (_ for _ in ()).throw(ValueError("api down"))
     cmd.sync_ticket_settings()
     assert "Failed to fetch ticket settings" in caplog.text
 
@@ -1066,9 +978,7 @@ def test_evaluate_invoice_line_item_sample_parity_reports_mismatches(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     cmd, _ = command
-    monkeypatch.setattr(
-        cmd, "_build_invoice_sample_ids", lambda _sample_size: [1, 2, 3]
-    )
+    monkeypatch.setattr(cmd, "_build_invoice_sample_ids", lambda _sample_size: [1, 2, 3])
     monkeypatch.setattr(
         cmd,
         "_fetch_invoice_line_item_ids",
@@ -1079,26 +989,20 @@ def test_evaluate_invoice_line_item_sample_parity_reports_mismatches(
         def __init__(self, invoice_id: int) -> None:
             self.invoice_id = invoice_id
 
-        def values_list(self, *_args, **_kwargs) -> list[int]:
+        def values_list(self, *_args: Any, **_kwargs: Any) -> list[int]:
             return {1: [11, 12, 13], 2: [22], 3: [31, 32, 33]}[self.invoice_id]
 
     monkeypatch.setattr(
         command_module,
         "InvoiceLineItem",
-        SimpleNamespace(
-            objects=SimpleNamespace(
-                filter=lambda **kwargs: FilterResult(kwargs["parent_invoice_id"])
-            )
-        ),
+        SimpleNamespace(objects=SimpleNamespace(filter=lambda **kwargs: FilterResult(kwargs["parent_invoice_id"]))),
     )
 
     report = cmd._evaluate_invoice_line_item_sample_parity(sample_size=3)
 
     assert report["sample_size"] == 3
     assert report["mismatch_count"] == 1
-    assert report["mismatches"] == [
-        {"invoice_id": 2, "api_count": 1, "db_count": 1, "missing_count": 1}
-    ]
+    assert report["mismatches"] == [{"invoice_id": 2, "api_count": 1, "db_count": 1, "missing_count": 1}]
 
 
 def test_validate_sync_completeness_handles_metadata_failure_modes(
@@ -1165,9 +1069,7 @@ def test_handle_marks_sync_failed_on_exception(
     monkeypatch.setattr(
         cmd,
         "handle_model",
-        lambda *_args, **_kwargs: (_ for _ in ()).throw(
-            RuntimeError("import exploded")
-        ),
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("import exploded")),
     )
     monkeypatch.setattr(
         cmd,

@@ -1,21 +1,19 @@
 import json
 from typing import Any
 
-from django.core.management.base import BaseCommand
-
-from repairshopr_api.client import Client
+from django.core.management.base import BaseCommand, CommandParser
 from repairshopr_data.management.commands.import_from_repairshopr import (
     _normalize_identifier,
 )
 from repairshopr_data.models import Invoice, InvoiceLineItem
 
+from repairshopr_api.client import Client
+
 
 class Command(BaseCommand):
-    help = (
-        "Forensically scan RepairShopr invoice line-item feed and report drift metrics."
-    )
+    help = "Forensically scan RepairShopr invoice line-item feed and report drift metrics."
 
-    def add_arguments(self, parser) -> None:  # type: ignore[no-untyped-def]
+    def add_arguments(self, parser: CommandParser) -> None:
         parser.add_argument(
             "--page-start",
             type=int,
@@ -62,19 +60,9 @@ class Command(BaseCommand):
         page_end: int,
         progress_every: int,
     ) -> dict[str, Any]:
-        first_page_rows, meta = client.fetch_from_api(
-            "line_item", params={"invoice_id_not_null": True, "page": 1}
-        )
-        total_pages = (
-            self._normalize_total_entries(meta.get("total_pages"))
-            if isinstance(meta, dict)
-            else None
-        )
-        api_reported_total = (
-            self._normalize_total_entries(meta.get("total_entries"))
-            if isinstance(meta, dict)
-            else None
-        )
+        first_page_rows, meta = client.fetch_from_api("line_item", params={"invoice_id_not_null": True, "page": 1})
+        total_pages = self._normalize_total_entries(meta.get("total_pages")) if isinstance(meta, dict) else None
+        api_reported_total = self._normalize_total_entries(meta.get("total_entries")) if isinstance(meta, dict) else None
 
         if total_pages is None:
             total_pages = page_start
@@ -95,9 +83,7 @@ class Command(BaseCommand):
                 # Reuse the metadata probe payload instead of refetching page 1.
                 response_data = first_page_rows
             else:
-                response_data, _meta = client.fetch_from_api(
-                    "line_item", params={"invoice_id_not_null": True, "page": page}
-                )
+                response_data, _meta = client.fetch_from_api("line_item", params={"invoice_id_not_null": True, "page": page})
             page_ids: list[int] = []
             page_line_item_invoice_map: dict[int, int] = {}
 
@@ -124,11 +110,7 @@ class Command(BaseCommand):
                 page_line_item_invoice_map[line_item_id] = invoice_id
 
             if page_ids:
-                existing_ids = set(
-                    InvoiceLineItem.objects.filter(id__in=page_ids).values_list(
-                        "id", flat=True
-                    )
-                )
+                existing_ids = set(InvoiceLineItem.objects.filter(id__in=page_ids).values_list("id", flat=True))
                 for line_item_id in page_ids:
                     if line_item_id in existing_ids:
                         continue
@@ -141,9 +123,7 @@ class Command(BaseCommand):
                     if isinstance(invoice_id, int):
                         missing_invoice_ids.add(invoice_id)
 
-            if page == final_page or (
-                progress_every > 0 and page % progress_every == 0
-            ):
+            if page == final_page or (progress_every > 0 and page % progress_every == 0):
                 self._emit(
                     {
                         "event": "scan_progress",
@@ -171,7 +151,7 @@ class Command(BaseCommand):
             "seen_api_ids": seen_api_ids,
         }
 
-    def handle(self, *args, **options) -> None:  # type: ignore[no-untyped-def]
+    def handle(self, *args: Any, **options: Any) -> None:
         _ = args
         page_start = max(1, int(options["page_start"]))
         page_end = max(0, int(options["page_end"]))
@@ -187,11 +167,7 @@ class Command(BaseCommand):
         )
 
         missing_invoice_ids: set[int] = scan["missing_invoice_ids"]
-        existing_missing_invoices = set(
-            Invoice.objects.filter(id__in=missing_invoice_ids).values_list(
-                "id", flat=True
-            )
-        )
+        existing_missing_invoices = set(Invoice.objects.filter(id__in=missing_invoice_ids).values_list("id", flat=True))
         missing_parent_invoices = missing_invoice_ids - existing_missing_invoices
 
         db_total_rows = InvoiceLineItem.objects.count()
@@ -212,12 +188,8 @@ class Command(BaseCommand):
             "api_unique_not_in_db": len(scan["missing_line_item_ids"]),
             "missing_examples": scan["missing_examples"],
             "missing_invoice_ids_count": len(missing_invoice_ids),
-            "missing_invoice_ids_without_parent_invoice_row": len(
-                missing_parent_invoices
-            ),
-            "db_null_parent_invoice_id_count": InvoiceLineItem.objects.filter(
-                parent_invoice_id__isnull=True
-            ).count(),
+            "missing_invoice_ids_without_parent_invoice_row": len(missing_parent_invoices),
+            "db_null_parent_invoice_id_count": InvoiceLineItem.objects.filter(parent_invoice_id__isnull=True).count(),
         }
 
         if compute_db_not_in_api:

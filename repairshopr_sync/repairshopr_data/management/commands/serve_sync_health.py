@@ -5,8 +5,7 @@ from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 
-from django.core.management.base import BaseCommand
-
+from django.core.management.base import BaseCommand, CommandParser
 from repairshopr_data.sync_health import (
     DEFAULT_STALE_THRESHOLD_SECONDS,
     build_health_payload,
@@ -37,7 +36,7 @@ class HealthHandler(BaseHTTPRequestHandler):
 class Command(BaseCommand):
     help = "Serve RepairShopr sync health JSON"
 
-    def add_arguments(self, parser) -> None:  # type: ignore[no-untyped-def]
+    def add_arguments(self, parser: CommandParser) -> None:
         parser.add_argument("--host", default="0.0.0.0")
         parser.add_argument("--port", type=int, default=8000)
         parser.add_argument(
@@ -46,16 +45,14 @@ class Command(BaseCommand):
             default=configured_stale_threshold_seconds(),
         )
 
-    def handle(self, *args, **options) -> None:
+    def handle(self, *args: Any, **options: Any) -> None:
         _ = args
         HealthHandler.stale_threshold_seconds = max(
             0,
             int(options["stale_threshold_seconds"]),
         )
         server = ThreadingHTTPServer((options["host"], options["port"]), HealthHandler)
-        self.stdout.write(
-            f"Serving RepairShopr sync health on {options['host']}:{options['port']}"
-        )
+        self.stdout.write(f"Serving RepairShopr sync health on {options['host']}:{options['port']}")
         try:
             server.serve_forever()
         finally:

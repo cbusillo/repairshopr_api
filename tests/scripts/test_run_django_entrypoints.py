@@ -117,9 +117,7 @@ def test_manage_script_requires_locatable_module(
     monkeypatch: pytest.MonkeyPatch,
     module_spec: object | None,
 ) -> None:
-    monkeypatch.setattr(
-        "repairshopr_api.run_django.find_spec", lambda _module_name: module_spec
-    )
+    monkeypatch.setattr("repairshopr_api.run_django.find_spec", lambda _module_name: module_spec)
 
     with pytest.raises(RuntimeError, match="Could not locate repairshopr_sync.manage"):
         run_django._manage_script()

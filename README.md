@@ -94,7 +94,7 @@ See the production runbook in
 ## Code Quality Gates
 
 Changed code is inspected in PyCharm before a PR and merge, alongside the
-pytest/coverage gates above. See [AGENTS.md — Code Quality](AGENTS.md#code-quality)
+Ruff lint/format and pytest/coverage gates above. See [AGENTS.md — Code Quality](AGENTS.md#code-quality)
 for thresholds, suppression requirements, and worktree-safe inspection routing.
 
 ## Release (PyPI)

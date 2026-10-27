@@ -1,22 +1,19 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 from types import SimpleNamespace
 
 import pytest
-
 from repairshopr_data.management.commands import sync_status as sync_status_module
 
 
 def _status_manager(status_row: object) -> SimpleNamespace:
-    return SimpleNamespace(
-        filter=lambda **_kwargs: SimpleNamespace(first=lambda: status_row)
-    )
+    return SimpleNamespace(filter=lambda **_kwargs: SimpleNamespace(first=lambda: status_row))
 
 
 def test_sync_status_outputs_single_line_json(monkeypatch: pytest.MonkeyPatch) -> None:
-    current_time = datetime(2026, 2, 12, 18, tzinfo=timezone.utc)
+    current_time = datetime(2026, 2, 12, 18, tzinfo=UTC)
     status_row = SimpleNamespace(
         status="running",
         mode="full",
@@ -54,7 +51,7 @@ def test_sync_status_outputs_single_line_json(monkeypatch: pytest.MonkeyPatch) -
 
 
 def test_sync_status_exits_when_fail_on_stale(monkeypatch: pytest.MonkeyPatch) -> None:
-    current_time = datetime(2026, 2, 12, 18, tzinfo=timezone.utc)
+    current_time = datetime(2026, 2, 12, 18, tzinfo=UTC)
     status_row = SimpleNamespace(
         status="running",
         mode="incremental",

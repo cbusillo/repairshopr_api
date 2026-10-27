@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 
 from repairshopr_api.models.estimate import Estimate
 from repairshopr_api.models.invoice import Invoice
@@ -33,7 +33,7 @@ class FakeClient:
                     {
                         "id": 2001,
                         "invoice_id": 77,
-                        "updated_at": datetime(2026, 2, 1, tzinfo=timezone.utc),
+                        "updated_at": datetime(2026, 2, 1, tzinfo=UTC),
                     }
                 ],
                 {"total_pages": 1},

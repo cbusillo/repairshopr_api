@@ -3,7 +3,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("repairshopr_data", "0014_alter_ticketcomment_body_collation_portable"),
+        ("repairshopr_data", "0001_squashed_0014_alter_ticketcomment_body_collation_portable"),
     ]
 
     operations = [

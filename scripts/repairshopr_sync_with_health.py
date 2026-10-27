@@ -89,9 +89,7 @@ def main() -> int:
 
     with TemporaryDirectory(prefix="repairshopr-sync-startup-") as startup_directory:
         child_env = os.environ.copy()
-        child_env["SYNC_STARTUP_COMPLETE_FILE"] = str(
-            Path(startup_directory) / "complete"
-        )
+        child_env["SYNC_STARTUP_COMPLETE_FILE"] = str(Path(startup_directory) / "complete")
         return _run_children(child_env)
 
 
