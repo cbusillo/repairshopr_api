@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from pathlib import Path
 
 import pytest
 import toml
@@ -16,7 +17,7 @@ RUNTIME_SECRETS = {
 
 
 @pytest.fixture
-def runtime_env(tmp_path, monkeypatch) -> None:
+def runtime_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("REPAIRSHOPR_CONFIG_FILE", str(tmp_path / "config.toml"))
     monkeypatch.setenv("REPAIRSHOPR_URL_STORE_NAME", "store-name")
     monkeypatch.setenv("SYNC_DB_HOST", "mysql")
@@ -25,9 +26,9 @@ def runtime_env(tmp_path, monkeypatch) -> None:
 
 
 @pytest.mark.usefixtures("runtime_env")
-def test_bootstrap_config_leaves_no_secret_in_config_file(tmp_path) -> None:
+def test_bootstrap_config_leaves_no_secret_in_config_file(tmp_path: Path) -> None:
     config_file = tmp_path / "config.toml"
-    checkpoint = datetime(2026, 10, 1, 12, tzinfo=timezone.utc)
+    checkpoint = datetime(2026, 10, 1, 12, tzinfo=UTC)
     previous_secrets = ("old-token", "old-django-secret", "old-db-password")
     config_file.write_text(
         toml.dumps(
@@ -51,7 +52,7 @@ def test_bootstrap_config_leaves_no_secret_in_config_file(tmp_path) -> None:
 
 
 @pytest.mark.usefixtures("runtime_env")
-def test_bootstrap_config_records_debug_flag(tmp_path, monkeypatch) -> None:
+def test_bootstrap_config_records_debug_flag(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("REPAIRSHOPR_DEBUG", "true")
 
     bootstrap.bootstrap_config()
@@ -61,9 +62,7 @@ def test_bootstrap_config_records_debug_flag(tmp_path, monkeypatch) -> None:
 
 @pytest.mark.usefixtures("runtime_env")
 @pytest.mark.parametrize("missing_var", bootstrap.REQUIRED_ENV_VARS)
-def test_bootstrap_config_fails_closed_when_required_env_missing(
-    monkeypatch, missing_var: str
-) -> None:
+def test_bootstrap_config_fails_closed_when_required_env_missing(monkeypatch: pytest.MonkeyPatch, missing_var: str) -> None:
     monkeypatch.delenv(missing_var)
 
     with pytest.raises(SystemExit, match=missing_var):
@@ -81,7 +80,7 @@ def test_bootstrap_config_fails_closed_when_required_env_missing(
     ],
 )
 def test_bootstrap_config_cleans_the_file_app_settings_reads(
-    tmp_path, monkeypatch, path_env_vars: tuple[str, ...]
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, path_env_vars: tuple[str, ...]
 ) -> None:
     monkeypatch.setenv("HOME", str(tmp_path / "home"))
     monkeypatch.delenv("REPAIRSHOPR_CONFIG_FILE")

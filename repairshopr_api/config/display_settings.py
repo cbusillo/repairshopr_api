@@ -25,10 +25,7 @@ def main() -> None:
     output = [
         {
             "section": name,
-            "fields": {
-                key: value if key in public_fields else "[REDACTED]"
-                for key, value in section.to_dict().items()
-            },
+            "fields": {key: value if key in public_fields else "[REDACTED]" for key, value in section.to_dict().items()},
         }
         for name, section, public_fields in sections
     ]

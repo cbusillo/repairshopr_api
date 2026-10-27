@@ -5,23 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-    replaces = [
-        ("repairshopr_data", "0001_initial"),
-        ("repairshopr_data", "0002_alter_customer_pdf_url"),
-        ("repairshopr_data", "0003_alter_customer_pdf_url"),
-        ("repairshopr_data", "0004_alter_customer_online_profile_url_and_more"),
-        ("repairshopr_data", "0005_alter_estimatelineitem_name"),
-        ("repairshopr_data", "0006_alter_invoicelineitem_name"),
-        ("repairshopr_data", "0007_alter_payment_invoice_ids"),
-        ("repairshopr_data", "0008_alter_ticketcomment_body"),
-        ("repairshopr_data", "0009_alter_ticketcomment_body"),
-        ("repairshopr_data", "0010_alter_ticketcomment_body"),
-        ("repairshopr_data", "0011_alter_customer_online_profile_url_and_more"),
-        ("repairshopr_data", "0012_add_ticket_settings_tables"),
-        ("repairshopr_data", "0013_add_api_fields"),
-        ("repairshopr_data", "0014_alter_ticketcomment_body_collation_portable"),
-    ]
-
     initial = True
 
     dependencies = []

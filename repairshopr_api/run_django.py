@@ -1,8 +1,8 @@
 import subprocess
 import sys
+from collections.abc import Sequence
 from importlib.util import find_spec
 from pathlib import Path
-from collections.abc import Sequence
 
 
 def _manage_script() -> str:

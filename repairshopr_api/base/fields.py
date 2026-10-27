@@ -1,5 +1,5 @@
+from collections.abc import Callable
 from datetime import date, datetime
-from typing import Callable
 
 from repairshopr_api.base.model import BaseModel
 from repairshopr_api.converters.strings import snake_case
@@ -13,31 +13,16 @@ def related_field(
     model_cls: type[BaseModel],
 ) -> Callable[[Callable[..., BaseModel]], property]:
     def build_id_key(default_key: str | None) -> str:
-        return (
-            default_key if default_key else f"{model_cls.__name__.lower()}{ID_SUFFIX}"
-        )
+        return default_key if default_key else f"{model_cls.__name__.lower()}{ID_SUFFIX}"
 
-    def fetch_single_related_model(
-        instance: BaseModel, model_id: int
-    ) -> BaseModel | None:
-        return (
-            instance.rs_client.get_model_by_id(model_cls, model_id)
-            if model_id
-            else None
-        )
+    def fetch_single_related_model(instance: BaseModel, model_id: int) -> BaseModel | None:
+        return instance.rs_client.get_model_by_id(model_cls, model_id) if model_id else None
 
-    def fetch_multiple_related_models(
-        instance: BaseModel, model_ids: list[int]
-    ) -> list[JsonObject]:
+    def fetch_multiple_related_models(instance: BaseModel, model_ids: list[int]) -> list[JsonObject]:
         valid_model_ids = [model_id for model_id in model_ids if model_id]
-        return [
-            instance.rs_client.fetch_from_api_by_id(model_cls, model_id)
-            for model_id in valid_model_ids
-        ]
+        return [instance.rs_client.fetch_from_api_by_id(model_cls, model_id) for model_id in valid_model_ids]
 
-    def fetch_related_models_by_parent(
-        instance: BaseModel, query_params: dict[str, int | None]
-    ) -> list[JsonObject]:
+    def fetch_related_models_by_parent(instance: BaseModel, query_params: dict[str, int | None]) -> list[JsonObject]:
         def normalize_related_payload(candidate: object) -> JsonObject | None:
             if not isinstance(candidate, dict):
                 return None
@@ -92,9 +77,7 @@ def related_field(
         return related_models
 
     def decorator(_f: Callable[..., BaseModel]) -> property:
-        def wrapper(
-            instance: BaseModel, id_key: str | None = None
-        ) -> BaseModel | list[JsonObject] | None:
+        def wrapper(instance: BaseModel, id_key: str | None = None) -> BaseModel | list[JsonObject] | None:
             id_key = build_id_key(id_key)
 
             if hasattr(instance, id_key):
@@ -107,11 +90,7 @@ def related_field(
                 if model_ids:
                     return fetch_multiple_related_models(instance, model_ids)
 
-                query_params = {
-                    f"{type(instance).__name__.lower()}{ID_SUFFIX}": getattr(
-                        instance, "id", None
-                    )
-                }
+                query_params = {f"{type(instance).__name__.lower()}{ID_SUFFIX}": getattr(instance, "id", None)}
                 return fetch_related_models_by_parent(instance, query_params)
 
         return property(wrapper)

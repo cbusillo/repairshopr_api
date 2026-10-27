@@ -213,6 +213,16 @@ For database delete/recreate scenarios:
 4. Resume `sync` incremental mode.
 5. Run another forensic pass to verify post-rebuild stability.
 
+## Restoring Older Migration History
+
+Before using an image with the finalized 0001–0014 squash, a restored database
+must record `0001_squashed_0014_alter_ticketcomment_body_collation_portable`
+in `django_migrations` for `repairshopr_data`. An empty database can initialize
+with the finalized graph directly. For an older populated backup without that
+row, restore and upgrade with the backup's compatible older image first, through
+the accepted recovery path, before switching to the finalized graph. Do not
+fake the squash record or run migrations by hand on production.
+
 ## What Is Intentionally Not Used As A Hard Gate
 
 - `line_item meta.total_entries` global parity vs DB row count

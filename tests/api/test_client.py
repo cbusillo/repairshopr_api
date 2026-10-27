@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+from collections.abc import Iterator
 from contextlib import nullcontext
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from http import HTTPStatus
 from types import SimpleNamespace
-from typing import Iterator
+from typing import Any
 from unittest.mock import Mock
 
 import pytest
@@ -46,7 +47,7 @@ def test_get_model_paginates_and_formats_since_updated_at() -> None:
     client = _make_client()
     calls: list[dict] = []
 
-    def fake_fetch(model_name: str, params: dict | None = None):
+    def fake_fetch(model_name: str, params: dict | None = None) -> tuple[list[dict], dict]:
         assert model_name == "dummy_model"
         params = dict(params or {})
         calls.append(params)
@@ -55,10 +56,8 @@ def test_get_model_paginates_and_formats_since_updated_at() -> None:
 
     client.fetch_from_api = fake_fetch  # type: ignore[method-assign]
 
-    updated_at = datetime(2026, 2, 8, 10, 11, 12, 123456, tzinfo=timezone.utc)
-    records = list(
-        client.get_model(DummyModel, updated_at=updated_at, params={"status": "open"})
-    )
+    updated_at = datetime(2026, 2, 8, 10, 11, 12, 123456, tzinfo=UTC)
+    records = list(client.get_model(DummyModel, updated_at=updated_at, params={"status": "open"}))
 
     assert [record.id for record in records] == [1, 2, 3]
     assert calls[0]["since_updated_at"] == "2026-02-08T10:11:12.123456Z"
@@ -68,7 +67,7 @@ def test_get_model_num_last_pages_requests_last_window() -> None:
     client = _make_client()
     requested_pages: list[int] = []
 
-    def fake_fetch(_model_name: str, params: dict | None = None):
+    def fake_fetch(_model_name: str, params: dict | None = None) -> tuple[list[dict], dict]:
         page = (params or {})["page"]
         requested_pages.append(page)
         return [{"id": page}], {"total_pages": 5}
@@ -90,13 +89,11 @@ def test_request_retries_429_and_returns_success(
 
     attempts = {"count": 0}
 
-    def fake_request(_self: requests.Session, method: str, url: str, *_args, **_kwargs):
+    def fake_request(_self: requests.Session, method: str, url: str, *_args: Any, **_kwargs: Any) -> SimpleNamespace:
         assert method == "GET"
         assert url.endswith("/tickets")
         attempts["count"] += 1
-        status_code = (
-            HTTPStatus.OK if attempts["count"] >= 3 else HTTPStatus.TOO_MANY_REQUESTS
-        )
+        status_code = HTTPStatus.OK if attempts["count"] >= 3 else HTTPStatus.TOO_MANY_REQUESTS
         return SimpleNamespace(status_code=status_code, text="")
 
     monkeypatch.setattr(requests.Session, "request", fake_request)
@@ -149,21 +146,21 @@ def test_prefetch_line_items_skips_when_recent_updated_at(
 
 def test_prefetch_line_items_builds_cache_for_old_updated_at() -> None:
     client = _make_client()
-    client.updated_at = datetime.now(tz=timezone.utc) - timedelta(days=370)
+    client.updated_at = datetime.now(tz=UTC) - timedelta(days=370)
 
     line_items = [
         SimpleNamespace(
             id=1,
             invoice_id=100,
             name="A",
-            updated_at=datetime(2026, 2, 1, 1, 2, tzinfo=timezone.utc),
+            updated_at=datetime(2026, 2, 1, 1, 2, tzinfo=UTC),
             _private="x",
         ),
         SimpleNamespace(
             id=2,
             invoice_id=100,
             name="B",
-            updated_at=datetime(2026, 2, 1, 1, 3, tzinfo=timezone.utc),
+            updated_at=datetime(2026, 2, 1, 1, 3, tzinfo=UTC),
             _private="y",
         ),
     ]
@@ -172,11 +169,7 @@ def test_prefetch_line_items_builds_cache_for_old_updated_at() -> None:
     client.prefetch_line_items()
 
     assert client._has_line_item_in_cache is True
-    cached_entries = [
-        value
-        for key, value in client._cache.items()
-        if key.startswith("line_item_list_")
-    ]
+    cached_entries = [value for key, value in client._cache.items() if key.startswith("line_item_list_")]
     assert cached_entries
     first_page_rows, _meta = cached_entries[0]
     assert first_page_rows
@@ -186,7 +179,7 @@ def test_prefetch_line_items_builds_cache_for_old_updated_at() -> None:
 
 def test_prefetch_line_items_aware_vs_naive_regression() -> None:
     client = _make_client()
-    client.updated_at = datetime.now(tz=timezone.utc) - timedelta(days=800)
+    client.updated_at = datetime.now(tz=UTC) - timedelta(days=800)
     client.get_model = lambda *_args, **_kwargs: iter([])  # type: ignore[method-assign]
 
     client.prefetch_line_items()
@@ -196,7 +189,7 @@ def test_prefetch_line_items_aware_vs_naive_regression() -> None:
 
 def test_prefetch_line_items_emits_progress_stages() -> None:
     client = _make_client()
-    client.updated_at = datetime.now(tz=timezone.utc) - timedelta(days=800)
+    client.updated_at = datetime.now(tz=UTC) - timedelta(days=800)
     line_items = [
         SimpleNamespace(id=1, invoice_id=100, name="A"),
         SimpleNamespace(id=2, invoice_id=200, name="B"),
@@ -212,9 +205,7 @@ def test_prefetch_line_items_emits_progress_stages() -> None:
         _processed_on_page: int,
         meta_data: JsonObject | None,
     ) -> None:
-        progress_stages.append(
-            meta_data.get("stage") if isinstance(meta_data, dict) else None
-        )
+        progress_stages.append(meta_data.get("stage") if isinstance(meta_data, dict) else None)
 
     client.set_progress_callback(progress_callback)
     client.prefetch_line_items()
@@ -254,9 +245,7 @@ def test_wait_for_rate_limit_sleeps_at_the_limit(
 
     monkeypatch.setattr("repairshopr_api.client.datetime", Mock(now=lambda: now))
     sleep_calls: list[float] = []
-    monkeypatch.setattr(
-        "repairshopr_api.client.sleep", lambda seconds: sleep_calls.append(seconds)
-    )
+    monkeypatch.setattr("repairshopr_api.client.sleep", lambda seconds: sleep_calls.append(seconds))
 
     client._wait_for_rate_limit()
 
@@ -267,9 +256,7 @@ def test_wait_for_rate_limit_sleeps_at_the_limit(
 
 def test_time_api_call_tracks_counter(monkeypatch: pytest.MonkeyPatch) -> None:
     client = _make_client()
-    monkeypatch.setattr(
-        "repairshopr_api.client.logger.isEnabledFor", lambda _level: True
-    )
+    monkeypatch.setattr("repairshopr_api.client.logger.isEnabledFor", lambda _level: True)
     monkeypatch.setattr(client, "display_api_call_stats", lambda: None)
 
     with client.time_api_call(f"{client.base_url}/tickets"):
@@ -307,9 +294,7 @@ def test_request_raises_value_error_for_not_found() -> None:
         requests.Session.request = original_request  # type: ignore[method-assign]
 
 
-def _send_ticket_settings_payload(
-    monkeypatch: pytest.MonkeyPatch, payload: bytes
-) -> list[requests.PreparedRequest]:
+def _send_ticket_settings_payload(monkeypatch: pytest.MonkeyPatch, payload: bytes) -> list[requests.PreparedRequest]:
     sent: list[requests.PreparedRequest] = []
 
     def send(
@@ -347,9 +332,7 @@ def test_fetch_ticket_settings_rejects_non_object_payload(
     client = _make_client()
     _send_ticket_settings_payload(monkeypatch, b"[1, 2]")
 
-    with pytest.raises(
-        ValueError, match="Unexpected RepairShopr ticket settings payload"
-    ):
+    with pytest.raises(ValueError, match="Unexpected RepairShopr ticket settings payload"):
         client.fetch_ticket_settings()
 
 
@@ -455,9 +438,7 @@ def test_preview_response_body_and_error_context_helpers() -> None:
     response = requests.Response()
     response.status_code = 500
     response._content = b"error text"
-    context = _request_error_context(
-        "https://store.repairshopr.com/api/v1/invoices", response
-    )
+    context = _request_error_context("https://store.repairshopr.com/api/v1/invoices", response)
     assert "url=/api/v1/invoices" in context
     assert "content_type=unknown" in context
 
@@ -467,9 +448,7 @@ def test_client_init_raises_when_credentials_missing(
 ) -> None:
     monkeypatch.setenv("REPAIRSHOPR_URL_STORE_NAME", "")
     monkeypatch.setenv("REPAIRSHOPR_TOKEN", "")
-    monkeypatch.setattr(
-        "repairshopr_api.client.settings.repairshopr.url_store_name", ""
-    )
+    monkeypatch.setattr("repairshopr_api.client.settings.repairshopr.url_store_name", "")
     monkeypatch.setattr("repairshopr_api.client.settings.repairshopr.token", "")
 
     with pytest.raises(ValueError, match="must be provided"):

@@ -1,7 +1,7 @@
-import os
 import logging
+import os
+from collections.abc import Mapping
 from pathlib import Path
-from typing import Mapping
 
 import toml
 
@@ -26,9 +26,7 @@ class AppSettings(Serializable):
 
     @property
     def config_file_path(self) -> Path:
-        configured_path = os.getenv("REPAIRSHOPR_CONFIG_FILE") or os.getenv(
-            "CONFIG_FILE"
-        )
+        configured_path = os.getenv("REPAIRSHOPR_CONFIG_FILE") or os.getenv("CONFIG_FILE")
         if configured_path:
             return Path(configured_path).expanduser()
         project_name = Path(__file__).parent.parent.name.replace("_", "-")
@@ -48,7 +46,7 @@ class AppSettings(Serializable):
                     else:
                         setattr(self, key, value)
         except (FileNotFoundError, OSError, toml.TomlDecodeError) as error:
-            logger.exception(f"Error loading configuration {str(error)}")
+            logger.exception("Error loading configuration %s", str(error))
         self.save()
 
     def save(self) -> None:
@@ -59,7 +57,7 @@ class AppSettings(Serializable):
             with self.config_file_path.open("w") as file:
                 toml.dump(data, file)
         except (FileNotFoundError, OSError) as error:
-            logger.exception(f"Error saving configuration: {str(error)}")
+            logger.exception("Error saving configuration: %s", str(error))
 
     def sort_dict(self, d: Mapping[str, JsonValue]) -> JsonObject:
         sorted_dict: JsonObject = {}

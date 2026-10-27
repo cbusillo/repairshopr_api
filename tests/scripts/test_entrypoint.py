@@ -9,7 +9,6 @@ from pathlib import Path
 
 import pytest
 from django.utils.timezone import now
-
 from repairshopr_data.models import SyncStatus
 from repairshopr_data.sync_health import build_health_payload
 
@@ -258,9 +257,7 @@ def test_entrypoint_waits_for_db_then_runs_sync_cycle(
     assert "manage:migrate" in event_log
     assert "manage:import_from_repairshopr" in event_log
     assert "sleep:4" in event_log
-    commands = [
-        event for event in event_log.splitlines() if event.startswith("manage:")
-    ]
+    commands = [event for event in event_log.splitlines() if event.startswith("manage:")]
     expected = ["manage:migrate", "manage:import_from_repairshopr"]
     if reset_db == "1":
         expected.insert(0, "manage:flush")

@@ -9,8 +9,9 @@ from typing import Any
 
 from django.db import DatabaseError
 from django.utils.timezone import now
-
 from repairshopr_data.models import SyncStatus
+
+from repairshopr_api.type_defs import JsonObject
 
 SERVICE_NAME = "repairshopr-sync"
 PACKAGE_NAME = "repairshopr-api"
@@ -46,7 +47,7 @@ def build_sync_status_payload(
     status_model: Any = SyncStatus,
     current_time: datetime | None = None,
     sync_interval_seconds: int | None = None,
-) -> dict[str, Any]:
+) -> JsonObject:
     status_row = status_model.objects.filter(id=1).first()
     current_time = current_time or now()
     threshold = max(0, int(stale_threshold_seconds))
@@ -74,37 +75,21 @@ def build_sync_status_payload(
 
     cycle_age_seconds: int | None = None
     if status_row.cycle_started_at is not None:
-        cycle_end = (
-            current_time
-            if status_row.status == "running"
-            else (status_row.cycle_finished_at or current_time)
-        )
-        cycle_age_seconds = max(
-            0, int((cycle_end - status_row.cycle_started_at).total_seconds())
-        )
+        cycle_end = current_time if status_row.status == "running" else (status_row.cycle_finished_at or current_time)
+        cycle_age_seconds = max(0, int((cycle_end - status_row.cycle_started_at).total_seconds()))
 
     heartbeat_age_seconds: int | None = None
     if status_row.last_heartbeat is not None:
-        heartbeat_age_seconds = max(
-            0, int((current_time - status_row.last_heartbeat).total_seconds())
-        )
+        heartbeat_age_seconds = max(0, int((current_time - status_row.last_heartbeat).total_seconds()))
 
-    is_stale = bool(
-        status_row.status == "running"
-        and heartbeat_age_seconds is not None
-        and 0 < threshold < heartbeat_age_seconds
-    )
+    is_stale = bool(status_row.status == "running" and heartbeat_age_seconds is not None and 0 < threshold < heartbeat_age_seconds)
 
-    # A finished cycle is followed by one sync interval of sleep before the
-    # next cycle marks itself running. If that never happens, the loop is stuck
-    # even though the last cycle succeeded.
     next_cycle_overdue = bool(
         sync_interval_seconds is not None
         and status_row.status == "success"
         and status_row.cycle_finished_at is not None
         and threshold > 0
-        and (current_time - status_row.cycle_finished_at).total_seconds()
-        > max(0, int(sync_interval_seconds)) + threshold
+        and (current_time - status_row.cycle_finished_at).total_seconds() > max(0, int(sync_interval_seconds)) + threshold
     )
 
     freshness_status = "stale" if is_stale else "fresh"

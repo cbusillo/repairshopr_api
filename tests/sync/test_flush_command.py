@@ -4,7 +4,6 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import pytest
-
 import repairshopr_data.management.commands.flush as command_module
 
 
@@ -57,12 +56,8 @@ def _prepare_flush(
             }
         },
     )
-    monkeypatch.setattr(
-        "repairshopr_data.management.commands.flush.settings", app_settings
-    )
-    monkeypatch.setattr(
-        "repairshopr_data.management.commands.flush.django_settings", django_settings
-    )
+    monkeypatch.setattr("repairshopr_data.management.commands.flush.settings", app_settings)
+    monkeypatch.setattr("repairshopr_data.management.commands.flush.django_settings", django_settings)
     return FlushTestContext(
         app_settings=app_settings,
         database_path=database_path,

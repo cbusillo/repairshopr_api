@@ -1,12 +1,12 @@
 import re
-from collections.abc import Mapping
 from abc import ABC
+from collections.abc import Mapping
 from dataclasses import dataclass, field, fields
 from datetime import datetime
 from types import UnionType
 from typing import TYPE_CHECKING, TypeVar, Union, get_args, get_origin
 
-from repairshopr_api.type_defs import is_json_object, JsonValue
+from repairshopr_api.type_defs import JsonValue, is_json_object
 from repairshopr_api.utils import parse_datetime
 
 if TYPE_CHECKING:
@@ -20,12 +20,10 @@ ModelType = TypeVar("ModelType", bound="BaseModel")
 class BaseModel(ABC):
     id: int | None
 
-    rs_client: "Client | None" = field(
-        default=None, init=False, repr=False
-    )  # Add a reference to the Client instance
+    rs_client: "Client | None" = field(default=None, init=False, repr=False)  # Add a reference to the Client instance
 
     @classmethod
-    def set_client(cls, client: "Client"):
+    def set_client(cls, client: "Client") -> None:
         cls.rs_client = client
 
     @classmethod
@@ -33,38 +31,24 @@ class BaseModel(ABC):
         raw_id = data.get("id", 0)
         instance_id = raw_id if isinstance(raw_id, int) else 0
         instance = cls(id=instance_id)
-        cleaned_data: dict[str, JsonValue] = {
-            cls.clean_key(key): value
-            for key, value in data.items()
-            if value is not None
-        }
+        cleaned_data: dict[str, JsonValue] = {cls.clean_key(key): value for key, value in data.items() if value is not None}
 
         for current_field in fields(cls):
             if not current_field.init:
                 continue
 
             if current_field.name in cleaned_data:
-                value: JsonValue | datetime | BaseModel | list[BaseModel] = (
-                    cleaned_data[current_field.name]
-                )
+                value: JsonValue | datetime | BaseModel | list[BaseModel] = cleaned_data[current_field.name]
 
-                if isinstance(value, str) and cls._field_accepts_datetime(
-                    current_field.type
-                ):
+                if isinstance(value, str) and cls._field_accepts_datetime(current_field.type):
                     parsed_value = parse_datetime(value)
                     if parsed_value is not None:
                         value = parsed_value
 
-                if isinstance(value, list) and all(
-                    isinstance(item, dict) for item in value
-                ):
+                if isinstance(value, list) and all(isinstance(item, dict) for item in value):
                     model_type = cls._resolve_list_model_type(current_field.type)
                     if model_type is not None:
-                        value = [
-                            model_type.from_dict(item)
-                            for item in value
-                            if is_json_object(item)
-                        ]
+                        value = [model_type.from_dict(item) for item in value if is_json_object(item)]
 
                 elif isinstance(value, dict):
                     model_type = cls._resolve_model_type(current_field.type)
@@ -77,12 +61,8 @@ class BaseModel(ABC):
         return instance
 
     @classmethod
-    def from_list(
-        cls: type[ModelType], data: list[JsonValue]
-    ) -> ModelType | list[ModelType]:
-        raise NotImplementedError(
-            "This method should be implemented in the subclass that expects a list."
-        )
+    def from_list(cls: type[ModelType], data: list[JsonValue]) -> ModelType | list[ModelType]:
+        raise NotImplementedError("This method should be implemented in the subclass that expects a list.")
 
     @staticmethod
     def clean_key(key: str) -> str:

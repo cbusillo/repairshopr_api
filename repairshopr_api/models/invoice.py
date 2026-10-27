@@ -3,7 +3,8 @@ from datetime import datetime
 
 from repairshopr_api.base.fields import related_field
 from repairshopr_api.base.model import BaseModel
-from repairshopr_api.models import Product, User
+from repairshopr_api.models.product import Product
+from repairshopr_api.models.user import User
 
 
 # noinspection DuplicatedCode

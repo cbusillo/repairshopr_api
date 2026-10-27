@@ -1,14 +1,14 @@
 from __future__ import annotations
 
-from typing import TypeAlias, TypeGuard
+from typing import TypeGuard
 
-JsonScalar: TypeAlias = str | int | float | bool | None
-JsonValue: TypeAlias = JsonScalar | dict[str, "JsonValue"] | list["JsonValue"]
-JsonObject: TypeAlias = dict[str, JsonValue]
-JsonArray: TypeAlias = list[JsonValue]
+type JsonScalar = str | int | float | bool | None
+type JsonValue = JsonScalar | dict[str, "JsonValue"] | list["JsonValue"]
+type JsonObject = dict[str, JsonValue]
+type JsonArray = list[JsonValue]
 
-QueryParamValue: TypeAlias = str | int | float | bool | None
-QueryParams: TypeAlias = dict[str, QueryParamValue]
+type QueryParamValue = str | int | float | bool | None
+type QueryParams = dict[str, QueryParamValue]
 
 
 def is_json_scalar(value: object) -> TypeGuard[JsonScalar]:
@@ -20,10 +20,7 @@ def is_query_param_value(value: object) -> TypeGuard[QueryParamValue]:
 
 
 def is_query_params(value: object) -> TypeGuard[QueryParams]:
-    return isinstance(value, dict) and all(
-        isinstance(key, str) and is_query_param_value(item)
-        for key, item in value.items()
-    )
+    return isinstance(value, dict) and all(isinstance(key, str) and is_query_param_value(item) for key, item in value.items())
 
 
 def is_json_value(value: object) -> TypeGuard[JsonValue]:
@@ -32,16 +29,12 @@ def is_json_value(value: object) -> TypeGuard[JsonValue]:
     if isinstance(value, list):
         return all(is_json_value(item) for item in value)
     if isinstance(value, dict):
-        return all(
-            isinstance(key, str) and is_json_value(item) for key, item in value.items()
-        )
+        return all(isinstance(key, str) and is_json_value(item) for key, item in value.items())
     return False
 
 
 def is_json_object(value: object) -> TypeGuard[JsonObject]:
-    return isinstance(value, dict) and all(
-        isinstance(key, str) and is_json_value(item) for key, item in value.items()
-    )
+    return isinstance(value, dict) and all(isinstance(key, str) and is_json_value(item) for key, item in value.items())
 
 
 def is_json_array(value: object) -> TypeGuard[JsonArray]:

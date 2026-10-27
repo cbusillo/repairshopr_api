@@ -1,17 +1,17 @@
 """Current vendor API contracts exercised through HTTP and the Django importer."""
 
 from collections.abc import Mapping
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from urllib.parse import urlparse
 
 import pytest
 import requests
+from repairshopr_data.management.commands import import_from_repairshopr
+from repairshopr_data.models import Estimate, SyncStatus, Ticket, TicketComment
 
 from repairshopr_api.base.model import BaseModel
 from repairshopr_api.config import settings
 from repairshopr_api.type_defs import JsonObject
-from repairshopr_data.management.commands import import_from_repairshopr
-from repairshopr_data.models import Estimate, SyncStatus, Ticket, TicketComment
 
 
 @pytest.fixture
@@ -22,7 +22,7 @@ def command(monkeypatch: pytest.MonkeyPatch) -> import_from_repairshopr.Command:
     monkeypatch.setattr(
         settings.django,
         "last_updated_at",
-        datetime(2026, 9, 1, tzinfo=timezone.utc),
+        datetime(2026, 9, 1, tzinfo=UTC),
     )
     monkeypatch.setattr(settings, "save", lambda: None)
     return import_from_repairshopr.Command()
@@ -78,11 +78,9 @@ def test_ticket_import_fetches_full_comment_history_before_replacing_relations(
     TicketComment.objects.create(id=202, ticket=ticket, body="Previously synced")
     requested_pages: list[int] = []
     observed_models: list[str | None] = []
-    comment_rows: list[JsonObject] = [
-        {"id": 200 + page, "body": f"Comment {page}"} for page in range(1, 4)
-    ]
+    comment_rows: list[JsonObject] = [{"id": 200 + page, "body": f"Comment {page}"} for page in range(1, 4)]
     checkpoint = settings.django.last_updated_at
-    clock = datetime(2026, 9, 2, tzinfo=timezone.utc)
+    clock = datetime(2026, 9, 2, tzinfo=UTC)
 
     def advancing_now() -> datetime:
         nonlocal clock
@@ -143,9 +141,7 @@ def test_ticket_import_fetches_full_comment_history_before_replacing_relations(
         assert requested_pages == [1, 2]
         assert settings.django.last_updated_at == checkpoint
         assert SyncStatus.objects.get(id=1).status == "failed"
-        assert list(ticket.comments.values_list("id", "body")) == [
-            (202, "Previously synced")
-        ]
+        assert list(ticket.comments.values_list("id", "body")) == [(202, "Previously synced")]
     else:
         command.handle()
         assert requested_pages == [1, 2, 3, 4]

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -18,7 +18,7 @@ def test_from_dict_parses_datetime_strings() -> None:
     )
 
     assert isinstance(invoice.created_at, datetime)
-    assert invoice.created_at == datetime(2026, 1, 10, 10, 20, 30, tzinfo=timezone.utc)
+    assert invoice.created_at == datetime(2026, 1, 10, 10, 20, 30, tzinfo=UTC)
     assert isinstance(invoice.updated_at, datetime)
     assert invoice.updated_at.utcoffset() is not None
 

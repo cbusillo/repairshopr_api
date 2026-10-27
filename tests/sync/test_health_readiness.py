@@ -1,11 +1,10 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
-
 from repairshopr_data.models import SyncStatus
 from repairshopr_data.sync_health import (
     DEFAULT_STALE_THRESHOLD_SECONDS,
@@ -39,7 +38,7 @@ def health_env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
 def test_health_ready_payload_includes_sync_and_runtime_identity(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    current_time = datetime(2026, 2, 12, 18, tzinfo=timezone.utc)
+    current_time = datetime(2026, 2, 12, 18, tzinfo=UTC)
     monkeypatch.setenv(
         "LAUNCHPLANE_RUNTIME_IDENTITY_JSON",
         json.dumps(
@@ -97,7 +96,7 @@ def test_health_ready_payload_includes_sync_and_runtime_identity(
 def test_health_not_ready_when_running_sync_is_stale(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    current_time = datetime(2026, 2, 12, 18, tzinfo=timezone.utc)
+    current_time = datetime(2026, 2, 12, 18, tzinfo=UTC)
     monkeypatch.setattr("repairshopr_data.sync_health.now", lambda: current_time)
     SyncStatus.objects.create(
         id=1,
@@ -128,7 +127,7 @@ def test_health_not_ready_when_running_sync_is_stale(
 def test_health_not_ready_when_next_cycle_never_starts(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    current_time = datetime(2026, 2, 12, 18, tzinfo=timezone.utc)
+    current_time = datetime(2026, 2, 12, 18, tzinfo=UTC)
     monkeypatch.setenv("SYNC_INTERVAL_SECONDS", "300")
     monkeypatch.setattr("repairshopr_data.sync_health.now", lambda: current_time)
     SyncStatus.objects.create(
@@ -159,7 +158,7 @@ def test_health_not_ready_when_next_cycle_never_starts(
 def test_health_ready_while_waiting_for_next_cycle(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    current_time = datetime(2026, 2, 12, 18, tzinfo=timezone.utc)
+    current_time = datetime(2026, 2, 12, 18, tzinfo=UTC)
     monkeypatch.setenv("SYNC_INTERVAL_SECONDS", "300")
     monkeypatch.setattr("repairshopr_data.sync_health.now", lambda: current_time)
     SyncStatus.objects.create(
@@ -189,7 +188,7 @@ def test_health_ready_while_waiting_for_next_cycle(
 def test_health_not_ready_when_last_cycle_failed(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    current_time = datetime(2026, 2, 12, 18, tzinfo=timezone.utc)
+    current_time = datetime(2026, 2, 12, 18, tzinfo=UTC)
     monkeypatch.setattr("repairshopr_data.sync_health.now", lambda: current_time)
     SyncStatus.objects.create(
         id=1,
@@ -231,7 +230,7 @@ def test_health_not_ready_when_sync_status_row_missing() -> None:
 def test_health_not_ready_for_malformed_runtime_identity(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    current_time = datetime(2026, 2, 12, 18, tzinfo=timezone.utc)
+    current_time = datetime(2026, 2, 12, 18, tzinfo=UTC)
     monkeypatch.setenv("LAUNCHPLANE_RUNTIME_IDENTITY_JSON", "not-json")
     monkeypatch.setenv("LAUNCHPLANE_DEPLOYMENT_RECORD_ID", "deploy-fallback")
     monkeypatch.setattr("repairshopr_data.sync_health.now", lambda: current_time)

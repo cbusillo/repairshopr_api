@@ -38,9 +38,7 @@ def _fail_on_home_config_access(event: str, arguments: tuple[object, ...]) -> No
     if path_count is None:
         return
     if any(_is_home_config_path(path) for path in arguments[:path_count]):
-        pytest.fail(
-            f"Test touched the developer's home config: {event} under {HOME_CONFIG_DIR}"
-        )
+        pytest.fail(f"Test touched the developer's home config: {event} under {HOME_CONFIG_DIR}")
 
 
 sys.addaudithook(_fail_on_home_config_access)

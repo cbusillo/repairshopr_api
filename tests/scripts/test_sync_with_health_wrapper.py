@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 from pathlib import Path
+from types import TracebackType
 from typing import Literal
 
 import pytest
 from django.utils.timezone import now
-
 from repairshopr_data.models import SyncStatus
 from repairshopr_data.sync_health import build_health_payload
 
@@ -134,11 +134,13 @@ def test_wrapper_waits_for_health_before_launching_sync(
         def __enter__(self) -> "ReadySocket":
             return self
 
-        def __exit__(self, exc_type, exc, tb) -> Literal[False]:
+        def __exit__(
+            self, exc_type: type[BaseException] | None, exc: BaseException | None, tb: TracebackType | None
+        ) -> Literal[False]:
             _ = exc_type, exc, tb
             return False
 
-    def fake_create_connection(address: tuple[str, int], timeout: float = 0.0):
+    def fake_create_connection(address: tuple[str, int], timeout: float = 0.0) -> ReadySocket:
         _ = timeout
         connections.append(address)
         if len(connections) == 1:

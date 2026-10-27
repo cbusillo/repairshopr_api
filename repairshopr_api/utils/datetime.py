@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import re
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 
 _TZ_WITHOUT_COLON_RE = re.compile(r"([+-]\d{2})(\d{2})$")
 _EXCESS_MICROS_RE = re.compile(r"(\.\d{6})\d+")
@@ -54,7 +54,7 @@ def coerce_datetime(value: object) -> datetime | None:
         if timestamp > 10_000_000_000:
             timestamp /= 1000.0
         try:
-            return datetime.fromtimestamp(timestamp, tz=timezone.utc)
+            return datetime.fromtimestamp(timestamp, tz=UTC)
         except OSError, OverflowError, ValueError:
             return None
     return None

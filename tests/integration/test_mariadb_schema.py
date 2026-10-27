@@ -4,6 +4,7 @@ import os
 
 import pytest
 from django.db import connection
+from pytest_django.plugin import DjangoDbBlocker
 
 pytestmark = [pytest.mark.integration]
 
@@ -12,7 +13,7 @@ pytestmark = [pytest.mark.integration]
     os.environ.get("RUN_MARIADB_INTEGRATION") != "1",
     reason="MariaDB integration job only",
 )
-def test_ticket_comment_body_collation_matches_table_default(django_db_blocker) -> None:
+def test_ticket_comment_body_collation_matches_table_default(django_db_blocker: DjangoDbBlocker) -> None:
     table_name = "repairshopr_data_ticketcomment"
     with django_db_blocker.unblock():
         with connection.cursor() as cursor:

@@ -1,18 +1,17 @@
-"""Bounded recovery of children whose parents no longer change upstream."""
-
 import json
 from pathlib import Path
+from typing import Any
 
 from django.core.management.base import BaseCommand, CommandError, CommandParser
 from django.db import transaction
-
-from repairshopr_api.client import Client
-from repairshopr_api.type_defs import JsonObject, QueryParams
 from repairshopr_data.management.commands.import_from_repairshopr import (
     _normalize_identifier,
     create_or_update_django_instance,
 )
 from repairshopr_data.models import Invoice, InvoiceLineItem, Ticket, TicketComment
+
+from repairshopr_api.client import Client
+from repairshopr_api.type_defs import JsonObject, QueryParams
 
 
 class Command(BaseCommand):
@@ -46,25 +45,17 @@ class Command(BaseCommand):
                 return rows
             page += 1
 
-    def handle(self, *_args, **options) -> None:
+    def handle(self, *_args: Any, **options: Any) -> None:
         kind = options["kind"]
         try:
             identifiers = options["ids"] or [
-                int(line.strip())
-                for line in options["id_file"].read_text().splitlines()
-                if line.strip()
+                int(line.strip()) for line in options["id_file"].read_text().splitlines() if line.strip()
             ]
         except (OSError, ValueError) as exc:
             raise CommandError("Cannot read parent IDs") from exc
         identifiers = sorted(set(identifiers))
-        if (
-            not identifiers
-            or len(identifiers) > 1000
-            or any(i <= 0 for i in identifiers)
-        ):
-            raise CommandError(
-                "Select between 1 and 1000 positive parent IDs per batch"
-            )
+        if not identifiers or len(identifiers) > 1000 or any(i <= 0 for i in identifiers):
+            raise CommandError("Select between 1 and 1000 positive parent IDs per batch")
         parent_model, child_model, relation, source_parent = (
             (Invoice, InvoiceLineItem, "parent_invoice", "invoice_id")
             if kind == "invoice"
@@ -87,25 +78,15 @@ class Command(BaseCommand):
                     upstream_parent = _normalize_identifier(row.get(source_parent))
                     if identifier is None or identifier <= 0:
                         raise CommandError("Missing or invalid child ID")
-                    if upstream_parent != parent_id and (
-                        kind == "invoice" or upstream_parent is not None
-                    ):
+                    if upstream_parent != parent_id and (kind == "invoice" or upstream_parent is not None):
                         raise CommandError("Child belongs to a different parent")
                     by_id[identifier] = row
-                local_ids = set(
-                    child_model.objects.filter(
-                        **{f"{relation}_id": parent_id}
-                    ).values_list("id", flat=True)
-                )
+                local_ids = set(child_model.objects.filter(**{f"{relation}_id": parent_id}).values_list("id", flat=True))
                 missing = by_id.keys() - local_ids
                 if options["apply"]:
-                    # Fetch every page before writes; rollback this entire parent
-                    # on an import failure. Previously completed parents can be replayed.
                     with transaction.atomic():
                         for row in by_id.values():
-                            imported = create_or_update_django_instance(
-                                child_model, row, {relation: parents[parent_id]}
-                            )
+                            imported = create_or_update_django_instance(child_model, row, {relation: parents[parent_id]})
                             if imported is None:
                                 raise CommandError("Child import failed")
                 self.stdout.write(

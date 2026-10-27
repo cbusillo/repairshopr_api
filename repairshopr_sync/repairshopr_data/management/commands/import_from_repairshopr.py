@@ -1,23 +1,16 @@
+import json
 import logging
 import pprint
-import json
-import requests
-from uuid import uuid4
-from datetime import datetime, timezone
+from collections.abc import Mapping
+from datetime import UTC, datetime
 from types import SimpleNamespace
-from typing import Mapping, NamedTuple, TypeAlias, TypeGuard
+from typing import Any, NamedTuple, TypeGuard
+from uuid import uuid4
 
+import requests
 from django.core.management.base import BaseCommand, CommandError
-from django.db import DataError, DatabaseError, OperationalError, models
+from django.db import DatabaseError, DataError, OperationalError, models
 from django.utils.timezone import make_aware, now
-
-from repairshopr_api import models as api_models
-from repairshopr_api.config import settings
-from repairshopr_api.client import Client, ModelType
-from repairshopr_api.base.model import BaseModel
-from repairshopr_api.models.ticket import Ticket as ApiTicket
-from repairshopr_api.type_defs import JsonValue, QueryParams
-from repairshopr_api.utils import coerce_datetime, parse_datetime
 from repairshopr_data import models as sync_models
 from repairshopr_data.models import (
     Invoice,
@@ -29,12 +22,19 @@ from repairshopr_data.models import (
 )
 from repairshopr_data.models.estimate import EstimateLineItem
 
+from repairshopr_api import models as api_models
+from repairshopr_api.base.model import BaseModel
+from repairshopr_api.client import Client
+from repairshopr_api.config import settings
+from repairshopr_api.models.ticket import Ticket as ApiTicket
+from repairshopr_api.type_defs import JsonValue, QueryParams
+from repairshopr_api.utils import coerce_datetime, parse_datetime
+
 logger = logging.getLogger(__name__)
 
-ApiInstance: TypeAlias = ModelType | SimpleNamespace
-FieldValue: TypeAlias = JsonValue | datetime | models.Model
+type FieldValue = JsonValue | datetime | models.Model
 RELATED_PROPERTY_COLLECTIONS = frozenset({"line_items"})
-BASELINE_UPDATED_AT = datetime(2010, 1, 1, tzinfo=timezone.utc)
+BASELINE_UPDATED_AT = datetime(2010, 1, 1, tzinfo=UTC)
 LINE_ITEM_PARITY_ABSOLUTE_TOLERANCE = 50
 LINE_ITEM_PARITY_RELATIVE_TOLERANCE = 0.005
 FULL_SYNC_INVOICE_SAMPLE_SIZE = 12
@@ -52,8 +52,6 @@ class ModelSyncPlan(NamedTuple):
 
 
 def _instance_values(api_instance: object) -> Mapping[str, object] | None:
-    """Return instance values without triggering computed properties when possible."""
-
     if isinstance(api_instance, Mapping):
         return api_instance
     try:
@@ -91,9 +89,7 @@ def _resolve_related_collection(api_instance: object, field_name: str) -> object
     return getattr(api_instance, field_name, None)
 
 
-def _instance_with_updated_identifier(
-    api_instance: object, normalized_identifier: int | None
-) -> object:
+def _instance_with_updated_identifier(api_instance: object, normalized_identifier: int | None) -> object:
     if isinstance(api_instance, Mapping):
         mutable_values = dict(api_instance)
         mutable_values["id"] = normalized_identifier
@@ -103,7 +99,7 @@ def _instance_with_updated_identifier(
         mutable_values["id"] = normalized_identifier
         return SimpleNamespace(**mutable_values)
     if hasattr(api_instance, "id"):
-        setattr(api_instance, "id", normalized_identifier)
+        api_instance.id = normalized_identifier
     return api_instance
 
 
@@ -127,9 +123,7 @@ def _coerce_datetime(value: object, *, field_name: str) -> datetime | None:
 
 def _parse_signed_integer(value: str) -> int | None:
     stripped_value = value.strip()
-    if stripped_value.isdigit() or (
-        stripped_value.startswith("-") and stripped_value[1:].isdigit()
-    ):
+    if stripped_value.isdigit() or (stripped_value.startswith("-") and stripped_value[1:].isdigit()):
         return int(stripped_value)
     return None
 
@@ -161,7 +155,7 @@ def _coerce_integer_value(value: object, *, field_name: str) -> object:
 
 def create_or_update_django_instance(
     django_model: type[models.Model],
-    api_instance: ApiInstance | Mapping[str, object],
+    api_instance: object,
     extra_fields: Mapping[str, FieldValue] | None = None,
 ) -> models.Model | None:
     if extra_fields is None:
@@ -177,13 +171,9 @@ def create_or_update_django_instance(
         if _instance_has_field(api_instance, field.name):
             value = _instance_get_field(api_instance, field.name)
             if isinstance(field, models.IntegerField):
-                value = _coerce_integer_value(
-                    value, field_name=f"{django_model.__name__}.{field.name}"
-                )
+                value = _coerce_integer_value(value, field_name=f"{django_model.__name__}.{field.name}")
             if isinstance(field, models.DateTimeField):
-                parsed_value = _coerce_datetime(
-                    value, field_name=f"{django_model.__name__}.{field.name}"
-                )
+                parsed_value = _coerce_datetime(value, field_name=f"{django_model.__name__}.{field.name}")
                 if parsed_value is not None:
                     if parsed_value.tzinfo is None:
                         parsed_value = make_aware(parsed_value)
@@ -192,20 +182,14 @@ def create_or_update_django_instance(
                 value = make_aware(value)
             if isinstance(field, models.ForeignKey):
                 related_django_model = field.related_model
-                if not isinstance(
-                    related_django_model, type
-                ) or not _is_django_model_like(related_django_model):
-                    raise TypeError(
-                        f"Expected Django model type for foreign key, got {related_django_model!r}"
-                    )
+                if not isinstance(related_django_model, type) or not _is_django_model_like(related_django_model):
+                    raise TypeError(f"Expected Django model type for foreign key, got {related_django_model!r}")
 
                 related_api_instance = _instance_get_field(api_instance, field.name)
                 if related_api_instance is None:
                     value = None
                 else:
-                    related_identifier = _normalize_identifier(
-                        _instance_get_field(related_api_instance, "id")
-                    )
+                    related_identifier = _normalize_identifier(_instance_get_field(related_api_instance, "id"))
                     # Embedded properties have no source ID. Reuse this parent's
                     # local row instead of creating an orphan on every refresh.
                     if (
@@ -217,17 +201,11 @@ def create_or_update_django_instance(
                         )
                     ):
                         related_identifier = (
-                            django_model.objects.filter(id=lookup_identifier)
-                            .values_list(field.attname, flat=True)
-                            .first()
+                            django_model.objects.filter(id=lookup_identifier).values_list(field.attname, flat=True).first()
                         )
-                    related_api_instance = _instance_with_updated_identifier(
-                        related_api_instance, related_identifier
-                    )
+                    related_api_instance = _instance_with_updated_identifier(related_api_instance, related_identifier)
 
-                    value = create_or_update_django_instance(
-                        related_django_model, related_api_instance
-                    )
+                    value = create_or_update_django_instance(related_django_model, related_api_instance)
 
             field_data[field.name] = value
 
@@ -235,11 +213,7 @@ def create_or_update_django_instance(
     lookup_identifier = _normalize_identifier(_instance_get_field(api_instance, "id"))
     primary_key_field = getattr(django_model._meta, "pk", None)
     is_auto_primary_key = isinstance(primary_key_field, models.AutoField)
-    if (
-        lookup_identifier is None
-        and primary_key_field is not None
-        and not is_auto_primary_key
-    ):
+    if lookup_identifier is None and primary_key_field is not None and not is_auto_primary_key:
         logger.warning(
             "Skipping %s import because id is missing or invalid.",
             django_model.__name__,
@@ -250,20 +224,14 @@ def create_or_update_django_instance(
         if lookup_identifier is None and is_auto_primary_key:
             obj = django_model.objects.create(**field_data)
         else:
-            obj, _created = django_model.objects.update_or_create(
-                defaults=field_data, id=lookup_identifier
-            )
+            obj, _created = django_model.objects.update_or_create(defaults=field_data, id=lookup_identifier)
     except DataError as e:
         formatted_field_data = pprint.pformat(field_data)
-        logger.error(
-            f"DataError on {django_model.__name__} with data {formatted_field_data}: {e}"
-        )
+        logger.error("DataError on %s with data %s: %s", django_model.__name__, formatted_field_data, e)
         raise
     except OperationalError as e:
         formatted_field_data = pprint.pformat(field_data)
-        logger.error(
-            f"OperationalError on {django_model.__name__} with data {formatted_field_data}: {e}"
-        )
+        logger.error("OperationalError on %s with data %s: %s", django_model.__name__, formatted_field_data, e)
         raise
     return obj
 
@@ -271,7 +239,7 @@ def create_or_update_django_instance(
 class Command(BaseCommand):
     help = "Imports data from RepairShopr API into the local Django database"
 
-    def __init__(self, *args, **kwargs) -> None:
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.client = Client()
         self._cycle_id: str | None = None
@@ -292,12 +260,8 @@ class Command(BaseCommand):
                 10,
                 reverse_sort_on_updated_at,
             ),
-            "Estimate": ModelSyncPlan(
-                sync_models.Estimate, api_models.Estimate, None, None
-            ),
-            "Invoice": ModelSyncPlan(
-                sync_models.Invoice, api_models.Invoice, None, None
-            ),
+            "Estimate": ModelSyncPlan(sync_models.Estimate, api_models.Estimate, None, None),
+            "Invoice": ModelSyncPlan(sync_models.Invoice, api_models.Invoice, None, None),
             "Payment": ModelSyncPlan(sync_models.Payment, api_models.Payment, 2, None),
             "Product": ModelSyncPlan(
                 sync_models.Product,
@@ -353,17 +317,14 @@ class Command(BaseCommand):
     def _maybe_write_sync_heartbeat(self, *, force: bool = False) -> None:
         current_time = now()
         if not force:
-            enough_records = (
-                self._status_records_processed - self._status_last_written_records
-            ) >= HEARTBEAT_RECORD_INTERVAL
+            enough_records = (self._status_records_processed - self._status_last_written_records) >= HEARTBEAT_RECORD_INTERVAL
             enough_pages = (
                 self._status_current_page > self._status_last_written_page
                 and self._status_current_page % HEARTBEAT_PAGE_INTERVAL == 0
             )
             enough_time = (
                 self._status_last_written_at is None
-                or (current_time - self._status_last_written_at).total_seconds()
-                >= HEARTBEAT_SECONDS_INTERVAL
+                or (current_time - self._status_last_written_at).total_seconds() >= HEARTBEAT_SECONDS_INTERVAL
             )
             if not (enough_records or enough_pages or enough_time):
                 return
@@ -417,19 +378,13 @@ class Command(BaseCommand):
 
         self._set_model_sync_progress(api_model.__name__.lower())
 
-        api_instances = self.client.get_model(
-            api_model, last_updated_at, num_last_pages, params
-        )
+        api_instances = self.client.get_model(api_model, last_updated_at, num_last_pages, params)
         for api_instance in api_instances:
             # Keep heartbeat current during slow record-level processing.
             self._maybe_write_sync_heartbeat()
             if isinstance(api_instance, ApiTicket) and api_instance.id:
-                api_instance.comments = self.client.fetch_ticket_comments(
-                    api_instance.id
-                )
-            django_instance = create_or_update_django_instance(
-                django_model, api_instance
-            )
+                api_instance.comments = self.client.fetch_ticket_comments(api_instance.id)
+            django_instance = create_or_update_django_instance(django_model, api_instance)
             if django_instance is None:
                 continue
             parent_model_name = django_model.__name__
@@ -438,9 +393,7 @@ class Command(BaseCommand):
             for related_obj in django_model._meta.related_objects:
                 sub_django_model = related_obj.related_model
 
-                sub_api_instances = _resolve_related_collection(
-                    api_instance, related_obj.name
-                )
+                sub_api_instances = _resolve_related_collection(api_instance, related_obj.name)
                 if not isinstance(sub_api_instances, list):
                     continue
 
@@ -448,17 +401,13 @@ class Command(BaseCommand):
                 skipped_submodel_instances = 0
                 for sub_api_instance in sub_api_instances:
                     self._maybe_write_sync_heartbeat()
-                    sub_django_instance = create_or_update_django_instance(
-                        sub_django_model, sub_api_instance
-                    )
+                    sub_django_instance = create_or_update_django_instance(sub_django_model, sub_api_instance)
                     if sub_django_instance is None:
                         skipped_submodel_instances += 1
                         continue
-                    setattr(
-                        sub_django_instance, related_obj.field.name, django_instance
-                    )
+                    setattr(sub_django_instance, related_obj.field.name, django_instance)
                     if hasattr(sub_django_instance, "save"):
-                        save = getattr(sub_django_instance, "save")
+                        save = sub_django_instance.save
                         if callable(save):
                             save()
                     sub_django_instances.append(sub_django_instance)
@@ -519,9 +468,7 @@ class Command(BaseCommand):
         )
 
     def _fetch_line_item_total_entries(self, filter_key: str) -> int | None:
-        _rows, meta_data = self.client.fetch_from_api(
-            "line_item", params={filter_key: "true"}
-        )
+        _rows, meta_data = self.client.fetch_from_api("line_item", params={filter_key: "true"})
         if not isinstance(meta_data, dict):
             return None
         return self._normalize_total_entries(meta_data.get("total_entries"))
@@ -536,9 +483,7 @@ class Command(BaseCommand):
             if page > 1:
                 params["page"] = page
 
-            response_data, meta_data = self.client.fetch_from_api(
-                "line_item", params=params, use_cache=False
-            )
+            response_data, meta_data = self.client.fetch_from_api("line_item", params=params, use_cache=False)
             for row in response_data:
                 if not isinstance(row, dict):
                     raise ValueError("Invalid invoice line-item row")
@@ -563,27 +508,16 @@ class Command(BaseCommand):
 
     @staticmethod
     def _pick_first_invoice_id_at_or_after(target_id: int) -> int | None:
-        return (
-            Invoice.objects.filter(id__gte=target_id)
-            .order_by("id")
-            .values_list("id", flat=True)
-            .first()
-        )
+        return Invoice.objects.filter(id__gte=target_id).order_by("id").values_list("id", flat=True).first()
 
     def _build_invoice_sample_ids(self, sample_size: int) -> list[int]:
         if sample_size <= 0:
             return []
 
         newest_count = min(3, sample_size)
-        recent_invoice_ids = list(
-            Invoice.objects.order_by("-updated_at", "-id").values_list("id", flat=True)[
-                :newest_count
-            ]
-        )
+        recent_invoice_ids = list(Invoice.objects.order_by("-updated_at", "-id").values_list("id", flat=True)[:newest_count])
 
-        aggregate = Invoice.objects.aggregate(
-            min_id=models.Min("id"), max_id=models.Max("id")
-        )
+        aggregate = Invoice.objects.aggregate(min_id=models.Min("id"), max_id=models.Max("id"))
         min_id = aggregate.get("min_id")
         max_id = aggregate.get("max_id")
         if not isinstance(min_id, int) or not isinstance(max_id, int):
@@ -599,12 +533,7 @@ class Command(BaseCommand):
                 target_id = min_id + ((max_id - min_id) * index // step_denominator)
                 candidate_id = self._pick_first_invoice_id_at_or_after(target_id)
                 if candidate_id is None:
-                    candidate_id = (
-                        Invoice.objects.filter(id__lte=target_id)
-                        .order_by("-id")
-                        .values_list("id", flat=True)
-                        .first()
-                    )
+                    candidate_id = Invoice.objects.filter(id__lte=target_id).order_by("-id").values_list("id", flat=True).first()
                 if isinstance(candidate_id, int):
                     sampled_ids.append(candidate_id)
 
@@ -614,9 +543,7 @@ class Command(BaseCommand):
                 deduplicated_ids.append(candidate_id)
         return deduplicated_ids
 
-    def _evaluate_invoice_line_item_sample_parity(
-        self, sample_size: int
-    ) -> dict[str, object]:
+    def _evaluate_invoice_line_item_sample_parity(self, sample_size: int) -> dict[str, object]:
         self._status_current_model = "line_item_sample"
         self._status_current_page = 0
         self._status_records_processed = 0
@@ -628,11 +555,7 @@ class Command(BaseCommand):
             self._status_current_page = sample_index
             self._maybe_write_sync_heartbeat()
             api_ids = self._fetch_invoice_line_item_ids(invoice_id)
-            db_ids = set(
-                InvoiceLineItem.objects.filter(
-                    parent_invoice_id=invoice_id
-                ).values_list("id", flat=True)
-            )
+            db_ids = set(InvoiceLineItem.objects.filter(parent_invoice_id=invoice_id).values_list("id", flat=True))
             missing_ids = api_ids - db_ids
             if missing_ids:
                 mismatches.append(
@@ -670,9 +593,7 @@ class Command(BaseCommand):
             ),
         )
 
-        for parity_index, (model_name, filter_key, db_counter) in enumerate(
-            parity_expectations, start=1
-        ):
+        for parity_index, (model_name, filter_key, db_counter) in enumerate(parity_expectations, start=1):
             self._status_current_page = parity_index
             self._maybe_write_sync_heartbeat()
             try:
@@ -717,17 +638,17 @@ class Command(BaseCommand):
 
             if abs(delta) > allowed_delta:
                 logger.warning(
-                    f"{model_name}: expected={expected_total} actual={actual_total} "
-                    f"delta={delta} allowed_delta={allowed_delta}"
+                    "%s: expected=%s actual=%s delta=%s allowed_delta=%s",
+                    model_name,
+                    expected_total,
+                    actual_total,
+                    delta,
+                    allowed_delta,
                 )
             self._status_records_processed = parity_index
             self._maybe_write_sync_heartbeat()
 
-        sample_size = (
-            FULL_SYNC_INVOICE_SAMPLE_SIZE
-            if full_sync
-            else INCREMENTAL_INVOICE_SAMPLE_SIZE
-        )
+        sample_size = FULL_SYNC_INVOICE_SAMPLE_SIZE if full_sync else INCREMENTAL_INVOICE_SAMPLE_SIZE
         self._status_current_page += 1
         self._maybe_write_sync_heartbeat()
         try:
@@ -751,9 +672,7 @@ class Command(BaseCommand):
                     "error": str(exc),
                 },
             )
-            raise CommandError(
-                "Invoice line-item sample could not be verified; checkpoint unchanged"
-            ) from exc
+            raise CommandError("Invoice line-item sample could not be verified; checkpoint unchanged") from exc
         else:
             self._log_sync_check(
                 "invoice_line_item_sample",
@@ -763,9 +682,7 @@ class Command(BaseCommand):
                 },
             )
 
-            mismatch_count = (
-                self._normalize_total_entries(sample_report.get("mismatch_count")) or 0
-            )
+            mismatch_count = self._normalize_total_entries(sample_report.get("mismatch_count")) or 0
             if mismatch_count:
                 mismatch_message = (
                     f"Invoice line-item sample has {mismatch_count} invoices "
@@ -773,7 +690,7 @@ class Command(BaseCommand):
                 )
                 raise CommandError(mismatch_message)
 
-    def handle(self, *_args, **_kwargs) -> None:
+    def handle(self, *_args: Any, **_kwargs: Any) -> None:
         last_updated_at = settings.django.last_updated_at
         full_sync = self._is_full_sync_run(last_updated_at)
         self._mark_sync_cycle_started(full_sync=full_sync)
