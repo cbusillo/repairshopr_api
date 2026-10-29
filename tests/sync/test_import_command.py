@@ -328,14 +328,12 @@ def test_handle_model_uses_baseline_when_last_updated_is_too_old(
     assert num_last_pages_arg is None
 
 
-def test_handle_model_releases_consumed_pages_and_previous_record_cache(
-    command: CommandFixture,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_import_releases_consumed_responses(command: CommandFixture, monkeypatch: pytest.MonkeyPatch) -> None:
     cmd, _fake_client = command
+    monkeypatch.setattr(BaseModel, "rs_client", BaseModel.rs_client)
     client = Client(token="token", url_store_name="store")
     cmd.client = client
-    settings.django.last_updated_at = None
+    monkeypatch.setattr(settings.django, "last_updated_at", None)
     requests_made: list[tuple[str, dict[str, object]]] = []
     cache_sizes_before_record: list[int] = []
     imported_ids: list[int | None] = []
@@ -364,7 +362,8 @@ def test_handle_model_releases_consumed_pages_and_previous_record_cache(
     assert imported_ids == [1, 2, 3]
     assert cache_sizes_before_record == [0, 0, 0]
     assert client._cache == {}
-    assert len(requests_made) == 2 * len(imported_ids)
+    assert [params["page"] for url, params in requests_made if url.endswith("/dummy_api_models")] == imported_ids
+    assert [params["invoice_id"] for url, params in requests_made if url.endswith("/line_items")] == imported_ids
 
 
 def test_handle_logs_timing_and_updates_last_updated_at(

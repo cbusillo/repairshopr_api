@@ -12,7 +12,11 @@ its related records. It releases the previous record's entries before the next
 record and clears any final or empty-page entries when the model finishes.
 Consumed bulk pages and related-record responses therefore do not accumulate
 throughout a full cycle. Ordinary library callers retain the client's existing
-cache behavior; pagination and API limiting are unchanged.
+cache behavior; pagination and API limiting are unchanged. `Client.get_model`
+forwards its optional `use_cache` keyword to list reads, defaulting to caching.
+Line-item prefetch disables bulk-page caching while keeping its invoice-indexed
+cache. Forensic scans also bypass response caching; they retain identifier sets
+for duplicate and drift calculations.
 
 ## Live comparison
 

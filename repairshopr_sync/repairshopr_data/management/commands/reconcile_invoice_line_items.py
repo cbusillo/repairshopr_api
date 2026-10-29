@@ -60,7 +60,7 @@ class Command(BaseCommand):
         page_end: int,
         progress_every: int,
     ) -> dict[str, Any]:
-        first_page_rows, meta = client.fetch_from_api("line_item", params={"invoice_id_not_null": True, "page": 1})
+        first_page_rows, meta = client.fetch_from_api("line_item", params={"invoice_id_not_null": True, "page": 1}, use_cache=False)
         total_pages = self._normalize_total_entries(meta.get("total_pages")) if isinstance(meta, dict) else None
         api_reported_total = self._normalize_total_entries(meta.get("total_entries")) if isinstance(meta, dict) else None
 
@@ -83,7 +83,9 @@ class Command(BaseCommand):
                 # Reuse the metadata probe payload instead of refetching page 1.
                 response_data = first_page_rows
             else:
-                response_data, _meta = client.fetch_from_api("line_item", params={"invoice_id_not_null": True, "page": page})
+                response_data, _meta = client.fetch_from_api(
+                    "line_item", params={"invoice_id_not_null": True, "page": page}, use_cache=False
+                )
             page_ids: list[int] = []
             page_line_item_invoice_map: dict[int, int] = {}
 
