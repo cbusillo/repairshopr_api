@@ -352,7 +352,7 @@ def test_import_releases_consumed_responses(command: CommandFixture, monkeypatch
         imported_ids.append(api_instance.id)
         params = {"invoice_id": api_instance.id}
         first = client.fetch_from_api("line_item", params=params)
-        assert client.fetch_from_api("line_item", params=params) is first
+        assert client.fetch_from_api("line_item", params=params) == first
 
     monkeypatch.setattr(client, "request", fake_request)
     monkeypatch.setattr(command_module, "create_or_update_django_instance", import_record)

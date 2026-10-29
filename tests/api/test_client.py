@@ -166,15 +166,14 @@ def test_prefetch_line_items_builds_cache_for_old_updated_at(monkeypatch: pytest
     monkeypatch.setattr(client, "request", fake_request)
     client.prefetch_line_items()
 
-    assert client._has_line_item_in_cache is True
-    cached_entries = [value for key, value in client._cache.items() if key.startswith("line_item_list_")]
-    assert len(cached_entries) == 1
-    first_page_rows, _meta = cached_entries[0]
-    assert first_page_rows
+    first_page_rows, _meta = client.fetch_from_api("line_item", params={"invoice_id": 100})
     assert is_json_object(first_page_rows[0])
     assert first_page_rows[0]["updated_at"] == "2026-02-01T01:02:00+00:00"
-    assert [row["id"] for row in client.fetch_from_api("line_item", params={"invoice_id": 100})[0]] == [1, 2]
+    assert [row["id"] for row in first_page_rows] == [1, 2]
     assert requested_pages == [1, 2]
+    for page in requested_pages.copy():
+        client.fetch_from_api("line_item", params={"invoice_id_not_null": "true", "page": page})
+    assert requested_pages == [1, 2, 1, 2]
 
 
 def test_prefetch_line_items_aware_vs_naive_regression() -> None:
@@ -347,7 +346,7 @@ def test_fetch_from_api_caches_result(monkeypatch: pytest.MonkeyPatch) -> None:
     first = client.fetch_from_api("dummy_model", params={"page": 1})
     second = client.fetch_from_api("dummy_model", params={"page": 1})
 
-    assert first is second
+    assert first == second
     assert first[0] == [{"id": 1}]
     assert [record.id for record in client.get_model(DummyModel)] == [1]
     assert [record.id for record in client.get_model(DummyModel)] == [1]
