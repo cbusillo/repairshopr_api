@@ -24,7 +24,7 @@ from repairshopr_data.management.commands.import_from_repairshopr import (
 )
 
 from repairshopr_api.base.model import BaseModel
-from repairshopr_api.client import ProgressCallback
+from repairshopr_api.client import Client, ProgressCallback
 from repairshopr_api.config import settings
 
 
@@ -326,6 +326,45 @@ def test_handle_model_uses_baseline_when_last_updated_is_too_old(
 
     _, _, num_last_pages_arg, _ = fake_client.calls[0]
     assert num_last_pages_arg is None
+
+
+def test_handle_model_releases_consumed_pages_and_previous_record_cache(
+    command: CommandFixture,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    cmd, _fake_client = command
+    client = Client(token="token", url_store_name="store")
+    cmd.client = client
+    settings.django.last_updated_at = None
+    requests_made: list[tuple[str, dict[str, object]]] = []
+    cache_sizes_before_record: list[int] = []
+    imported_ids: list[int | None] = []
+
+    def fake_request(method: str, url: str, params: dict[str, object], **_kwargs: Any) -> SimpleNamespace:
+        assert method == "GET"
+        requests_made.append((url, dict(params)))
+        if url.endswith("/dummy_api_models"):
+            payload = {"dummy_api_models": [{"id": params["page"]}], "meta": {"total_pages": 3}}
+        else:
+            payload = {"line_items": [{"id": params["invoice_id"]}], "meta": {"total_pages": 1}}
+        return SimpleNamespace(json=lambda: payload)
+
+    def import_record(_django_model: type[models.Model], api_instance: BaseModel) -> None:
+        cache_sizes_before_record.append(len(client._cache))
+        imported_ids.append(api_instance.id)
+        params = {"invoice_id": api_instance.id}
+        first = client.fetch_from_api("line_item", params=params)
+        assert client.fetch_from_api("line_item", params=params) is first
+
+    monkeypatch.setattr(client, "request", fake_request)
+    monkeypatch.setattr(command_module, "create_or_update_django_instance", import_record)
+
+    cmd.handle_model(simple_django_model(), DummyApiModel)
+
+    assert imported_ids == [1, 2, 3]
+    assert cache_sizes_before_record == [0, 0, 0]
+    assert client._cache == {}
+    assert len(requests_made) == 2 * len(imported_ids)
 
 
 def test_handle_logs_timing_and_updates_last_updated_at(

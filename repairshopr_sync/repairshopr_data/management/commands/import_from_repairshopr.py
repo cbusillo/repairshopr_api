@@ -380,6 +380,7 @@ class Command(BaseCommand):
 
         api_instances = self.client.get_model(api_model, last_updated_at, num_last_pages, params)
         for api_instance in api_instances:
+            self.client.clear_cache()
             # Keep heartbeat current during slow record-level processing.
             self._maybe_write_sync_heartbeat()
             if isinstance(api_instance, ApiTicket) and api_instance.id:
@@ -435,6 +436,7 @@ class Command(BaseCommand):
                 )
             )
 
+        self.client.clear_cache()
         self._maybe_write_sync_heartbeat(force=True)
 
     @staticmethod

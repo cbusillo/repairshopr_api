@@ -7,6 +7,13 @@ a last-page window for Customer, Payment and Product. These windows are
 workarounds for endpoints that ignore the incremental filter, rather than
 limits on a filtered change set. Estimates now read every filtered page.
 
+Sync keeps client cache entries only while processing one parent record and
+its related records. It releases the previous record's entries before the next
+record and clears any final or empty-page entries when the model finishes.
+Consumed bulk pages and related-record responses therefore do not accumulate
+throughout a full cycle. Ordinary library callers retain the client's existing
+cache behavior; pagination and API limiting are unchanged.
+
 ## Live comparison
 
 A read-only check for [issue #100](https://github.com/cbusillo/repairshopr_api/issues/100)
