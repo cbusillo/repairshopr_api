@@ -3,7 +3,8 @@
 Python client and sync utilities for RepairShopr.
 
 - `repairshopr_api`: API models and helpers
-- `repairshopr_sync`: Django-based sync service (optional; install the `sync` extra, which brings Django and `mysqlclient`)
+- `repairshopr_sync`: Django-based sync service (optional; install the `sync`
+  extra, which brings Django and `mysqlclient`)
 
 ## Project direction
 
@@ -37,9 +38,8 @@ This repo treats `uv.lock` as a committed artifact and enforces lockfile
 consistency with local checks and CI.
 
 - Check lockfile consistency: `./scripts/check-lockfile.sh`
-- Refresh lockfile after dependency/version changes: `uv lock`
-- Ensure both files are committed together when needed:
-  `git add pyproject.toml uv.lock`
+- For dependency changes, follow the shared
+  [Python uv workflow](https://github.com/cbusillo/codex-skills/blob/main/skills/python-uv-workflow/SKILL.md).
 
 ## Tests
 

@@ -4,14 +4,11 @@ AGENTS.md is this repository's only agent-instruction file.
 This repository has no DIRECTION.md; read the Director's
 [overall direction](https://github.com/cbusillo/direction/blob/HEAD/DIRECTION.md)
 first and follow its executing loop and stop boundaries through the shared
-skills. Keep durable work status in the owning GitHub issue.
+skills.
 
-For issue-backed work, use `github-plan` to read the issue and linked context,
-recheck ownership, and claim before creating a linked task worktree. Use
-`github` for bot-owned commits, pushes, and PRs, following the overall direction
-for landing. Use
-`model-review` for execution-guidance changes such as this file; weigh findings
-under the shared review reference. Use `work-closeout` after landing.
+Follow the shared [executing loop](https://github.com/cbusillo/codex-skills/blob/main/skills/references/executing-loop.md).
+Use `model-review` for execution-guidance changes such as this file; weigh findings
+under the shared review reference.
 
 This repo is managed with uv and publishes to PyPI via GitHub Actions.
 Use `.github/github.json` for non-secret repo workflow facts,
@@ -31,11 +28,8 @@ Evidence: [README.md](README.md#sync-coverage).
 
 ## Lockfile policy
 
-- `uv.lock` must stay in sync with `pyproject.toml`.
+- Follow the shared [Python uv workflow](https://github.com/cbusillo/codex-skills/blob/main/skills/python-uv-workflow/SKILL.md).
 - Check consistency with: `./scripts/check-lockfile.sh`
-- If dependency metadata changes, run: `uv lock`
-- Commit `pyproject.toml` and `uv.lock` together when version/dependency data
-  changes.
 - CI intentionally uses locked installs (`uv sync --locked ...`) and will fail on
   lockfile drift.
 
@@ -43,8 +37,6 @@ Evidence: [README.md](README.md#sync-coverage).
 
 Follow [README.md — Release (PyPI)](README.md#release-pypi) for the tag-driven
 package release procedure.
-Agent-authored commits and all pushes, including release tags, use the shared
-GitHub skill's `git-commit-as-bot` and `git-push-as-bot` helpers.
 
 Sync image builds and production promotion are separate from package releases;
 see [README.md — Sync images and promotion](README.md#sync-images-and-promotion).
@@ -58,13 +50,13 @@ see [README.md — Sync images and promotion](README.md#sync-images-and-promotio
   bootstrap/entrypoint/health wrappers (`tests/scripts`), or home-config isolation
   (`tests/test_home_config_isolation.py`); trace callers for other affected modules.
   Focused local runs omit whole-project coverage; CI requires the complete
-  `test.ci` coverage gate and the existing MariaDB integration job before ready or merge.
+  `test.ci` coverage gate and the existing MariaDB integration job before ready
+  or merge.
 
 Follow the [shared Tests rule](https://github.com/cbusillo/codex-skills/blob/HEAD/instructions/global.md#tests).
 
 ## Code Quality
 
-- Run PyCharm inspections on changed files before opening a PR and before merge.
 - Shared IDE configuration targets PyCharm 2026.2 or newer and the
   `pyproject.toml`-linked module name `repairshopr-api`.
 - Keep `.idea/pyLspTools.xml` and `.idea/db-forest-config.xml` local and
