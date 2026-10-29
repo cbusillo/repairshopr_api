@@ -93,9 +93,8 @@ See the production runbook in
 
 ## Code Quality Gates
 
-Changed code is inspected in PyCharm before a PR and merge, alongside the
-Ruff lint/format and pytest/coverage gates above. See [AGENTS.md — Code Quality](AGENTS.md#code-quality)
-for thresholds, suppression requirements, and worktree-safe inspection routing.
+See [AGENTS.md — Code Quality](AGENTS.md#code-quality) for inspection thresholds,
+suppression requirements, and worktree-safe inspection routing.
 
 ## Release (PyPI)
 
@@ -113,8 +112,6 @@ For landing through the merge train and when to release, follow the
 6. Create a tag `vX.Y.Z` at the merged commit and push the tag only. Agents
    push it with the shared GitHub skill's
    [push helper](https://github.com/cbusillo/codex-skills/blob/main/skills/github/references/cli-reference.md#primary-app-and-contributor-identity).
-
-Do not commit or push release changes directly to `main`.
 
 Pushing to `main` without a tag does not publish to PyPI.
 

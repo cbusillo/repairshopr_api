@@ -3,10 +3,9 @@
 AGENTS.md is this repository's only agent-instruction file.
 This repository has no DIRECTION.md; read the Director's
 [overall direction](https://github.com/cbusillo/direction/blob/HEAD/DIRECTION.md)
-first and follow its executing loop and stop boundaries through the shared
-skills.
-
-Follow the shared [executing loop](https://github.com/cbusillo/codex-skills/blob/main/skills/references/executing-loop.md).
+first and follow the shared
+[executing loop](https://github.com/cbusillo/codex-skills/blob/main/skills/references/executing-loop.md)
+and its stop boundaries.
 Use `model-review` for execution-guidance changes such as this file; weigh findings
 under the shared review reference.
 
