@@ -133,7 +133,7 @@ def test_reconcile_compute_db_not_in_api_unique(
     class FakeClient:
         @staticmethod
         def fetch_from_api(
-            model_name: str, params: dict[str, object] | None = None, *, use_cache: bool = True
+            model_name: str, params: dict[str, object] | None = None, **_kwargs: object
         ) -> tuple[list[dict[str, int]], dict[str, int]]:
             assert model_name == "line_item"
             assert params is not None

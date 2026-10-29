@@ -47,7 +47,7 @@ def test_get_model_paginates_and_formats_since_updated_at() -> None:
     client = _make_client()
     calls: list[dict] = []
 
-    def fake_fetch(model_name: str, params: dict | None = None, *, use_cache: bool = True) -> tuple[list[dict], dict]:
+    def fake_fetch(model_name: str, params: dict | None = None, **_kwargs: object) -> tuple[list[dict], dict]:
         assert model_name == "dummy_model"
         params = dict(params or {})
         calls.append(params)
@@ -67,7 +67,7 @@ def test_get_model_num_last_pages_requests_last_window() -> None:
     client = _make_client()
     requested_pages: list[int] = []
 
-    def fake_fetch(_model_name: str, params: dict | None = None, *, use_cache: bool = True) -> tuple[list[dict], dict]:
+    def fake_fetch(_model_name: str, params: dict | None = None, **_kwargs: object) -> tuple[list[dict], dict]:
         page = (params or {})["page"]
         requested_pages.append(page)
         return [{"id": page}], {"total_pages": 5}
@@ -160,7 +160,8 @@ def test_prefetch_line_items_builds_cache_for_old_updated_at(monkeypatch: pytest
         page = params["page"]
         assert isinstance(page, int)
         requested_pages.append(page)
-        return SimpleNamespace(json=lambda: {"line_items": [line_items[page - 1]], "meta": {"total_pages": len(line_items)}})
+        response_rows = [line_items[page - 1]]
+        return SimpleNamespace(json=lambda: {"line_items": response_rows, "meta": {"total_pages": len(line_items)}})
 
     monkeypatch.setattr(client, "request", fake_request)
     client.prefetch_line_items()
