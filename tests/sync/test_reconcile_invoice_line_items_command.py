@@ -8,6 +8,9 @@ from repairshopr_data.management.commands import (
     reconcile_invoice_line_items as command_module,
 )
 
+from repairshopr_api.base.model import BaseModel
+from repairshopr_api.client import Client
+
 
 class _FilterResult:
     def __init__(self, *, ids: set[int] | None = None, count_value: int | None = None) -> None:
@@ -69,27 +72,25 @@ def test_reconcile_scan_reports_duplicates_and_missing(
 ) -> None:
     db_line_item_ids = {1, 2, 4}
     fetched_pages: list[int] = []
+    monkeypatch.setattr(BaseModel, "rs_client", BaseModel.rs_client)
+    client = Client(token="token", url_store_name="store")
 
-    class FakeClient:
-        @staticmethod
-        def fetch_from_api(model_name: str, params: dict[str, object] | None = None) -> tuple[list[dict[str, int]], dict[str, int]]:
-            assert model_name == "line_item"
-            page = (params or {}).get("page", 1)
-            assert isinstance(page, int)
-            fetched_pages.append(page)
-            if page == 1:
-                return [
-                    {"id": 1, "invoice_id": 10},
-                    {"id": 2, "invoice_id": 20},
-                ], {"total_pages": 2, "total_entries": 4}
-            if page == 2:
-                return [
-                    {"id": 2, "invoice_id": 20},
-                    {"id": 3, "invoice_id": 30},
-                ], {"total_pages": 2, "total_entries": 4}
+    def fake_request(method: str, url: str, params: dict[str, object], **_kwargs: object) -> SimpleNamespace:
+        assert method == "GET"
+        assert url.endswith("/line_items")
+        page = params["page"]
+        assert isinstance(page, int)
+        fetched_pages.append(page)
+        if page == 1:
+            rows = [{"id": 1, "invoice_id": 10}, {"id": 2, "invoice_id": 20}]
+        elif page == 2:
+            rows = [{"id": 2, "invoice_id": 20}, {"id": 3, "invoice_id": 30}]
+        else:
             raise AssertionError(f"unexpected page: {page}")
+        return SimpleNamespace(json=lambda: {"line_items": rows, "meta": {"total_pages": 2, "total_entries": 4}})
 
-    monkeypatch.setattr(command_module, "Client", lambda: FakeClient())
+    monkeypatch.setattr(client, "request", fake_request)
+    monkeypatch.setattr(command_module, "Client", lambda: client)
     monkeypatch.setattr(
         command_module,
         "InvoiceLineItem",
@@ -120,6 +121,7 @@ def test_reconcile_scan_reports_duplicates_and_missing(
     assert summary["missing_invoice_ids_without_parent_invoice_row"] == 0
     assert not any(line["event"] == "repair_summary" for line in parsed_lines)
     assert fetched_pages == [1, 2]
+    assert client._cache == {}
 
 
 def test_reconcile_compute_db_not_in_api_unique(
@@ -130,7 +132,9 @@ def test_reconcile_compute_db_not_in_api_unique(
 
     class FakeClient:
         @staticmethod
-        def fetch_from_api(model_name: str, params: dict[str, object] | None = None) -> tuple[list[dict[str, int]], dict[str, int]]:
+        def fetch_from_api(
+            model_name: str, params: dict[str, object] | None = None, **_kwargs: object
+        ) -> tuple[list[dict[str, int]], dict[str, int]]:
             assert model_name == "line_item"
             assert params is not None
             page = params.get("page", 1)

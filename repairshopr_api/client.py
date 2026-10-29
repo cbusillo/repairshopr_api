@@ -274,7 +274,7 @@ class Client(requests.Session):
         invoice_line_item_map = defaultdict(list)
         processed_line_items = 0
 
-        for line_item in self.get_model(models.LineItem, params={"invoice_id_not_null": "true"}):
+        for line_item in self.get_model(models.LineItem, params={"invoice_id_not_null": "true"}, use_cache=False):
             processed_line_items += 1
             invoice_id = line_item.invoice_id
             if not isinstance(invoice_id, int):
@@ -425,6 +425,8 @@ class Client(requests.Session):
         updated_at: datetime | None = None,
         num_last_pages: int | None = None,
         params: QueryParams | None = None,
+        *,
+        use_cache: bool = True,
     ) -> Generator[ModelType]:
         if not params:
             params = {}
@@ -439,7 +441,7 @@ class Client(requests.Session):
         while True:
             params["page"] = page
             model_name = snake_case(model.__name__)
-            response_data, meta_data = self.fetch_from_api(model_name, params=params)
+            response_data, meta_data = self.fetch_from_api(model_name, params=params, use_cache=use_cache)
             processed_on_page = 0
             for data in response_data:
                 if isinstance(data, dict):

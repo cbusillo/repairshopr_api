@@ -47,7 +47,7 @@ def test_get_model_paginates_and_formats_since_updated_at() -> None:
     client = _make_client()
     calls: list[dict] = []
 
-    def fake_fetch(model_name: str, params: dict | None = None) -> tuple[list[dict], dict]:
+    def fake_fetch(model_name: str, params: dict | None = None, **_kwargs: object) -> tuple[list[dict], dict]:
         assert model_name == "dummy_model"
         params = dict(params or {})
         calls.append(params)
@@ -67,7 +67,7 @@ def test_get_model_num_last_pages_requests_last_window() -> None:
     client = _make_client()
     requested_pages: list[int] = []
 
-    def fake_fetch(_model_name: str, params: dict | None = None) -> tuple[list[dict], dict]:
+    def fake_fetch(_model_name: str, params: dict | None = None, **_kwargs: object) -> tuple[list[dict], dict]:
         page = (params or {})["page"]
         requested_pages.append(page)
         return [{"id": page}], {"total_pages": 5}
@@ -144,37 +144,36 @@ def test_prefetch_line_items_skips_when_recent_updated_at(
     assert client._has_line_item_in_cache is False
 
 
-def test_prefetch_line_items_builds_cache_for_old_updated_at() -> None:
+def test_prefetch_line_items_builds_cache_for_old_updated_at(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(BaseModel, "rs_client", BaseModel.rs_client)
     client = _make_client()
     client.updated_at = datetime.now(tz=UTC) - timedelta(days=370)
-
+    requested_pages: list[int] = []
     line_items = [
-        SimpleNamespace(
-            id=1,
-            invoice_id=100,
-            name="A",
-            updated_at=datetime(2026, 2, 1, 1, 2, tzinfo=UTC),
-            _private="x",
-        ),
-        SimpleNamespace(
-            id=2,
-            invoice_id=100,
-            name="B",
-            updated_at=datetime(2026, 2, 1, 1, 3, tzinfo=UTC),
-            _private="y",
-        ),
+        {"id": 1, "invoice_id": 100, "name": "A", "updated_at": "2026-02-01T01:02:00+00:00"},
+        {"id": 2, "invoice_id": 100, "name": "B", "updated_at": "2026-02-01T01:03:00+00:00"},
     ]
 
-    client.get_model = lambda *_args, **_kwargs: iter(line_items)  # type: ignore[method-assign]
+    def fake_request(method: str, url: str, params: dict[str, object], **_kwargs: object) -> SimpleNamespace:
+        assert method == "GET"
+        assert url.endswith("/line_items")
+        page = params["page"]
+        assert isinstance(page, int)
+        requested_pages.append(page)
+        response_rows = [line_items[page - 1]]
+        return SimpleNamespace(json=lambda: {"line_items": response_rows, "meta": {"total_pages": len(line_items)}})
+
+    monkeypatch.setattr(client, "request", fake_request)
     client.prefetch_line_items()
 
-    assert client._has_line_item_in_cache is True
-    cached_entries = [value for key, value in client._cache.items() if key.startswith("line_item_list_")]
-    assert cached_entries
-    first_page_rows, _meta = cached_entries[0]
-    assert first_page_rows
+    first_page_rows, _meta = client.fetch_from_api("line_item", params={"invoice_id": 100})
     assert is_json_object(first_page_rows[0])
     assert first_page_rows[0]["updated_at"] == "2026-02-01T01:02:00+00:00"
+    assert [row["id"] for row in first_page_rows] == [1, 2]
+    assert requested_pages == [1, 2]
+    for bulk_page in requested_pages.copy():
+        client.fetch_from_api("line_item", params={"invoice_id_not_null": "true", "page": bulk_page})
+    assert requested_pages == [1, 2, 1, 2]
 
 
 def test_prefetch_line_items_aware_vs_naive_regression() -> None:
@@ -336,17 +335,22 @@ def test_fetch_ticket_settings_rejects_non_object_payload(
         client.fetch_ticket_settings()
 
 
-def test_fetch_from_api_caches_result() -> None:
+def test_fetch_from_api_caches_result(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(BaseModel, "rs_client", BaseModel.rs_client)
     client = _make_client()
 
     response_payload = {"dummy_models": [{"id": 1}], "meta": {"total_pages": 1}}
-    client.get = lambda *_args, **_kwargs: SimpleNamespace(json=lambda: response_payload)  # type: ignore[method-assign]
+    request = Mock(return_value=SimpleNamespace(json=lambda: response_payload))
+    monkeypatch.setattr(client, "request", request)
 
     first = client.fetch_from_api("dummy_model", params={"page": 1})
     second = client.fetch_from_api("dummy_model", params={"page": 1})
 
     assert first == second
     assert first[0] == [{"id": 1}]
+    assert [record.id for record in client.get_model(DummyModel)] == [1]
+    assert [record.id for record in client.get_model(DummyModel)] == [1]
+    assert request.call_count == 1
 
 
 def test_fetch_from_api_rejects_invalid_collection_payload() -> None:
