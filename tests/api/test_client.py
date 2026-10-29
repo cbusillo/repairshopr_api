@@ -171,8 +171,8 @@ def test_prefetch_line_items_builds_cache_for_old_updated_at(monkeypatch: pytest
     assert first_page_rows[0]["updated_at"] == "2026-02-01T01:02:00+00:00"
     assert [row["id"] for row in first_page_rows] == [1, 2]
     assert requested_pages == [1, 2]
-    for page in requested_pages.copy():
-        client.fetch_from_api("line_item", params={"invoice_id_not_null": "true", "page": page})
+    for bulk_page in requested_pages.copy():
+        client.fetch_from_api("line_item", params={"invoice_id_not_null": "true", "page": bulk_page})
     assert requested_pages == [1, 2, 1, 2]
 
 
