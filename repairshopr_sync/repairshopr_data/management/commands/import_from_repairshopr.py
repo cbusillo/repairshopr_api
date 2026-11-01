@@ -12,6 +12,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db import DatabaseError, DataError, OperationalError, models
 from django.utils.timezone import make_aware, now
 from repairshopr_data import models as sync_models
+from repairshopr_data.import_ownership import exclusive_import
 from repairshopr_data.models import (
     Invoice,
     InvoiceLineItem,
@@ -335,8 +336,12 @@ class Command(BaseCommand):
         self._status_last_written_records = self._status_records_processed
 
     def _mark_sync_cycle_started(self, *, full_sync: bool) -> None:
+        previous: SyncStatus | None = SyncStatus.objects.filter(id=1).first()
+        unrecovered_cycle_id = previous.unrecovered_full_cycle_id if previous is not None else None
+        if previous is not None and previous.mode == "full" and previous.status in {"running", "failed"}:
+            unrecovered_cycle_id = unrecovered_cycle_id or previous.cycle_id
         self._cycle_id = uuid4().hex
-        self._cycle_mode = "full" if full_sync else "incremental"
+        self._cycle_mode = "full" if full_sync or unrecovered_cycle_id else "incremental"
         self._cycle_started_at = now()
         self._status_current_model = None
         self._status_current_page = 0
@@ -345,6 +350,7 @@ class Command(BaseCommand):
         self._status_last_written_records = 0
         self._status_last_written_at = None
         self._upsert_sync_status(
+            unrecovered_full_cycle_id=unrecovered_cycle_id,
             status="running",
             current_model=None,
             current_page=0,
@@ -355,8 +361,17 @@ class Command(BaseCommand):
         )
 
     def _mark_sync_cycle_finished(self, *, error_message: str | None = None) -> None:
-        final_status = "failed" if error_message else "success"
+        final_status = "failed" if error_message is not None else "success"
+        recovery: dict[str, object] = {}
+        if self._cycle_mode == "full":
+            if error_message is None:
+                recovery["unrecovered_full_cycle_id"] = None
+            else:
+                SyncStatus.objects.filter(id=1, unrecovered_full_cycle_id__isnull=True).update(
+                    unrecovered_full_cycle_id=self._cycle_id
+                )
         self._upsert_sync_status(
+            **recovery,
             status=final_status,
             cycle_finished_at=now(),
             last_error=error_message,
@@ -370,7 +385,7 @@ class Command(BaseCommand):
         num_last_pages: int | None = None,
         params: QueryParams | None = None,
     ) -> None:
-        last_updated_at = settings.django.last_updated_at
+        last_updated_at = None if self._cycle_mode == "full" else settings.django.last_updated_at
         if last_updated_at and last_updated_at.tzinfo is None:
             last_updated_at = make_aware(last_updated_at)
         if not last_updated_at or last_updated_at < BASELINE_UPDATED_AT:
@@ -693,9 +708,14 @@ class Command(BaseCommand):
                 raise CommandError(mismatch_message)
 
     def handle(self, *_args: Any, **_kwargs: Any) -> None:
+        with exclusive_import():
+            self._run_import()
+
+    def _run_import(self) -> None:
         last_updated_at = settings.django.last_updated_at
         full_sync = self._is_full_sync_run(last_updated_at)
         self._mark_sync_cycle_started(full_sync=full_sync)
+        full_sync = self._cycle_mode == "full"
         start_updated_at = self._cycle_started_at or now()
         logger.info(
             "SYNC_RUN start=%s mode=%s",

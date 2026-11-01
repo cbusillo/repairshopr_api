@@ -3,6 +3,7 @@ from django.db import models
 
 class SyncStatus(models.Model):
     cycle_id = models.CharField(max_length=64, null=True)
+    unrecovered_full_cycle_id = models.CharField(max_length=64, null=True)
     status = models.CharField(max_length=20, default="idle")
     mode = models.CharField(max_length=20, null=True)
     current_model = models.CharField(max_length=64, null=True)
