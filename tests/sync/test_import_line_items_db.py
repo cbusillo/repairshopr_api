@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping
+from contextlib import nullcontext
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from urllib.parse import urlparse
@@ -110,6 +111,7 @@ class FakeRepairShoprApi:
 
 
 def build_command(monkeypatch: pytest.MonkeyPatch) -> command_module.Command:
+    monkeypatch.setattr("repairshopr_data.management.commands.import_from_repairshopr.exclusive_import", nullcontext)
     monkeypatch.setenv("REPAIRSHOPR_URL_STORE_NAME", "example-store")
     monkeypatch.setenv("REPAIRSHOPR_TOKEN", "test-token")
     monkeypatch.setattr(BaseModel, "rs_client", BaseModel.rs_client)

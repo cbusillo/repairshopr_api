@@ -127,6 +127,21 @@ without the wrapper's startup signal stays non-ready; run
 Startup completion only makes readiness eligible: existing sync freshness,
 failure, database and runtime-identity checks still apply.
 
+Imports take a nonblocking named lock in the existing MySQL/MariaDB database
+before reading or changing cycle state. Another importer exits unsuccessfully
+without changing the active cycle; the sync loop retries on its normal interval.
+The database releases ownership if the importing connection ends. Import execution
+requires MySQL/MariaDB; configure `SYNC_DB_ENGINE=mysql` and the existing sync
+database settings. SQLite remains available for model and health unit tests.
+
+After taking ownership, a previous running full cycle is an interrupted cycle.
+`sync.unrecovered_full_cycle_id` retains that cycle, or a caught full-cycle failure,
+through subsequent running cycles and successful incremental imports. Only a
+successful full import clears it. Readiness returns 503 with
+`full_sync_recovery_required` while this field is set. A changed cycle ID or missed
+health poll alone is not interruption evidence. Migrate the database before using
+the new importer and health payload; production adoption follows the release path.
+
 Launchplane should route generic-web health checks to the readiness path for the
 product lane after deploy. The repo exposes the port and endpoint shape only;
 Launchplane operator records own live product URLs, provider IDs, and

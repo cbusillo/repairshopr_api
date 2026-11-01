@@ -57,6 +57,7 @@ def build_sync_status_payload(
             "status": "unknown",
             "mode": None,
             "cycle_id": None,
+            "unrecovered_full_cycle_id": None,
             "current_model": None,
             "current_page": None,
             "records_processed": 0,
@@ -102,6 +103,7 @@ def build_sync_status_payload(
         "status": status_row.status,
         "mode": status_row.mode,
         "cycle_id": status_row.cycle_id,
+        "unrecovered_full_cycle_id": status_row.unrecovered_full_cycle_id,
         "current_model": status_row.current_model,
         "current_page": status_row.current_page,
         "records_processed": status_row.records_processed,
@@ -222,6 +224,8 @@ def build_health_payload(stale_threshold_seconds: int) -> tuple[dict[str, Any], 
         not_ready_reasons.append("sync_stale")
     if sync_payload.get("next_cycle_overdue"):
         not_ready_reasons.append("sync_overdue")
+    if sync_payload.get("unrecovered_full_cycle_id"):
+        not_ready_reasons.append("full_sync_recovery_required")
     if runtime_identity_error is not None:
         not_ready_reasons.append(runtime_identity_error)
     if db_error is not None:

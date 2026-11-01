@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Mapping
+from contextlib import nullcontext
 from datetime import UTC, date, datetime
 from types import SimpleNamespace
 from typing import Any, TypedDict, TypeGuard
@@ -209,10 +210,16 @@ def build_invoice_line_items_models() -> tuple[type, type[BaseModel]]:
 def command(monkeypatch: pytest.MonkeyPatch) -> CommandFixture:
     fake_client = FakeClient()
     monkeypatch.setattr(command_module, "Client", lambda: fake_client)
+    monkeypatch.setattr("repairshopr_data.management.commands.import_from_repairshopr.exclusive_import", nullcontext)
     monkeypatch.setattr(
         command_module,
         "SyncStatus",
-        SimpleNamespace(objects=SimpleNamespace(update_or_create=lambda **_kwargs: (SimpleNamespace(id=1), True))),
+        SimpleNamespace(
+            objects=SimpleNamespace(
+                update_or_create=lambda **_kwargs: (SimpleNamespace(id=1), True),
+                filter=lambda **_kwargs: SimpleNamespace(first=lambda: None, update=lambda **_updates: 0),
+            )
+        ),
     )
     cmd = command_module.Command()
     return cmd, fake_client
