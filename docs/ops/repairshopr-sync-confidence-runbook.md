@@ -203,6 +203,8 @@ docker compose -p <project_name> \
 
 Only set `last_updated_at` to current UTC if you explicitly want to skip
 changes that may have happened while `sync` was stopped.
+If `sync.unrecovered_full_cycle_id` is set, the next import performs a full
+recovery regardless of this watermark; moving it does not skip that recovery.
 
 ```bash
 docker compose -p <project_name> \
