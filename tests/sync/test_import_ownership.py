@@ -1,5 +1,6 @@
 from contextlib import nullcontext
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
@@ -38,8 +39,8 @@ def test_full_recovery(monkeypatch: pytest.MonkeyPatch, status: str, tmp_path: P
     startup = tmp_path / "started"
     startup.touch()
     monkeypatch.setenv("SYNC_STARTUP_COMPLETE_FILE", str(startup))
-    monkeypatch.setattr("repairshopr_data.management.commands.import_from_repairshopr.settings.django.last_updated_at", now())
-    monkeypatch.setattr("repairshopr_data.management.commands.import_from_repairshopr.settings.save", lambda: None)
+    config = SimpleNamespace(django=SimpleNamespace(last_updated_at=now()), save=lambda: None)
+    monkeypatch.setattr("repairshopr_data.management.commands.import_from_repairshopr.settings", config)
     SyncStatus.objects.create(id=1, cycle_id="interrupted", mode="full", status=status)
     monkeypatch.setattr("repairshopr_data.management.commands.import_from_repairshopr.exclusive_import", nullcontext)
     command = importer.Command()
