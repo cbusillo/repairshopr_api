@@ -337,11 +337,11 @@ class Command(BaseCommand):
 
     def _mark_sync_cycle_started(self, *, full_sync: bool) -> None:
         previous: SyncStatus | None = SyncStatus.objects.filter(id=1).first()
+        unrecovered_cycle_id = previous.unrecovered_full_cycle_id if previous is not None else None
         if previous is not None and previous.mode == "full" and previous.status in {"running", "failed"}:
-            if previous.unrecovered_full_cycle_id is None:
-                SyncStatus.objects.filter(id=1).update(unrecovered_full_cycle_id=previous.cycle_id)
+            unrecovered_cycle_id = unrecovered_cycle_id or previous.cycle_id
         self._cycle_id = uuid4().hex
-        self._cycle_mode = "full" if full_sync else "incremental"
+        self._cycle_mode = "full" if full_sync or unrecovered_cycle_id else "incremental"
         self._cycle_started_at = now()
         self._status_current_model = None
         self._status_current_page = 0
@@ -350,6 +350,7 @@ class Command(BaseCommand):
         self._status_last_written_records = 0
         self._status_last_written_at = None
         self._upsert_sync_status(
+            unrecovered_full_cycle_id=unrecovered_cycle_id,
             status="running",
             current_model=None,
             current_page=0,
@@ -384,7 +385,7 @@ class Command(BaseCommand):
         num_last_pages: int | None = None,
         params: QueryParams | None = None,
     ) -> None:
-        last_updated_at = settings.django.last_updated_at
+        last_updated_at = None if self._cycle_mode == "full" else settings.django.last_updated_at
         if last_updated_at and last_updated_at.tzinfo is None:
             last_updated_at = make_aware(last_updated_at)
         if not last_updated_at or last_updated_at < BASELINE_UPDATED_AT:
@@ -714,6 +715,7 @@ class Command(BaseCommand):
         last_updated_at = settings.django.last_updated_at
         full_sync = self._is_full_sync_run(last_updated_at)
         self._mark_sync_cycle_started(full_sync=full_sync)
+        full_sync = self._cycle_mode == "full"
         start_updated_at = self._cycle_started_at or now()
         logger.info(
             "SYNC_RUN start=%s mode=%s",

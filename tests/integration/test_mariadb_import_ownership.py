@@ -33,6 +33,8 @@ def test_database_overlap_and_recovery(monkeypatch: pytest.MonkeyPatch, django_d
                     command._mark_sync_cycle_started(full_sync=True)
                     interrupted: SyncStatus = SyncStatus.objects.get(id=1)
                     interrupted_id = interrupted.cycle_id
+                    with pytest.raises(CommandError):
+                        importer.Command().handle()
                     monkeypatch.setattr("repairshopr_data.import_ownership.connection", contender)
                     with pytest.raises(CommandError):
                         importer.Command().handle()

@@ -1,9 +1,12 @@
+import logging
 from collections.abc import Iterator
 from contextlib import contextmanager
 from hashlib import sha256
 
 from django.core.management.base import CommandError
-from django.db import connection
+from django.db import DatabaseError, connection
+
+logger = logging.getLogger(__name__)
 
 
 @contextmanager
@@ -22,4 +25,8 @@ def exclusive_import() -> Iterator[None]:
         try:
             yield
         finally:
-            cursor.execute("SELECT RELEASE_LOCK(%s)", [lock_name])
+            try:
+                cursor.execute("SELECT RELEASE_LOCK(%s)", [lock_name])
+            except DatabaseError:
+                connection.close()
+                logger.warning("Import ownership connection ended before lock release", exc_info=True)
