@@ -19,9 +19,15 @@ jobs:
       launchplane-revision: 9d2864a1a908d6d6d57400499355591d1190367f
       python-version: "3.14"
 
-  test:
+  python-tests:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version:
+          - "3.14"
+          - "3.15"
 
     steps:
       - name: Check out the repo
@@ -30,7 +36,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v7
         with:
-          python-version: "3.15"
+          python-version: ${{ matrix.python-version }}
 
       - name: Set up uv
         uses: astral-sh/setup-uv@v7
@@ -53,6 +59,16 @@ jobs:
           set -euo pipefail
           test_command="$(jq -er '.qualityGate.test.ci | select(type == "string" and length > 0)' .github/github.json)"
           bash -euo pipefail -c "$test_command"
+
+  test:
+    runs-on: ubuntu-latest
+    needs: python-tests
+    if: ${{ always() }}
+    steps:
+      - name: Require every Python test job to pass
+        env:
+          PYTHON_TEST_RESULT: ${{ needs.python-tests.result }}
+        run: test "$PYTHON_TEST_RESULT" = success
 
   mysql-integration:
     runs-on: ubuntu-latest
