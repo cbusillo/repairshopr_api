@@ -28,6 +28,8 @@ jobs:
         python-version:
           - "3.14"
           - "3.15"
+    env:
+      UV_PYTHON: ${{ matrix.python-version }}
 
     steps:
       - name: Check out the repo
@@ -74,6 +76,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
+      UV_PYTHON: "3.15"
       DOCKER_IMAGE_REFERENCE: ci-unused
       MARIADB_CONTAINER: mariadb-${{ github.run_id }}-${{ github.run_attempt }}
       MARIADB_HOST: 127.0.0.1
@@ -143,7 +146,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v7
         with:
-          python-version: "3.15"
+          python-version: ${{ env.UV_PYTHON }}
 
       - name: Set up uv
         uses: astral-sh/setup-uv@v7

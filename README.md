@@ -16,7 +16,8 @@ validation commands are recorded in [.github/github.json](.github/github.json).
 
 ## Development
 
-- CI tests Python 3.14 and 3.15. The sync container runs Python 3.15.
+- Python compatibility follows [package metadata](pyproject.toml) and the
+  [CI test matrix](.github/workflows/tests.yml).
 - Install project dependencies (including the default `dev` group): `uv sync --locked`
 - Install runtime dependencies only: `uv sync --locked --no-dev`
 - Install development dependencies explicitly: `uv sync --locked --group dev`
